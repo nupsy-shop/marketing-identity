@@ -1,56 +1,12 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { platforms, getPlatformById, getClientFacingPlatforms, getAllDomains, getPlatformsByTier } from '@/lib/data/platforms-enhanced';
-import {
-  clients,
-  accessRequests,
-  auditLogs,
-  pamSessions,
-  addClient,
-  getClientById,
-  getAllClients,
-  addAccessRequest,
-  getAccessRequestById,
-  getAccessRequestByToken,
-  getAccessRequestsByClientId,
-  updateAccessRequest,
-  addAuditLog,
-  getAuditLogs,
-  addPamSession,
-  getActivePamSessions,
-  updatePamSession
-} from '@/lib/data/stores';
-import {
-  getAllAgencyPlatforms,
-  getAgencyPlatformById,
-  getAgencyPlatformByPlatformId,
-  addAgencyPlatform,
-  updateAgencyPlatform,
-  addAccessItem,
-  removeAccessItem,
-  updateAccessItem,
-  removeAgencyPlatform,
-  toggleAgencyPlatformStatus
-} from '@/lib/data/agency-platforms';
-import { getConnectorForPlatform } from '@/lib/connectors';
-import {
-  getAllIntegrationIdentities,
-  getIntegrationIdentityById,
-  addIntegrationIdentity,
-  updateIntegrationIdentity,
-  deleteIntegrationIdentity,
-  toggleIntegrationIdentityStatus,
-  seedIntegrationIdentities
-} from '@/lib/data/integration-identities';
+import * as db from '@/lib/db';
 import {
   IDENTITY_PURPOSE,
   HUMAN_IDENTITY_STRATEGY,
   validateAccessItemPayload,
   generateClientDedicatedIdentity
 } from '@/lib/data/field-policy';
-
-// Initialize seed data for integration identities
-seedIntegrationIdentities();
 
 // Helper to parse request body
 async function getBody(request) {
@@ -61,619 +17,181 @@ async function getBody(request) {
   }
 }
 
-// GET handler
-export async function GET(request) {
-  const { pathname, searchParams } = new URL(request.url);
-  const path = pathname.replace('/api/', '');
+// Map itemType to accessPattern
+const ITEM_TYPE_TO_PATTERN = {
+  'NAMED_INVITE': 'HUMAN_INVITE',
+  'PARTNER_DELEGATION': 'DELEGATION',
+  'GROUP_ACCESS': 'GROUP',
+  'SHARED_ACCOUNT_PAM': 'PAM',
+  'PROXY_TOKEN': 'PROXY'
+};
+
+// Client instructions by item type
+function getClientInstructions(platformName, itemType, agencyData) {
+  const defaultInstructions = {
+    'NAMED_INVITE': `Log in to your ${platformName} account. Navigate to Settings → Users/Permissions. Add the email address provided and assign the requested role.`,
+    'PARTNER_DELEGATION': `Log in to your ${platformName} account. Navigate to Settings → Partners or Agency Access. Accept the partner request or add the agency's identifier.`,
+    'GROUP_ACCESS': `Ensure the agency's service account or group has been granted access to your ${platformName} resources with the requested permissions.`,
+    'SHARED_ACCOUNT_PAM': `Follow the instructions to either provide credentials or invite the agency identity to your account.`,
+    'PROXY_TOKEN': `Generate an API token or integration key in your ${platformName} account and provide it to your agency.`
+  };
+  return defaultInstructions[itemType] || `Grant the requested access in your ${platformName} account.`;
+}
+
+export async function GET(request, { params }) {
+  const resolvedParams = await params;
+  const path = resolvedParams.path?.join('/') || '';
+  const url = new URL(request.url);
 
   try {
-    // GET /api/platforms - List all platforms
+    // GET /api/platforms - List all catalog platforms
     if (path === 'platforms') {
-      const domain = searchParams.get('domain');
-      const automation = searchParams.get('automation');
-      const tier = searchParams.get('tier');
-      const clientFacing = searchParams.get('clientFacing');
+      const clientFacing = url.searchParams.get('clientFacing') === 'true';
+      const domain = url.searchParams.get('domain');
+      const tier = url.searchParams.get('tier');
+
+      let platforms = await db.getAllCatalogPlatforms();
       
-      let filtered = clientFacing === 'true' ? getClientFacingPlatforms() : platforms;
-      
-      if (domain) {
-        filtered = filtered.filter(p => p.domain === domain);
+      if (clientFacing) {
+        platforms = platforms.filter(p => p.clientFacing);
       }
-      if (automation) {
-        filtered = filtered.filter(p => p.automationFeasibility === automation);
+      if (domain) {
+        platforms = platforms.filter(p => p.domain === domain);
       }
       if (tier) {
-        filtered = filtered.filter(p => p.tier === parseInt(tier));
+        platforms = platforms.filter(p => p.tier === parseInt(tier));
       }
-      
-      return NextResponse.json({
-        success: true,
-        data: filtered
-      });
+
+      return NextResponse.json({ success: true, data: platforms });
     }
 
-    // GET /api/platforms/domains - Get all unique domains
-    if (path === 'platforms/domains') {
-      return NextResponse.json({
-        success: true,
-        data: getAllDomains()
-      });
-    }
-
-    // GET /api/platforms/:id - Get platform by ID
-    if (path.startsWith('platforms/') && path.split('/').length === 2 && path !== 'platforms/domains') {
-      const id = path.split('/')[1];
-      const platform = getPlatformById(id);
-      
+    // GET /api/platforms/:id - Get single platform
+    if (path.match(/^platforms\/[^/]+$/)) {
+      const platformId = path.split('/')[1];
+      const platform = await db.getCatalogPlatformById(platformId);
       if (!platform) {
-        return NextResponse.json(
-          { success: false, error: 'Platform not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ success: false, error: 'Platform not found' }, { status: 404 });
       }
-      
-      return NextResponse.json({
-        success: true,
-        data: platform
-      });
+      return NextResponse.json({ success: true, data: platform });
     }
 
     // GET /api/clients - List all clients
     if (path === 'clients') {
-      return NextResponse.json({
-        success: true,
-        data: getAllClients()
-      });
+      const clients = await db.getAllClients();
+      return NextResponse.json({ success: true, data: clients });
     }
 
-    // GET /api/clients/:id - Get client by ID
-    if (path.startsWith('clients/') && path.split('/').length === 2) {
-      const id = path.split('/')[1];
-      const client = getClientById(id);
-      
+    // GET /api/clients/:id - Get single client
+    if (path.match(/^clients\/[^/]+$/)) {
+      const clientId = path.split('/')[1];
+      const client = await db.getClientById(clientId);
       if (!client) {
-        return NextResponse.json(
-          { success: false, error: 'Client not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
       }
-      
-      return NextResponse.json({
-        success: true,
-        data: client
-      });
+      return NextResponse.json({ success: true, data: client });
     }
 
-    // GET /api/audit-logs
-    if (path === 'audit-logs') {
-      const logs = getAuditLogs();
-      return NextResponse.json({ success: true, data: logs });
+    // GET /api/clients/:id/requests - Get client's access requests
+    if (path.match(/^clients\/[^/]+\/requests$/)) {
+      const clientId = path.split('/')[1];
+      const requests = await db.getAccessRequestsByClientId(clientId);
+      return NextResponse.json({ success: true, data: requests });
     }
 
-    // GET /api/pam/sessions - Active PAM checkout sessions
-    if (path === 'pam/sessions') {
-      const sessions = getActivePamSessions();
-      // Enrich with request and item info
-      const enriched = sessions.map(s => {
-        const req = getAccessRequestById(s.requestId);
-        const item = req?.items.find(i => i.id === s.itemId);
-        const platform = item ? getPlatformById(item.platformId) : null;
-        const client = req ? getClientById(req.clientId) : null;
-        return { ...s, item, platform, client };
-      });
-      return NextResponse.json({ success: true, data: enriched });
+    // GET /api/agency/platforms - List agency's configured platforms
+    if (path === 'agency/platforms') {
+      const agencyPlatforms = await db.getAllAgencyPlatforms();
+      return NextResponse.json({ success: true, data: agencyPlatforms });
     }
 
-    // GET /api/pam/items - All PAM access request items across all requests
-    if (path === 'pam/items') {
-      const allPamItems = [];
-      for (const req of accessRequests) {
-        const client = getClientById(req.clientId);
-        for (const item of req.items) {
-          if (item.itemType === 'SHARED_ACCOUNT_PAM') {
-            const platform = getPlatformById(item.platformId);
-            const activeSession = pamSessions.find(s => s.requestId === req.id && s.itemId === item.id && s.active);
-            allPamItems.push({ ...item, requestId: req.id, client, platform, activeSession });
-          }
-        }
+    // GET /api/agency/platforms/:id - Get single agency platform with items
+    if (path.match(/^agency\/platforms\/[^/]+$/) && !path.endsWith('/toggle')) {
+      const apId = path.split('/')[2];
+      const ap = await db.getAgencyPlatformById(apId);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-      return NextResponse.json({ success: true, data: allPamItems });
+      return NextResponse.json({ success: true, data: ap });
+    }
+
+    // GET /api/access-requests - List all access requests
+    if (path === 'access-requests') {
+      const requests = await db.getAllAccessRequests();
+      return NextResponse.json({ success: true, data: requests });
+    }
+
+    // GET /api/access-requests/:id - Get single access request
+    if (path.match(/^access-requests\/[^/]+$/)) {
+      const reqId = path.split('/')[1];
+      const req = await db.getAccessRequestById(reqId);
+      if (!req) {
+        return NextResponse.json({ success: false, error: 'Access request not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: req });
+    }
+
+    // GET /api/onboarding/:token - Get access request by token (for client onboarding)
+    if (path.match(/^onboarding\/[^/]+$/)) {
+      const token = path.split('/')[1];
+      const req = await db.getAccessRequestByToken(token);
+      if (!req) {
+        return NextResponse.json({ success: false, error: 'Invalid onboarding token' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: req });
     }
 
     // GET /api/integration-identities - List all integration identities
     if (path === 'integration-identities') {
-      const identities = getAllIntegrationIdentities();
+      const identities = await db.getAllIntegrationIdentities();
       return NextResponse.json({ success: true, data: identities });
     }
 
-    // GET /api/client-asset-fields?platformName=...&itemType=... - Get asset fields for onboarding
+    // GET /api/client-asset-fields - Get asset fields for onboarding
     if (path === 'client-asset-fields') {
-      const url = new URL(request.url);
       const platformName = url.searchParams.get('platformName') || '';
       const itemType = url.searchParams.get('itemType') || 'NAMED_INVITE';
-      
-      // Import the client asset fields module
       const { getClientAssetFields } = await import('@/lib/data/client-asset-fields.js');
       const fields = getClientAssetFields(platformName, itemType);
-      
       return NextResponse.json({ success: true, fields });
     }
 
-    // GET /api/integration-identities/:id - Get integration identity by ID
-    if (path.match(/^integration-identities\/[^/]+$/) && !path.endsWith('/toggle')) {
-      const id = path.split('/')[1];
-      const identity = getIntegrationIdentityById(id);
-      if (!identity) {
-        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
-      }
-      return NextResponse.json({ success: true, data: identity });
+    // GET /api/audit-logs - Get audit logs
+    if (path === 'audit-logs') {
+      const logs = await db.getAuditLogs();
+      return NextResponse.json({ success: true, data: logs });
     }
 
-    // GET /api/agency/platforms - List all agency platforms with enrichment
-    if (path === 'agency/platforms') {
-      const allAP = getAllAgencyPlatforms();
-      const enriched = allAP.map(ap => ({
-        ...ap,
-        platform: getPlatformById(ap.platformId)
-      }));
-      return NextResponse.json({ success: true, data: enriched });
+    // GET /api/pam/sessions - Get active PAM sessions
+    if (path === 'pam/sessions') {
+      const sessions = await db.getActivePamSessions();
+      return NextResponse.json({ success: true, data: sessions });
     }
 
-    // GET /api/agency/platforms/:id - Get single agency platform
-    if (path.match(/^agency\/platforms\/[^/]+$/) && !path.endsWith('/toggle')) {
-      const id = path.split('/')[2];
-      const ap = getAgencyPlatformById(id);
-      if (!ap) {
-        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
-      }
-      return NextResponse.json({
-        success: true,
-        data: { ...ap, platform: getPlatformById(ap.platformId) }
-      });
-    }
-    if (path.match(/^clients\/[^/]+\/access-requests$/)) {
-      const id = path.split('/')[1];
-      const requests = getAccessRequestsByClientId(id);
-      
-      return NextResponse.json({
-        success: true,
-        data: requests
-      });
-    }
-
-    // GET /api/access-requests/:id - Get access request by ID
-    if (path.startsWith('access-requests/') && path.split('/').length === 2) {
-      const id = path.split('/')[1];
-      const request = getAccessRequestById(id);
-      
-      if (!request) {
-        return NextResponse.json(
-          { success: false, error: 'Access request not found' },
-          { status: 404 }
-        );
-      }
-      
-      return NextResponse.json({
-        success: true,
-        data: request
-      });
-    }
-
-    // GET /api/onboarding/:token - Get access request by token (for client onboarding)
-    if (path.startsWith('onboarding/') && path.split('/').length === 2) {
-      const token = path.split('/')[1];
-      const request = getAccessRequestByToken(token);
-      
-      if (!request) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid onboarding token' },
-          { status: 404 }
-        );
-      }
-
-      // Include client and platform details for each item
-      const client = getClientById(request.clientId);
-      const enrichedItems = request.items.map(item => ({
-        ...item,
-        platform: getPlatformById(item.platformId)
-      }));
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          ...request,
-          client,
-          items: enrichedItems
-        }
-      });
-    }
-
-    return NextResponse.json(
-      { success: false, error: 'Not found' },
-      { status: 404 }
-    );
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.error('GET error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-// POST handler
-export async function POST(request) {
-  const { pathname } = new URL(request.url);
-  const path = pathname.replace('/api/', '');
+export async function POST(request, { params }) {
+  const resolvedParams = await params;
+  const path = resolvedParams.path?.join('/') || '';
   const body = await getBody(request);
 
   try {
     // POST /api/clients - Create new client
     if (path === 'clients') {
       const { name, email } = body || {};
-      
       if (!name || !email) {
-        return NextResponse.json(
-          { success: false, error: 'Name and email are required' },
-          { status: 400 }
-        );
+        return NextResponse.json({ success: false, error: 'name and email are required' }, { status: 400 });
       }
-
-      const client = {
+      const client = await db.createClient({
         id: uuidv4(),
         name,
-        email,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      addClient(client);
-      
-      return NextResponse.json({
-        success: true,
-        data: client
+        email
       });
-    }
-
-    // POST /api/integration-identities - Create new integration identity
-    if (path === 'integration-identities') {
-      const { type, name, description, email, clientId: oauthClientId, clientSecret, apiKey, scopes, rotationPolicy, allowedPlatforms } = body || {};
-      if (!name) {
-        return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
-      }
-      const identity = addIntegrationIdentity({
-        type: type || 'SERVICE_ACCOUNT',
-        name,
-        description,
-        email,
-        clientId: oauthClientId,
-        clientSecret,
-        apiKey,
-        scopes: scopes || [],
-        rotationPolicy: rotationPolicy || 'NONE',
-        allowedPlatforms: allowedPlatforms || []
-      });
-      return NextResponse.json({ success: true, data: identity });
-    }
-
-    // POST /api/agency/platforms/:id/items - Add access item (supports new Identity Taxonomy)
-    if (path.match(/^agency\/platforms\/[^/]+\/items$/)) {
-      const apId = path.split('/')[2];
-      const ap = getAgencyPlatformById(apId);
-      if (!ap) {
-        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
-      }
-      
-      // Get the platform definition to check supported item types
-      const platformDef = getPlatformById(ap.platformId);
-      
-      const { 
-        itemType = 'NAMED_INVITE', 
-        accessPattern, 
-        patternLabel, 
-        label, 
-        role, 
-        notes, 
-        pamConfig,
-        agencyData,
-        clientInstructions,
-        // NEW: Identity Taxonomy fields
-        identityPurpose,
-        humanIdentityStrategy,
-        clientDedicatedIdentityType,
-        namingTemplate,
-        agencyGroupEmail,
-        integrationIdentityId,
-        validationMethod
-      } = body || {};
-
-      // Server-side validation: Check if itemType is supported by this platform
-      const supportedItemTypes = platformDef?.supportedItemTypes || [];
-      if (supportedItemTypes.length > 0 && !supportedItemTypes.includes(itemType)) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Item type "${itemType}" is not supported by ${platformDef?.name || 'this platform'}. Supported types: ${supportedItemTypes.join(', ')}` 
-        }, { status: 400 });
-      }
-
-      // Item Type → Pattern mapping (pattern is derived from itemType)
-      const ITEM_TYPE_TO_PATTERN = {
-        'NAMED_INVITE': 'NAMED_INVITE',
-        'PARTNER_DELEGATION': 'PARTNER_DELEGATION',
-        'GROUP_ACCESS': 'GROUP_BASED',
-        'PROXY_TOKEN': 'PROXY',
-        'SHARED_ACCOUNT_PAM': 'PAM'
-      };
-
-      // Derive pattern from itemType
-      const derivedPattern = ITEM_TYPE_TO_PATTERN[itemType] || itemType;
-      
-      // Server-side validation: If accessPattern is provided and conflicts with itemType, reject
-      if (accessPattern && accessPattern !== derivedPattern && !accessPattern.startsWith(derivedPattern)) {
-        // Allow accessPattern if it matches derived pattern or is for backward compatibility
-        const isBackwardCompatible = ['1 (Partner Hub)', '2 (Named Invites)', '3 (Group Access)'].includes(accessPattern);
-        if (!isBackwardCompatible && accessPattern !== itemType) {
-          // Only reject if it's truly conflicting
-          console.log(`Note: accessPattern "${accessPattern}" provided with itemType "${itemType}", using derived pattern "${derivedPattern}"`);
-        }
-      }
-
-      // Use derived pattern
-      const finalPattern = derivedPattern;
-      
-      if (!itemType || !label || !role) {
-        return NextResponse.json({ success: false, error: 'itemType, label and role are required' }, { status: 400 });
-      }
-
-      // Validate Named Invite Identity Strategy - CLIENT_DEDICATED is NOT allowed (only for PAM)
-      if (itemType === 'NAMED_INVITE' && humanIdentityStrategy === 'CLIENT_DEDICATED') {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'CLIENT_DEDICATED identity strategy is not allowed for Named Invite items. Use AGENCY_GROUP or INDIVIDUAL_USERS instead. For auto-generated client-specific identities, use Shared Account (PAM) with Agency-Owned ownership.' 
-        }, { status: 400 });
-      }
-
-      // Validate using Field Policy Engine
-      const validation = validateAccessItemPayload(body);
-      if (!validation.valid) {
-        return NextResponse.json({ success: false, error: validation.errors.join('; ') }, { status: 400 });
-      }
-
-      // Validate PAM config
-      if (itemType === 'SHARED_ACCOUNT_PAM') {
-        if (!pamConfig?.ownership) {
-          return NextResponse.json({ success: false, error: 'pamConfig.ownership is required for SHARED_ACCOUNT_PAM items' }, { status: 400 });
-        }
-        if (pamConfig.ownership === 'AGENCY_OWNED') {
-          // Validate based on identity strategy
-          const identityStrategy = pamConfig.identityStrategy || 'STATIC';
-          if (identityStrategy === 'STATIC') {
-            if (!pamConfig.agencyIdentityEmail) {
-              return NextResponse.json({ success: false, error: 'pamConfig.agencyIdentityEmail is required for Static Agency Identity' }, { status: 400 });
-            }
-          } else if (identityStrategy === 'CLIENT_DEDICATED') {
-            if (!pamConfig.namingTemplate) {
-              return NextResponse.json({ success: false, error: 'pamConfig.namingTemplate is required for Client-Dedicated Identity' }, { status: 400 });
-            }
-          }
-          if (!pamConfig.roleTemplate) {
-            return NextResponse.json({ success: false, error: 'pamConfig.roleTemplate is required for AGENCY_OWNED items' }, { status: 400 });
-          }
-        }
-      }
-
-      const item = {
-        id: uuidv4(),
-        itemType,
-        accessPattern: finalPattern,
-        patternLabel: patternLabel || finalPattern,
-        label,
-        role,
-        notes: notes || undefined,
-        // Identity Taxonomy fields (for Named Invite)
-        identityPurpose: identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
-        humanIdentityStrategy: humanIdentityStrategy || undefined,
-        clientDedicatedIdentityType: clientDedicatedIdentityType || undefined,
-        namingTemplate: namingTemplate || undefined,
-        agencyGroupEmail: agencyGroupEmail || undefined,
-        integrationIdentityId: integrationIdentityId || undefined,
-        validationMethod: validationMethod || 'ATTESTATION',
-        // Agency data fields from Excel
-        agencyData: agencyData || undefined,
-        // Client instructions from Excel
-        clientInstructions: clientInstructions || undefined,
-        // PAM configuration with full identity strategy support
-        pamConfig: itemType === 'SHARED_ACCOUNT_PAM' ? {
-          ownership: pamConfig.ownership,
-          // Identity strategy for Agency-Owned (STATIC or CLIENT_DEDICATED)
-          identityStrategy: pamConfig.ownership === 'AGENCY_OWNED' ? (pamConfig.identityStrategy || 'STATIC') : undefined,
-          // For STATIC strategy - single email
-          agencyIdentityEmail: pamConfig.agencyIdentityEmail || undefined,
-          // For CLIENT_DEDICATED strategy - per-client identity
-          identityType: pamConfig.identityType || undefined, // GROUP or MAILBOX
-          namingTemplate: pamConfig.namingTemplate || undefined,
-          // Role template for agency-owned
-          roleTemplate: pamConfig.roleTemplate || undefined,
-          // Grant method
-          grantMethod: pamConfig.ownership === 'CLIENT_OWNED' ? 'CREDENTIAL_HANDOFF' : 'INVITE_AGENCY_IDENTITY',
-          sessionMode: 'REVEAL',
-          requiresDedicatedAgencyLogin: pamConfig.ownership === 'CLIENT_OWNED' ? (pamConfig.requiresDedicatedAgencyLogin ?? true) : undefined,
-          // Checkout policy
-          checkoutPolicy: pamConfig.checkoutPolicy || { durationMinutes: 60 },
-          rotationPolicy: pamConfig.rotationPolicy || { trigger: 'onCheckin' }
-        } : undefined,
-        createdAt: new Date()
-      };
-      const updated = addAccessItem(apId, item);
-      return NextResponse.json({
-        success: true,
-        data: { ...updated, platform: getPlatformById(updated.platformId) }
-      });
-    }
-
-    // POST /api/onboarding/:token/items/:itemId/submit-credentials (CLIENT_OWNED PAM)
-    if (path.match(/^onboarding\/[^/]+\/items\/[^/]+\/submit-credentials$/)) {
-      const parts = path.split('/');
-      const token = parts[1];
-      const itemId = parts[3];
-      const { username, password, clientProvidedTarget } = body || {};
-      if (!username || !password) {
-        return NextResponse.json({ success: false, error: 'username and password are required' }, { status: 400 });
-      }
-      const req = getAccessRequestByToken(token);
-      if (!req) return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
-      const item = req.items.find(i => i.id === itemId);
-      if (!item) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
-      const ownership = item.pamOwnership || item.pamConfig?.ownership;
-      if (ownership !== 'CLIENT_OWNED') {
-        return NextResponse.json({ success: false, error: 'This item is not a CLIENT_OWNED shared account' }, { status: 400 });
-      }
-      // Store a reference (in production: encrypt and store in vault)
-      const secretRef = Buffer.from(JSON.stringify({ username, passwordHint: password.slice(0, 1) + '***' })).toString('base64');
-      item.pamUsername = username;
-      item.pamSecretRef = secretRef;
-      item.status = 'validated';
-      item.validatedAt = new Date();
-      item.validatedBy = 'client_credential_submission';
-      item.validationMode = 'AUTO';
-      // Store clientProvidedTarget (asset info collected during onboarding)
-      if (clientProvidedTarget && Object.keys(clientProvidedTarget).length > 0) {
-        item.clientProvidedTarget = clientProvidedTarget;
-      }
-      item.validationResult = {
-        timestamp: new Date(),
-        actor: 'client',
-        mode: 'CREDENTIAL_HANDOFF',
-        details: `Credentials submitted by client for username: ${username}`,
-        clientProvidedTarget: item.clientProvidedTarget || undefined
-      };
-      addAuditLog({
-        event: 'CREDENTIAL_SUBMITTED',
-        actor: 'client',
-        requestId: req.id,
-        itemId,
-        platformId: item.platformId,
-        details: { username, requestToken: token, clientProvidedTarget: item.clientProvidedTarget }
-      });
-      const allDone = req.items.every(i => i.status === 'validated');
-      if (allDone && !req.completedAt) req.completedAt = new Date();
-      updateAccessRequest(req.id, req);
-      return NextResponse.json({ success: true, data: { ...req, items: req.items } });
-    }
-
-    // POST /api/onboarding/:token/items/:itemId/attest (AGENCY_OWNED PAM + general attestation)
-    if (path.match(/^onboarding\/[^/]+\/items\/[^/]+\/attest$/)) {
-      const parts = path.split('/');
-      const token = parts[1];
-      const itemId = parts[3];
-      const { attestationText, evidenceBase64, evidenceFileName, assetType, assetId, clientProvidedTarget } = body || {};
-      const req = getAccessRequestByToken(token);
-      if (!req) return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
-      const item = req.items.find(i => i.id === itemId);
-      if (!item) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
-      item.status = 'validated';
-      item.validatedAt = new Date();
-      item.validatedBy = 'client_attestation';
-      item.validationMode = evidenceBase64 ? 'EVIDENCE' : 'ATTESTATION';
-      // Store client-selected asset details (from onboarding)
-      if (assetType) item.selectedAssetType = assetType;
-      if (assetId) item.selectedAssetId = assetId;
-      // Store clientProvidedTarget (new structured asset data)
-      if (clientProvidedTarget) {
-        item.clientProvidedTarget = clientProvidedTarget;
-      } else if (assetType || assetId) {
-        // Backward compatibility: create clientProvidedTarget from assetType/assetId
-        item.clientProvidedTarget = {
-          assetType: assetType,
-          assetId: assetId
-        };
-      }
-      item.validationResult = {
-        timestamp: new Date(),
-        actor: 'client',
-        mode: item.validationMode,
-        details: attestationText || 'Client confirmed access was granted',
-        evidenceRef: evidenceBase64 || undefined,
-        attestationText: attestationText || undefined,
-        clientProvidedTarget: item.clientProvidedTarget || undefined
-      };
-      addAuditLog({
-        event: evidenceBase64 ? 'EVIDENCE_UPLOADED' : 'ACCESS_ATTESTED',
-        actor: 'client',
-        requestId: req.id,
-        itemId,
-        platformId: item.platformId,
-        details: { attestationText, hasEvidence: !!evidenceBase64, evidenceFileName, clientProvidedTarget: item.clientProvidedTarget }
-      });
-      const allDone = req.items.every(i => i.status === 'validated');
-      if (allDone && !req.completedAt) req.completedAt = new Date();
-      updateAccessRequest(req.id, req);
-      return NextResponse.json({ success: true, data: { ...req, items: req.items } });
-    }
-
-    // POST /api/pam/:requestId/items/:itemId/checkout
-    if (path.match(/^pam\/[^/]+\/items\/[^/]+\/checkout$/)) {
-      const parts = path.split('/');
-      const requestId = parts[1];
-      const itemId = parts[3];
-      const { reason, durationMinutes = 60 } = body || {};
-      const req = getAccessRequestById(requestId);
-      if (!req) return NextResponse.json({ success: false, error: 'Request not found' }, { status: 404 });
-      const item = req.items.find(i => i.id === itemId);
-      if (!item) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
-      if (item.pamOwnership !== 'CLIENT_OWNED' && !item.pamSecretRef) {
-        return NextResponse.json({ success: false, error: 'No credentials available for checkout' }, { status: 400 });
-      }
-      const session = {
-        id: uuidv4(),
-        requestId,
-        itemId,
-        checkedOutBy: 'admin-1',
-        checkedOutAt: new Date(),
-        expiresAt: new Date(Date.now() + durationMinutes * 60 * 1000),
-        reason: reason || undefined,
-        active: true
-      };
-      addPamSession(session);
-      addAuditLog({
-        event: 'PAM_CHECKOUT',
-        actor: 'admin',
-        requestId,
-        itemId,
-        platformId: item.platformId,
-        details: { durationMinutes, reason, sessionId: session.id }
-      });
-      // Return session + decrypted credential (stub)
-      let revealedCredential = null;
-      if (item.pamSecretRef) {
-        try {
-          revealedCredential = JSON.parse(Buffer.from(item.pamSecretRef, 'base64').toString());
-        } catch {}
-      }
-      return NextResponse.json({ success: true, data: { session, revealedCredential, username: item.pamUsername } });
-    }
-
-    // POST /api/pam/:requestId/items/:itemId/checkin
-    if (path.match(/^pam\/[^/]+\/items\/[^/]+\/checkin$/)) {
-      const parts = path.split('/');
-      const requestId = parts[1];
-      const itemId = parts[3];
-      const activeSession = pamSessions.find(s => s.requestId === requestId && s.itemId === itemId && s.active);
-      if (!activeSession) {
-        return NextResponse.json({ success: false, error: 'No active checkout session found' }, { status: 404 });
-      }
-      updatePamSession(activeSession.id, { active: false, checkedInAt: new Date() });
-      const req = getAccessRequestById(requestId);
-      const item = req?.items.find(i => i.id === itemId);
-      addAuditLog({
-        event: 'PAM_CHECKIN',
-        actor: 'admin',
-        requestId,
-        itemId,
-        platformId: item?.platformId,
-        details: { sessionId: activeSession.id }
-      });
-      return NextResponse.json({ success: true, data: { message: 'Checked in successfully', sessionId: activeSession.id } });
+      return NextResponse.json({ success: true, data: client });
     }
 
     // POST /api/agency/platforms - Add platform to agency
@@ -682,526 +200,556 @@ export async function POST(request) {
       if (!platformId) {
         return NextResponse.json({ success: false, error: 'platformId is required' }, { status: 400 });
       }
-      const platform2 = getPlatformById(platformId);
-      if (!platform2) {
+      
+      // Check if platform exists
+      const platform = await db.getCatalogPlatformById(platformId);
+      if (!platform) {
         return NextResponse.json({ success: false, error: 'Platform not found' }, { status: 404 });
       }
-      const existing2 = getAgencyPlatformByPlatformId(platformId);
-      if (existing2) {
-        return NextResponse.json({
-          success: false, error: 'Platform already added to agency',
-          data: { ...existing2, platform: platform2 }
-        }, { status: 409 });
-      }
-      const ap2 = { id: uuidv4(), platformId, isEnabled: true, accessItems: [], createdAt: new Date(), updatedAt: new Date() };
-      addAgencyPlatform(ap2);
-      return NextResponse.json({ success: true, data: { ...ap2, platform: platform2 } });
-    }
-
-    // POST /api/access-requests - Create new access request
-    if (path === 'access-requests') {
-      const { clientId, items } = body || {};
       
-      if (!clientId) {
-        return NextResponse.json(
-          { success: false, error: 'clientId is required' },
-          { status: 400 }
-        );
+      // Check if already added
+      const existing = await db.getAgencyPlatformByPlatformId(platformId);
+      if (existing) {
+        return NextResponse.json({ success: true, data: existing });
       }
 
-      const client = getClientById(clientId);
-      if (!client) {
-        return NextResponse.json(
-          { success: false, error: 'Client not found' },
-          { status: 404 }
-        );
-      }
-      
-      // Support both old format (platformIds) and new format (items)
-      let requestItems = [];
-      
-      if (items && Array.isArray(items)) {
-        // New format: enhanced with pattern, role, Identity Taxonomy
-        if (items.length === 0) {
-          return NextResponse.json(
-            { success: false, error: 'items array cannot be empty' },
-            { status: 400 }
-          );
-        }
-        
-        requestItems = items.map(item => {
-          const platform = getPlatformById(item.platformId);
-          
-          // Generate resolved identity based on item type and strategy
-          let resolvedIdentity = undefined;
-          let pamConfig = undefined;
-          
-          // Handle PAM items with CLIENT_DEDICATED identity strategy
-          if (item.itemType === 'SHARED_ACCOUNT_PAM' && item.pamOwnership === 'AGENCY_OWNED') {
-            const pamIdentityStrategy = item.pamIdentityStrategy || 'STATIC';
-            if (pamIdentityStrategy === 'CLIENT_DEDICATED' && item.pamNamingTemplate) {
-              // Generate per-client identity using the PAM naming template
-              resolvedIdentity = generateClientDedicatedIdentity(item.pamNamingTemplate, client, platform);
-            } else if (pamIdentityStrategy === 'STATIC') {
-              resolvedIdentity = item.pamAgencyIdentityEmail;
-            }
-            pamConfig = {
-              ownership: item.pamOwnership,
-              identityStrategy: pamIdentityStrategy,
-              agencyIdentityEmail: item.pamAgencyIdentityEmail || undefined,
-              identityType: item.pamIdentityType || undefined,
-              namingTemplate: item.pamNamingTemplate || undefined,
-              roleTemplate: item.pamRoleTemplate || undefined,
-              grantMethod: 'INVITE_AGENCY_IDENTITY',
-              checkoutPolicy: item.pamCheckoutPolicy || undefined,
-              rotationPolicy: item.pamRotationPolicy || undefined
-            };
-          } else if (item.itemType === 'SHARED_ACCOUNT_PAM' && item.pamOwnership === 'CLIENT_OWNED') {
-            // Client-owned PAM - no resolved identity, client provides credentials
-            pamConfig = {
-              ownership: item.pamOwnership,
-              grantMethod: 'CREDENTIAL_HANDOFF',
-              checkoutPolicy: item.pamCheckoutPolicy || undefined,
-              rotationPolicy: item.pamRotationPolicy || undefined
-            };
-          } else {
-            // Handle Named Invite identity strategies
-            if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && item.namingTemplate) {
-              resolvedIdentity = generateClientDedicatedIdentity(item.namingTemplate, client, platform);
-            } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
-              resolvedIdentity = item.agencyGroupEmail;
-            } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS) {
-              // For INDIVIDUAL_USERS, the invitees should be in item.inviteeEmails
-              resolvedIdentity = item.inviteeEmails?.join(', ') || undefined;
-            } else if (item.agencyData?.agencyEmail) {
-              // Fallback to agencyData.agencyEmail for backward compatibility
-              resolvedIdentity = item.agencyData.agencyEmail;
-            }
-          }
-          
-          return {
-            id: uuidv4(),
-            platformId: item.platformId,
-            accessPattern: item.accessPattern,
-            role: item.role,
-            assetName: item.assetName,
-            status: 'pending',
-            // Item type
-            itemType: item.itemType || 'NAMED_INVITE',
-            // PAM configuration (with full identity strategy)
-            pamConfig: pamConfig || undefined,
-            // Legacy PAM fields for backward compatibility
-            pamOwnership: item.pamOwnership || undefined,
-            pamGrantMethod: pamConfig?.grantMethod || item.pamGrantMethod || undefined,
-            pamUsername: item.pamUsername || undefined,
-            pamAgencyIdentityEmail: pamConfig?.agencyIdentityEmail || item.pamAgencyIdentityEmail || undefined,
-            pamRoleTemplate: pamConfig?.roleTemplate || item.pamRoleTemplate || undefined,
-            // Identity Taxonomy fields (for Named Invite)
-            identityPurpose: item.identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
-            humanIdentityStrategy: item.humanIdentityStrategy || undefined,
-            namingTemplate: item.namingTemplate || undefined,
-            agencyGroupEmail: item.agencyGroupEmail || undefined,
-            integrationIdentityId: item.integrationIdentityId || undefined,
-            inviteeEmails: item.inviteeEmails || undefined,
-            resolvedIdentity: resolvedIdentity,
-            // Agency data fields from Excel
-            agencyData: item.agencyData || undefined,
-            // Client instructions from Excel
-            clientInstructions: item.clientInstructions || undefined,
-            // Client-provided asset target (populated during onboarding)
-            clientProvidedTarget: undefined,
-            // Validation
-            validationMethod: item.validationMethod || 'ATTESTATION',
-            validationMode: item.pamOwnership === 'CLIENT_OWNED' ? 'AUTO'
-              : item.pamOwnership === 'AGENCY_OWNED' ? 'ATTESTATION'
-              : undefined
-          };
-        });
-      } else if (body.platformIds && Array.isArray(body.platformIds)) {
-        // Old format: just platformIds (backward compatibility)
-        if (body.platformIds.length === 0) {
-          return NextResponse.json(
-            { success: false, error: 'platformIds array cannot be empty' },
-            { status: 400 }
-          );
-        }
-        requestItems = body.platformIds.map(platformId => ({
-          id: uuidv4(),
-          platformId,
-          accessPattern: 'Default',
-          role: 'Standard',
-          status: 'pending'
-        }));
-      } else {
-        return NextResponse.json(
-          { success: false, error: 'items array or platformIds array is required' },
-          { status: 400 }
-        );
-      }
-
-      // Validate all platform IDs
-      for (const item of requestItems) {
-        if (!getPlatformById(item.platformId)) {
-          return NextResponse.json(
-            { success: false, error: `Invalid platform ID: ${item.platformId}` },
-            { status: 400 }
-          );
-        }
-      }
-
-      const accessRequest = {
+      const ap = await db.createAgencyPlatform({
         id: uuidv4(),
+        platformId,
+        isEnabled: true
+      });
+      return NextResponse.json({ success: true, data: ap });
+    }
+
+    // POST /api/agency/platforms/:id/items - Add access item to agency platform
+    if (path.match(/^agency\/platforms\/[^/]+\/items$/)) {
+      const apId = path.split('/')[2];
+      const ap = await db.getAgencyPlatformById(apId);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
+      }
+
+      const {
+        itemType, label, role, notes,
+        identityPurpose, humanIdentityStrategy, agencyGroupEmail,
+        integrationIdentityId, agencyData, pamConfig, validationMethod
+      } = body || {};
+
+      // Derive pattern from itemType
+      const derivedPattern = ITEM_TYPE_TO_PATTERN[itemType] || itemType;
+
+      if (!itemType || !label || !role) {
+        return NextResponse.json({ success: false, error: 'itemType, label and role are required' }, { status: 400 });
+      }
+
+      // Check supportedItemTypes
+      const platform = ap.platform;
+      if (platform?.supportedItemTypes?.length > 0 && !platform.supportedItemTypes.includes(itemType)) {
+        return NextResponse.json({
+          success: false,
+          error: `Item type "${itemType}" is not supported by ${platform.name}. Supported types: ${platform.supportedItemTypes.join(', ')}`
+        }, { status: 400 });
+      }
+
+      // Validate Named Invite - CLIENT_DEDICATED not allowed
+      if (itemType === 'NAMED_INVITE' && humanIdentityStrategy === 'CLIENT_DEDICATED') {
+        return NextResponse.json({
+          success: false,
+          error: 'CLIENT_DEDICATED identity strategy is not allowed for Named Invite items.'
+        }, { status: 400 });
+      }
+
+      const item = await db.createAccessItem(apId, {
+        id: uuidv4(),
+        itemType,
+        accessPattern: derivedPattern,
+        patternLabel: derivedPattern,
+        label,
+        role,
+        notes,
+        identityPurpose,
+        humanIdentityStrategy,
+        agencyGroupEmail,
+        integrationIdentityId,
+        agencyData,
+        pamConfig,
+        validationMethod: validationMethod || 'ATTESTATION'
+      });
+
+      const updatedAp = await db.getAgencyPlatformById(apId);
+      return NextResponse.json({ success: true, data: updatedAp });
+    }
+
+    // POST /api/access-requests - Create access request
+    if (path === 'access-requests') {
+      const { clientId, items = [], notes } = body || {};
+      if (!clientId) {
+        return NextResponse.json({ success: false, error: 'clientId is required' }, { status: 400 });
+      }
+
+      const client = await db.getClientById(clientId);
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+      }
+
+      const requestId = uuidv4();
+      const token = uuidv4();
+
+      // Create the access request
+      await db.createAccessRequest({
+        id: requestId,
         clientId,
-        token: uuidv4(),
-        items: requestItems,
-        createdBy: 'admin-1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      addAccessRequest(accessRequest);
-      
-      return NextResponse.json({
-        success: true,
-        data: accessRequest
+        token,
+        notes
       });
-    }
 
-    // POST /api/access-requests/:id/validate - Validate a platform in an access request
-    if (path.match(/^access-requests\/[^/]+\/validate$/)) {
-      const id = path.split('/')[1];
-      const { itemId, platformId, notes } = body || {};
-      
-      // Support both itemId (new) and platformId (old) for backward compatibility
-      const targetId = itemId || platformId;
-      
-      if (!targetId) {
-        return NextResponse.json(
-          { success: false, error: 'itemId or platformId is required' },
-          { status: 400 }
-        );
-      }
-
-      const accessRequest = getAccessRequestById(id);
-      if (!accessRequest) {
-        return NextResponse.json(
-          { success: false, error: 'Access request not found' },
-          { status: 404 }
-        );
-      }
-
-      // Find item by ID or platformId
-      const item = accessRequest.items.find(
-        i => i.id === targetId || i.platformId === targetId
-      );
-
-      if (!item) {
-        return NextResponse.json(
-          { success: false, error: 'Item not found in this access request' },
-          { status: 404 }
-        );
-      }
-
-      item.status = 'validated';
-      item.validatedAt = new Date();
-      item.validatedBy = 'manual';
-      if (notes) {
-        item.notes = notes;
-      }
-
-      const allValidated = accessRequest.items.every(i => i.status === 'validated');
-
-      if (allValidated && !accessRequest.completedAt) {
-        accessRequest.completedAt = new Date();
-      }
-
-      updateAccessRequest(id, accessRequest);
-      
-      return NextResponse.json({
-        success: true,
-        data: accessRequest
-      });
-    }
-
-    // POST /api/access-requests/:id/refresh - Refresh validation status
-    if (path.match(/^access-requests\/[^/]+\/refresh$/)) {
-      const id = path.split('/')[1];
-      const accessRequest = getAccessRequestById(id);
-      
-      if (!accessRequest) {
-        return NextResponse.json(
-          { success: false, error: 'Access request not found' },
-          { status: 404 }
-        );
-      }
-
-      const results = [];
-      for (const item of accessRequest.items) {
-        const platform = getPlatformById(item.platformId);
-        if (!platform) continue;
-
-        const connector = getConnectorForPlatform(platform);
-        const client = getClientById(accessRequest.clientId);
+      // Create access request items
+      for (const item of items) {
+        const platform = await db.getCatalogPlatformById(item.platformId);
         
-        try {
-          const result = await connector.verifyAccess({
-            accountId: client?.email || '',
-            userEmail: 'agency@example.com'
-          });
-
-          if (result.success && result.data === true) {
-            item.status = 'validated';
-            item.validatedAt = new Date();
-            item.validatedBy = 'connector';
-          }
-          
-          results.push({
-            itemId: item.id,
-            platformId: item.platformId,
-            verified: result.data,
-            error: result.error
-          });
-        } catch (error) {
-          results.push({
-            itemId: item.id,
-            platformId: item.platformId,
-            verified: false,
-            error: error.message
-          });
+        // Generate resolved identity
+        let resolvedIdentity = null;
+        if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
+          resolvedIdentity = item.agencyGroupEmail;
+        } else if (item.pamIdentityStrategy === 'CLIENT_DEDICATED' && item.pamNamingTemplate) {
+          resolvedIdentity = generateClientDedicatedIdentity(item.pamNamingTemplate, client, platform);
+        } else if (item.pamIdentityStrategy === 'STATIC' && item.pamAgencyIdentityEmail) {
+          resolvedIdentity = item.pamAgencyIdentityEmail;
         }
+
+        // Build PAM config
+        let pamConfig = null;
+        if (item.itemType === 'SHARED_ACCOUNT_PAM') {
+          pamConfig = {
+            ownership: item.pamOwnership,
+            identityStrategy: item.pamIdentityStrategy,
+            identityType: item.pamIdentityType,
+            namingTemplate: item.pamNamingTemplate,
+            agencyIdentityEmail: item.pamAgencyIdentityEmail,
+            roleTemplate: item.pamRoleTemplate,
+            grantMethod: item.pamOwnership === 'AGENCY_OWNED' ? 'INVITE_AGENCY_IDENTITY' : 'CREDENTIAL_HANDOFF'
+          };
+        }
+
+        await db.createAccessRequestItem({
+          id: uuidv4(),
+          accessRequestId: requestId,
+          platformId: item.platformId,
+          itemType: item.itemType,
+          accessPattern: item.accessPattern || ITEM_TYPE_TO_PATTERN[item.itemType],
+          patternLabel: item.patternLabel,
+          role: item.role,
+          assetName: item.assetName,
+          identityPurpose: item.identityPurpose,
+          humanIdentityStrategy: item.humanIdentityStrategy,
+          resolvedIdentity,
+          agencyGroupEmail: item.agencyGroupEmail,
+          agencyData: item.agencyData,
+          pamOwnership: item.pamOwnership,
+          pamConfig,
+          clientInstructions: getClientInstructions(platform?.name, item.itemType, item.agencyData),
+          status: 'pending'
+        });
       }
 
-      updateAccessRequest(id, accessRequest);
-      
+      // Add audit log
+      await db.addAuditLog({
+        event: 'ACCESS_REQUEST_CREATED',
+        actor: 'admin',
+        requestId,
+        details: { clientId, clientName: client.name, itemCount: items.length }
+      });
+
+      const createdRequest = await db.getAccessRequestById(requestId);
+      return NextResponse.json({ success: true, data: createdRequest });
+    }
+
+    // POST /api/onboarding/:token/items/:itemId/attest - Client attestation
+    if (path.match(/^onboarding\/[^/]+\/items\/[^/]+\/attest$/)) {
+      const parts = path.split('/');
+      const token = parts[1];
+      const itemId = parts[3];
+      const { attestationText, evidenceBase64, evidenceFileName, clientProvidedTarget } = body || {};
+
+      const req = await db.getAccessRequestByToken(token);
+      if (!req) {
+        return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
+      }
+
+      const item = req.items.find(i => i.id === itemId);
+      if (!item) {
+        return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
+      }
+
+      // Update item
+      await db.updateAccessRequestItem(itemId, {
+        status: 'validated',
+        validatedAt: new Date(),
+        validatedBy: 'client_attestation',
+        validationMode: 'ATTESTATION',
+        clientProvidedTarget,
+        validationResult: {
+          timestamp: new Date(),
+          actor: 'client',
+          attestationText,
+          evidenceFileName,
+          clientProvidedTarget
+        }
+      });
+
+      // Check if all items are done
+      const updatedReq = await db.getAccessRequestById(req.id);
+      const allDone = updatedReq.items.every(i => i.status === 'validated');
+      if (allDone) {
+        await db.updateAccessRequest(req.id, { completedAt: new Date() });
+      }
+
+      await db.addAuditLog({
+        event: 'ACCESS_VALIDATED',
+        actor: 'client',
+        requestId: req.id,
+        itemId,
+        platformId: item.platformId,
+        details: { attestationText, clientProvidedTarget }
+      });
+
+      const finalReq = await db.getAccessRequestById(req.id);
+      return NextResponse.json({ success: true, data: finalReq });
+    }
+
+    // POST /api/onboarding/:token/items/:itemId/submit-credentials - PAM credential submission
+    if (path.match(/^onboarding\/[^/]+\/items\/[^/]+\/submit-credentials$/)) {
+      const parts = path.split('/');
+      const token = parts[1];
+      const itemId = parts[3];
+      const { username, password, clientProvidedTarget } = body || {};
+
+      if (!username || !password) {
+        return NextResponse.json({ success: false, error: 'username and password are required' }, { status: 400 });
+      }
+
+      const req = await db.getAccessRequestByToken(token);
+      if (!req) {
+        return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
+      }
+
+      const item = req.items.find(i => i.id === itemId);
+      if (!item) {
+        return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
+      }
+
+      const ownership = item.pamOwnership || item.pamConfig?.ownership;
+      if (ownership !== 'CLIENT_OWNED') {
+        return NextResponse.json({ success: false, error: 'This item is not a CLIENT_OWNED shared account' }, { status: 400 });
+      }
+
+      // Store credentials (in production: encrypt and store in vault)
+      const secretRef = Buffer.from(JSON.stringify({ username, passwordHint: password.slice(0, 1) + '***' })).toString('base64');
+
+      await db.updateAccessRequestItem(itemId, {
+        status: 'validated',
+        validatedAt: new Date(),
+        validatedBy: 'client_credential_submission',
+        validationMode: 'AUTO',
+        pamUsername: username,
+        pamSecretRef: secretRef,
+        clientProvidedTarget,
+        validationResult: {
+          timestamp: new Date(),
+          actor: 'client',
+          mode: 'CREDENTIAL_HANDOFF',
+          details: `Credentials submitted for username: ${username}`,
+          clientProvidedTarget
+        }
+      });
+
+      const updatedReq = await db.getAccessRequestById(req.id);
+      const allDone = updatedReq.items.every(i => i.status === 'validated');
+      if (allDone) {
+        await db.updateAccessRequest(req.id, { completedAt: new Date() });
+      }
+
+      await db.addAuditLog({
+        event: 'CREDENTIAL_SUBMITTED',
+        actor: 'client',
+        requestId: req.id,
+        itemId,
+        platformId: item.platformId,
+        details: { username, clientProvidedTarget }
+      });
+
+      const finalReq = await db.getAccessRequestById(req.id);
+      return NextResponse.json({ success: true, data: finalReq });
+    }
+
+    // POST /api/integration-identities - Create integration identity
+    if (path === 'integration-identities') {
+      const { name, type, identifier, description, metadata } = body || {};
+      if (!name || !type || !identifier) {
+        return NextResponse.json({ success: false, error: 'name, type, and identifier are required' }, { status: 400 });
+      }
+      const identity = await db.createIntegrationIdentity({
+        id: uuidv4(),
+        name,
+        type,
+        identifier,
+        description,
+        isActive: true,
+        metadata
+      });
+      return NextResponse.json({ success: true, data: identity });
+    }
+
+    // POST /api/pam/checkout - Checkout PAM credentials
+    if (path === 'pam/checkout') {
+      const { requestId, itemId, userId } = body || {};
+      if (!requestId || !itemId || !userId) {
+        return NextResponse.json({ success: false, error: 'requestId, itemId, and userId are required' }, { status: 400 });
+      }
+
+      const req = await db.getAccessRequestById(requestId);
+      if (!req) {
+        return NextResponse.json({ success: false, error: 'Access request not found' }, { status: 404 });
+      }
+
+      const item = req.items.find(i => i.id === itemId);
+      if (!item) {
+        return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
+      }
+
+      const durationMinutes = item.pamConfig?.checkoutPolicy?.durationMinutes || 60;
+      const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+
+      const session = await db.createPamSession({
+        id: uuidv4(),
+        requestId,
+        itemId,
+        platformId: item.platformId,
+        userId,
+        expiresAt,
+        status: 'active',
+        credentialRef: item.pamSecretRef
+      });
+
+      await db.addAuditLog({
+        event: 'PAM_CHECKOUT',
+        actor: userId,
+        requestId,
+        itemId,
+        platformId: item.platformId,
+        details: { sessionId: session.id, expiresAt }
+      });
+
       return NextResponse.json({
         success: true,
         data: {
-          accessRequest,
-          verificationResults: results
+          sessionId: session.id,
+          expiresAt,
+          credentials: item.pamSecretRef ? JSON.parse(Buffer.from(item.pamSecretRef, 'base64').toString()) : null
         }
       });
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Not found' },
-      { status: 404 }
-    );
+    // POST /api/pam/checkin - Checkin PAM credentials
+    if (path === 'pam/checkin') {
+      const { sessionId, userId } = body || {};
+      if (!sessionId) {
+        return NextResponse.json({ success: false, error: 'sessionId is required' }, { status: 400 });
+      }
+
+      const session = await db.getPamSessionById(sessionId);
+      if (!session) {
+        return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
+      }
+
+      await db.updatePamSession(sessionId, {
+        status: 'checked_in',
+        checkedInAt: new Date()
+      });
+
+      await db.addAuditLog({
+        event: 'PAM_CHECKIN',
+        actor: userId || 'system',
+        requestId: session.requestId,
+        itemId: session.itemId,
+        platformId: session.platformId,
+        details: { sessionId }
+      });
+
+      return NextResponse.json({ success: true, message: 'Checked in successfully' });
+    }
+
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.error('POST error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-// PUT handler (for updates)
-export async function PUT(request) {
-  const { pathname } = new URL(request.url);
-  const path = pathname.replace('/api/', '');
+export async function PUT(request, { params }) {
+  const resolvedParams = await params;
+  const path = resolvedParams.path?.join('/') || '';
   const body = await getBody(request);
 
   try {
-    // PUT /api/integration-identities/:id - Update integration identity
-    if (path.match(/^integration-identities\/[^/]+$/)) {
-      const id = path.split('/')[1];
-      const identity = getIntegrationIdentityById(id);
-      if (!identity) {
-        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
+    // PUT /api/clients/:id - Update client
+    if (path.match(/^clients\/[^/]+$/)) {
+      const clientId = path.split('/')[1];
+      const { name, email } = body || {};
+      const client = await db.updateClient(clientId, { name, email });
+      if (!client) {
+        return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
       }
-      const { type, name, description, email, clientId: oauthClientId, clientSecret, apiKey, scopes, rotationPolicy, allowedPlatforms } = body || {};
-      const updated = updateIntegrationIdentity(id, {
-        type: type || identity.type,
-        name: name || identity.name,
-        description: description ?? identity.description,
-        email: email ?? identity.email,
-        clientId: oauthClientId ?? identity.clientId,
-        clientSecret: clientSecret || undefined, // Only update if provided
-        apiKey: apiKey || undefined,
-        scopes: scopes || identity.scopes,
-        rotationPolicy: rotationPolicy || identity.rotationPolicy,
-        allowedPlatforms: allowedPlatforms || identity.allowedPlatforms
-      });
-      return NextResponse.json({ success: true, data: updated });
+      return NextResponse.json({ success: true, data: client });
     }
 
-    // PUT /api/agency/platforms/:id/items/:itemId - Update an access item
+    // PUT /api/agency/platforms/:id/items/:itemId - Update access item
     if (path.match(/^agency\/platforms\/[^/]+\/items\/[^/]+$/)) {
       const parts = path.split('/');
       const apId = parts[2];
       const itemId = parts[4];
-      const ap = getAgencyPlatformById(apId);
+
+      const ap = await db.getAgencyPlatformById(apId);
       if (!ap) {
         return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-      const { 
-        itemType,
-        accessPattern, 
-        patternLabel, 
-        label, 
-        role, 
-        notes,
-        pamConfig,
-        agencyData,
-        clientInstructions,
-        // Identity Taxonomy fields
-        identityPurpose,
-        humanIdentityStrategy,
-        clientDedicatedIdentityType,
-        namingTemplate,
-        agencyGroupEmail,
-        integrationIdentityId,
-        validationMethod
-      } = body || {};
 
-      // Item Type → Pattern mapping (pattern is derived from itemType)
-      const ITEM_TYPE_TO_PATTERN = {
-        'NAMED_INVITE': 'NAMED_INVITE',
-        'PARTNER_DELEGATION': 'PARTNER_DELEGATION',
-        'GROUP_ACCESS': 'GROUP_BASED',
-        'PROXY_TOKEN': 'PROXY',
-        'SHARED_ACCOUNT_PAM': 'PAM'
-      };
+      const existingItem = ap.accessItems?.find(i => i.id === itemId);
+      if (!existingItem) {
+        return NextResponse.json({ success: false, error: 'Access item not found' }, { status: 404 });
+      }
+
+      const {
+        itemType, label, role, notes, accessPattern,
+        identityPurpose, humanIdentityStrategy, agencyGroupEmail,
+        agencyData, pamConfig, validationMethod
+      } = body || {};
 
       // Derive pattern from itemType if provided
       const derivedPattern = itemType ? (ITEM_TYPE_TO_PATTERN[itemType] || itemType) : accessPattern;
-      const finalPattern = derivedPattern || accessPattern;
-      
+
       if (!label || !role) {
         return NextResponse.json({ success: false, error: 'label and role are required' }, { status: 400 });
       }
 
-      // Validate Named Invite Identity Strategy - CLIENT_DEDICATED is NOT allowed (only for PAM)
+      // Validate Named Invite - CLIENT_DEDICATED not allowed
       if (itemType === 'NAMED_INVITE' && humanIdentityStrategy === 'CLIENT_DEDICATED') {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'CLIENT_DEDICATED identity strategy is not allowed for Named Invite items. Use AGENCY_GROUP or INDIVIDUAL_USERS instead. For auto-generated client-specific identities, use Shared Account (PAM) with Agency-Owned ownership.' 
+        return NextResponse.json({
+          success: false,
+          error: 'CLIENT_DEDICATED identity strategy is not allowed for Named Invite items.'
         }, { status: 400 });
       }
 
-      // Validate using Field Policy Engine
-      const validation = validateAccessItemPayload(body, true);
-      if (!validation.valid) {
-        return NextResponse.json({ success: false, error: validation.errors.join('; ') }, { status: 400 });
-      }
-
-      const updated = updateAccessItem(apId, itemId, {
-        itemType: itemType || undefined,
-        accessPattern: finalPattern,
-        patternLabel: patternLabel || finalPattern,
+      await db.updateAccessItem(itemId, {
+        itemType,
+        accessPattern: derivedPattern,
+        patternLabel: derivedPattern,
         label,
         role,
-        notes: notes || undefined,
-        // Identity Taxonomy fields
-        identityPurpose: identityPurpose || undefined,
-        humanIdentityStrategy: humanIdentityStrategy || undefined,
-        clientDedicatedIdentityType: clientDedicatedIdentityType || undefined,
-        namingTemplate: namingTemplate || undefined,
-        agencyGroupEmail: agencyGroupEmail || undefined,
-        integrationIdentityId: integrationIdentityId || undefined,
-        validationMethod: validationMethod || undefined,
-        // Agency data
-        agencyData: agencyData || undefined,
-        clientInstructions: clientInstructions || undefined,
-        // PAM config
-        pamConfig: pamConfig || undefined
+        notes,
+        identityPurpose,
+        humanIdentityStrategy,
+        agencyGroupEmail,
+        agencyData,
+        pamConfig,
+        validationMethod
       });
-      if (!updated) {
-        return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
-      }
-      return NextResponse.json({
-        success: true,
-        data: { ...updated, platform: getPlatformById(updated.platformId) }
-      });
+
+      const updatedAp = await db.getAgencyPlatformById(apId);
+      return NextResponse.json({ success: true, data: updatedAp });
     }
 
-    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
-}
-
-// PATCH handler (for partial updates)
-export async function PATCH(request) {
-  const { pathname } = new URL(request.url);
-  const path = pathname.replace('/api/', '');
-
-  try {
-    // PATCH /api/integration-identities/:id/toggle - Toggle active status
-    if (path.match(/^integration-identities\/[^/]+\/toggle$/)) {
-      const id = path.split('/')[1];
-      const identity = toggleIntegrationIdentityStatus(id);
-      if (!identity) {
-        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
-      }
-      return NextResponse.json({ success: true, data: identity });
-    }
-
-    // PATCH /api/agency/platforms/:id/toggle - Toggle isEnabled
-    if (path.match(/^agency\/platforms\/[^/]+\/toggle$/)) {
-      const id = path.split('/')[2];
-      const ap = toggleAgencyPlatformStatus(id);
-      if (!ap) {
-        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
-      }
-      return NextResponse.json({
-        success: true,
-        data: { ...ap, platform: getPlatformById(ap.platformId) }
-      });
-    }
-
-    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
-}
-
-// DELETE handler
-export async function DELETE(request) {
-  const { pathname } = new URL(request.url);
-  const path = pathname.replace('/api/', '');
-
-  try {
-    // DELETE /api/integration-identities/:id - Delete integration identity
+    // PUT /api/integration-identities/:id - Update integration identity
     if (path.match(/^integration-identities\/[^/]+$/)) {
-      const id = path.split('/')[1];
-      const success = deleteIntegrationIdentity(id);
-      if (!success) {
+      const identityId = path.split('/')[1];
+      const updated = await db.updateIntegrationIdentity(identityId, body);
+      if (!updated) {
         return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
       }
-      return NextResponse.json({ success: true, data: { message: 'Integration identity deleted' } });
+      return NextResponse.json({ success: true, data: updated });
     }
 
-    // DELETE /api/agency/platforms/:id - Remove platform from agency
-    if (path.match(/^agency\/platforms\/[^/]+$/) && path.split('/').length === 3) {
-      const id = path.split('/')[2];
-      const success = removeAgencyPlatform(id);
-      if (!success) {
-        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
-      }
-      return NextResponse.json({ success: true, data: { message: 'Platform removed from agency' } });
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+  } catch (error) {
+    console.error('PUT error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request, { params }) {
+  const resolvedParams = await params;
+  const path = resolvedParams.path?.join('/') || '';
+
+  try {
+    // DELETE /api/clients/:id - Delete client
+    if (path.match(/^clients\/[^/]+$/)) {
+      const clientId = path.split('/')[1];
+      await db.deleteClient(clientId);
+      return NextResponse.json({ success: true, message: 'Client deleted' });
     }
 
-    // DELETE /api/agency/platforms/:id/items/:itemId - Remove access item
+    // DELETE /api/agency/platforms/:id - Remove agency platform
+    if (path.match(/^agency\/platforms\/[^/]+$/)) {
+      const apId = path.split('/')[1];
+      await db.deleteAgencyPlatform(apId);
+      return NextResponse.json({ success: true, message: 'Agency platform removed' });
+    }
+
+    // DELETE /api/agency/platforms/:id/items/:itemId - Delete access item
     if (path.match(/^agency\/platforms\/[^/]+\/items\/[^/]+$/)) {
       const parts = path.split('/');
       const apId = parts[2];
       const itemId = parts[4];
-      const updated = removeAccessItem(apId, itemId);
-      if (!updated) {
-        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
-      }
-      return NextResponse.json({
-        success: true,
-        data: { ...updated, platform: getPlatformById(updated.platformId) }
-      });
+      await db.deleteAccessItem(itemId);
+      const updatedAp = await db.getAgencyPlatformById(apId);
+      return NextResponse.json({ success: true, data: updatedAp });
+    }
+
+    // DELETE /api/integration-identities/:id - Delete integration identity
+    if (path.match(/^integration-identities\/[^/]+$/)) {
+      const identityId = path.split('/')[1];
+      await db.deleteIntegrationIdentity(identityId);
+      return NextResponse.json({ success: true, message: 'Integration identity deleted' });
     }
 
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('DELETE error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request, { params }) {
+  const resolvedParams = await params;
+  const path = resolvedParams.path?.join('/') || '';
+  const body = await getBody(request);
+
+  try {
+    // PATCH /api/agency/platforms/:id/toggle - Toggle agency platform status
+    if (path.match(/^agency\/platforms\/[^/]+\/toggle$/)) {
+      const apId = path.split('/')[2];
+      const ap = await db.getAgencyPlatformById(apId);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
+      }
+      const updated = await db.updateAgencyPlatform(apId, { isEnabled: !ap.isEnabled });
+      return NextResponse.json({ success: true, data: updated });
+    }
+
+    // PATCH /api/integration-identities/:id/toggle - Toggle integration identity status
+    if (path.match(/^integration-identities\/[^/]+\/toggle$/)) {
+      const identityId = path.split('/')[1];
+      const identity = await db.getIntegrationIdentityById(identityId);
+      if (!identity) {
+        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
+      }
+      const updated = await db.updateIntegrationIdentity(identityId, { isActive: !identity.isActive });
+      return NextResponse.json({ success: true, data: updated });
+    }
+
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+  } catch (error) {
+    console.error('PATCH error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
