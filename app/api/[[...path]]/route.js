@@ -239,6 +239,73 @@ export async function POST(request) {
       });
     }
 
+    // POST /api/clients/:id/configured-apps - Add platform to client with configuration
+    if (path === 'clients' && path.match(/^clients\/[^/]+\/configured-apps$/)) {
+      const id = path.split('/')[1];
+      const { platformId, items } = body || {};
+      
+      if (!platformId || !items || !Array.isArray(items)) {
+        return NextResponse.json(
+          { success: false, error: 'platformId and items array are required' },
+          { status: 400 }
+        );
+      }
+
+      const client = getClientById(id);
+      if (!client) {
+        return NextResponse.json(
+          { success: false, error: 'Client not found' },
+          { status: 404 }
+        );
+      }
+
+      const platform = getPlatformById(platformId);
+      if (!platform) {
+        return NextResponse.json(
+          { success: false, error: 'Platform not found' },
+          { status: 404 }
+        );
+      }
+
+      // Check if platform already configured for this client
+      const existing = getConfiguredApp(id, platformId);
+      if (existing) {
+        return NextResponse.json(
+          { success: false, error: 'Platform already configured for this client. Use PUT to update.' },
+          { status: 400 }
+        );
+      }
+
+      const configuredApp = {
+        id: uuidv4(),
+        clientId: id,
+        platformId,
+        isActive: true,
+        items: items.map(item => ({
+          id: uuidv4(),
+          accessPattern: item.accessPattern,
+          label: item.label,
+          role: item.role,
+          assetType: item.assetType,
+          assetId: item.assetId,
+          credentials: item.credentials,
+          notes: item.notes
+        })),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      addConfiguredApp(configuredApp);
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...configuredApp,
+          platform
+        }
+      });
+    }
+
     // POST /api/access-requests - Create new access request
     if (path === 'access-requests') {
       const { clientId, items } = body || {};
