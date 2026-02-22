@@ -467,11 +467,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "PAM Onboarding Flow - CLIENT_OWNED Credential Submission"
-    - "PAM Onboarding Flow - AGENCY_OWNED Attestation"
-    - "PAM API - Credential Submission Endpoint"
-    - "PAM API - Attestation Endpoint"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
