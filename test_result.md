@@ -567,6 +567,126 @@ test_plan:
         agent: "testing"
         comment: "✅ Complete configured apps flow with new stable platform IDs working perfectly. Tested end-to-end: (1) Client creation, (2) Google Analytics platform ID retrieval using new slug-based stable IDs, (3) Configured app creation with multiple items (2 access patterns, roles, asset details), (4) Access request creation using configured items with enhanced metadata, (5) Onboarding token validation with enriched platform data. All new platform IDs are stable and functional."
 
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - GET /api/agency/platforms"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/agency/platforms working perfectly. Returns empty array initially, lists all agency platforms with platform enrichment, shows proper structure with id, platformId, isEnabled, accessItems, platform details."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - POST /api/agency/platforms"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/agency/platforms working perfectly. Creates agency platform with proper validation: requires platformId, validates platform exists (404 for invalid), prevents duplicates (409), returns complete agency platform with enriched platform data."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - GET /api/agency/platforms/:id"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/agency/platforms/:id working perfectly. Retrieves specific agency platform by ID with enriched platform data, proper 404 handling for non-existent IDs."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - POST /api/agency/platforms/:id/items"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/agency/platforms/:id/items working perfectly. Adds access items with validation (requires accessPattern, label, role), supports optional assetType, assetId, notes, returns updated agency platform with all access items."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - PUT /api/agency/platforms/:id/items/:itemId"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PUT /api/agency/platforms/:id/items/:itemId working perfectly. Updates access items with validation, successfully updates labels and all fields, returns updated agency platform."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - PATCH /api/agency/platforms/:id/toggle"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PATCH /api/agency/platforms/:id/toggle working perfectly. Toggles isEnabled status correctly (true→false→true), returns updated agency platform, maintains all other data integrity."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - DELETE /api/agency/platforms/:id/items/:itemId"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ DELETE /api/agency/platforms/:id/items/:itemId working perfectly. Removes access items correctly, updates item count, returns updated agency platform."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - DELETE /api/agency/platforms/:id"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ DELETE /api/agency/platforms/:id working perfectly. Removes agency platform completely, proper success response with message."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - End-to-End Access Request Flow"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ End-to-end agency-scoped access request flow working perfectly. Complete workflow: client creation → access request with agency-defined items (platformId, accessPattern, role, assetType, assetId, assetName) → onboarding link with enriched platform data. All integrations functional."
+
+  - task: "NEW AGENCY-SCOPED ARCHITECTURE - Old Route Removal Verification"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Old client-scoped routes properly removed. GET /api/clients/:id/configured-apps returns 404, POST /api/clients/:id/configured-apps returns 404. Architecture migration completed successfully."
+
 agent_communication:
   - agent: "testing"
     message: "Comprehensive backend API testing completed successfully. All 23 test cases passed with 100% success rate. Tested: Platforms API (listing, filtering, individual retrieval), Clients API (CRUD with validation), Access Requests API (full lifecycle including validation/revoke), Onboarding API (token-based enriched data), End-to-End flow verification. The Marketing Identity Platform backend is fully functional with 61 platforms seeded, proper data persistence, validation, error handling, and complete user workflows working correctly."
@@ -586,3 +706,5 @@ agent_communication:
     message: "PHASE 2 major changes: (1) Removed global Platforms tab from admin dashboard - now shows only Clients with How-it-works guide; (2) Rewrote platforms-enhanced.ts with 27 curated agency-client platforms, multiple access patterns per platform with descriptions, agency-client focused descriptions; (3) Added YouTube Ads; (4) Catalog now reads clientId from URL param and pre-selects client; (5) Client detail and catalog now pass clientId in navigation; (6) PlatformCard shows all access patterns with descriptions; (7) Added visual Added badge on catalog cards; (8) Admin dashboard client cards show configured platform count. Needs backend retesting to verify new platform IDs work, and full end-to-end testing."
   - agent: "testing"
     message: "🎉 PHASE 2 BACKEND TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (20/20 tests passed). Comprehensive validation of Phase 2 changes: ✅ Platform Data Updates - Confirmed exactly 27 client-facing platforms with YouTube Ads added and Gong removed, all platforms have accessPatterns arrays with proper label/roles fields, multiple access patterns verified for Google Analytics/GA4 (2), Microsoft Advertising (2), LinkedIn Ads (2), all platforms have descriptions. ✅ Domain Filtering - GET /api/platforms?domain=Paid%20Search returns Google Ads, Microsoft Advertising, Apple Search Ads; ?domain=Paid%20Social returns Meta/Facebook, LinkedIn, TikTok etc.; ?tier=1 returns exactly 11 Tier 1 platforms. ✅ Configured Apps Flow - Complete end-to-end flow working with new stable platform IDs: client creation → Google Analytics platform configuration with multiple items → access request creation using configured items → onboarding token validation with enriched data. All Phase 2 platform registry changes are production-ready and fully functional!"
+  - agent: "testing"
+    message: "🎉 NEW AGENCY-SCOPED ARCHITECTURE TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (20/20 tests passed). Comprehensive testing of all new agency-scoped API routes: ✅ Agency Platforms CRUD - GET/POST /api/agency/platforms, GET /api/agency/platforms/:id, DELETE /api/agency/platforms/:id working with proper validation, duplicate prevention, enrichment, ✅ Access Items Management - POST/PUT/DELETE access items with full CRUD operations, supports accessPattern, label, role, assetType, assetId, notes, ✅ Platform Toggle - PATCH toggle functionality working (enable/disable), ✅ End-to-End Flow - Complete workflow from agency platform creation → access item configuration → client access request → onboarding token validation, ✅ Architecture Migration - Old client-scoped routes (configured-apps) properly removed (404), ✅ Data Integrity - All operations maintain proper state, validation, error handling. The new agency-scoped architecture is PRODUCTION-READY and represents a major architectural improvement from client-scoped to agency-scoped platform management!"
