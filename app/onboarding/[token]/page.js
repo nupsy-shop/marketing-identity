@@ -56,13 +56,15 @@ function formatAgencyDataKey(key) {
 function StandardStep({ item, platform, token, onComplete }) {
   const { toast } = useToast();
   const [done, setDone] = useState(item.status === 'validated');
-  const [assetType, setAssetType] = useState('');
-  const [assetId, setAssetId] = useState('');
+  const [clientProvidedTarget, setClientProvidedTarget] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   // Get agency data to display
   const agencyData = item.agencyData || {};
   const hasAgencyData = Object.keys(agencyData).filter(k => agencyData[k]).length > 0;
+
+  // Resolved identity to show (computed server-side)
+  const resolvedIdentity = item.resolvedIdentity || item.agencyData?.agencyEmail || item.agencyGroupEmail;
 
   // Check if asset selection is needed based on instructions
   const instructions = item.clientInstructions || '';
@@ -71,23 +73,61 @@ function StandardStep({ item, platform, token, onComplete }) {
     instructions.toLowerCase().includes('property id') ||
     instructions.toLowerCase().includes('container');
 
+  // Determine what asset fields to show based on platform
+  const platformName = platform?.name?.toLowerCase() || '';
+  const getAssetFields = () => {
+    const fields = [];
+    
+    if (platformName.includes('analytics') || platformName.includes('ga4')) {
+      fields.push({ name: 'propertyId', label: 'GA4 Property ID', placeholder: 'e.g., 123456789', required: true, helpText: 'Find this in GA4 Admin → Property Settings' });
+    }
+    if (platformName.includes('search console')) {
+      fields.push({ name: 'propertyUrl', label: 'Search Console Property URL', placeholder: 'e.g., https://example.com', required: true, helpText: 'Enter the exact property URL' });
+    }
+    if (platformName.includes('tag manager') || platformName.includes('gtm')) {
+      fields.push({ name: 'containerId', label: 'GTM Container ID', placeholder: 'e.g., GTM-XXXXXX', required: true, helpText: 'Find this in GTM Admin' });
+    }
+    if (platformName.includes('meta') || platformName.includes('facebook')) {
+      fields.push({ name: 'assetsShared', label: 'Assets Shared', placeholder: 'e.g., Ad Account #12345, Page', required: false, helpText: 'List the assets you shared access to' });
+    }
+    if (platformName.includes('merchant center')) {
+      fields.push({ name: 'merchantId', label: 'Merchant Center ID', placeholder: 'e.g., 123456789', required: true });
+    }
+    if (platformName.includes('looker') || platformName.includes('data studio')) {
+      fields.push({ name: 'reportUrl', label: 'Report URL Shared', placeholder: 'https://lookerstudio.google.com/...', required: false });
+    }
+    if (platformName.includes('power bi')) {
+      fields.push({ name: 'workspaceName', label: 'Workspace Name', placeholder: 'Name of the shared workspace', required: false });
+    }
+    
+    // Default fallback if no specific fields
+    if (fields.length === 0 && needsAssetSelection) {
+      fields.push({ name: 'assetIdentifier', label: 'Asset/Account Shared', placeholder: 'Account ID or asset name', required: false, helpText: 'Provide details about what you shared access to' });
+    }
+    
+    return fields;
+  };
+
+  const assetFields = getAssetFields();
+
   // Parse instruction text into steps
   const parseInstructions = (text) => {
     if (!text) return [];
     
-    // Replace agency data placeholders with actual values
+    // Replace placeholders with actual values
     let processedText = text;
+    if (resolvedIdentity) {
+      processedText = processedText.replace(/the email address/gi, resolvedIdentity);
+      processedText = processedText.replace(/the email of the user/gi, resolvedIdentity);
+      processedText = processedText.replace(/\{generated identity\}/gi, resolvedIdentity);
+      processedText = processedText.replace(/\{group email\}/gi, resolvedIdentity);
+    }
     if (agencyData.managerAccountId) {
-      processedText = processedText.replace(/your google ads manager account/gi, `your agency's MCC: ${agencyData.managerAccountId}`);
+      processedText = processedText.replace(/your google ads manager account/gi, `MCC: ${agencyData.managerAccountId}`);
       processedText = processedText.replace(/this mcc/gi, agencyData.managerAccountId);
     }
     if (agencyData.businessManagerId) {
       processedText = processedText.replace(/your business manager/gi, `Business Manager ID: ${agencyData.businessManagerId}`);
-      processedText = processedText.replace(/your bm/gi, `BM ID: ${agencyData.businessManagerId}`);
-    }
-    if (agencyData.agencyEmail) {
-      processedText = processedText.replace(/the email address/gi, agencyData.agencyEmail);
-      processedText = processedText.replace(/the email of the user/gi, agencyData.agencyEmail);
     }
     if (agencyData.businessCenterId) {
       processedText = processedText.replace(/business center id/gi, `Business Center ID: ${agencyData.businessCenterId}`);
@@ -106,7 +146,7 @@ function StandardStep({ item, platform, token, onComplete }) {
     : [
         `Log in to your ${platform?.name || 'platform'} account.`,
         'Navigate to Settings → Users & Permissions.',
-        'Follow your agency\'s instructions to grant access.',
+        resolvedIdentity ? `Add or invite: ${resolvedIdentity}` : 'Follow your agency\'s instructions to grant access.',
         `Set the role to: ${item.role}`,
         'Confirm when done.'
       ];
@@ -116,8 +156,7 @@ function StandardStep({ item, platform, token, onComplete }) {
     try {
       const payload = {
         attestationText: `Client confirmed access was granted for ${platform?.name}`,
-        assetType: assetType || undefined,
-        assetId: assetId || undefined
+        clientProvidedTarget: Object.keys(clientProvidedTarget).length > 0 ? clientProvidedTarget : undefined
       };
 
       const res = await fetch(`/api/onboarding/${token}/items/${item.id}/attest`, {
@@ -151,6 +190,34 @@ function StandardStep({ item, platform, token, onComplete }) {
 
   return (
     <div className="space-y-4">
+      {/* Identity to grant access to */}
+      {resolvedIdentity && (
+        <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+          <p className="text-sm font-semibold text-green-900 mb-2">
+            <i className="fas fa-user-plus mr-2"></i>Identity to Grant Access
+          </p>
+          <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-green-200">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <i className="fas fa-envelope text-green-600"></i>
+            </div>
+            <div className="flex-1">
+              <p className="font-mono font-semibold text-sm">{resolvedIdentity}</p>
+              <p className="text-xs text-muted-foreground">Role: <strong>{item.role}</strong></p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(resolvedIdentity);
+                toast({ title: 'Copied!', description: 'Email copied to clipboard' });
+              }}
+            >
+              <i className="fas fa-copy mr-1"></i>Copy
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Agency Data Display */}
       {hasAgencyData && (
         <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
@@ -196,34 +263,28 @@ function StandardStep({ item, platform, token, onComplete }) {
         </ol>
       </div>
 
-      {/* Asset Selection (if needed) */}
-      {needsAssetSelection && (
+      {/* Asset Collection Fields */}
+      {assetFields.length > 0 && (
         <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
           <p className="text-sm font-semibold text-amber-900 mb-3">
-            <i className="fas fa-cube mr-2"></i>Asset Selection
+            <i className="fas fa-cube mr-2"></i>Asset Details
           </p>
           <p className="text-xs text-amber-700 mb-3">
-            Please provide details about the specific asset you're granting access to.
+            Please provide details about the specific asset(s) you're granting access to.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm">Asset Type</Label>
-              <Input
-                placeholder="e.g., Ad Account, Property, Container"
-                value={assetType}
-                onChange={e => setAssetType(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-sm">Asset ID / Name</Label>
-              <Input
-                placeholder="e.g., 123456789 or 'Main Website'"
-                value={assetId}
-                onChange={e => setAssetId(e.target.value)}
-                className="mt-1"
-              />
-            </div>
+          <div className="space-y-3">
+            {assetFields.map(field => (
+              <div key={field.name}>
+                <Label className="text-sm">{field.label}{field.required && <span className="text-destructive ml-1">*</span>}</Label>
+                <Input
+                  placeholder={field.placeholder}
+                  value={clientProvidedTarget[field.name] || ''}
+                  onChange={e => setClientProvidedTarget(prev => ({ ...prev, [field.name]: e.target.value }))}
+                  className="mt-1 bg-white"
+                />
+                {field.helpText && <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>}
+              </div>
+            ))}
           </div>
         </div>
       )}
