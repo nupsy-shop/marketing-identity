@@ -364,7 +364,7 @@ function ConfiguredPlatformsTab({ configuredApps, clientId, onUpdate, router }) 
             <p className="text-muted-foreground mb-4">
               Add platforms from the catalog to enable access request creation
             </p>
-            <Button onClick={() => router.push('/admin/catalog')}>
+            <Button onClick={() => router.push(`/admin/catalog?clientId=${clientId}`)}>
               <i className="fas fa-plus mr-2"></i>
               Browse Platform Catalog
             </Button>
@@ -383,7 +383,7 @@ function ConfiguredPlatformsTab({ configuredApps, clientId, onUpdate, router }) 
             Manage platform configurations for this client
           </p>
         </div>
-        <Button onClick={() => router.push('/admin/catalog')}>
+        <Button onClick={() => router.push(`/admin/catalog?clientId=${clientId}`)}>
           <i className="fas fa-plus mr-2"></i>
           Add from Catalog
         </Button>
