@@ -1,15 +1,7 @@
 // Prisma Seed Script - Populates the platform catalog
-// Run with: npx prisma db seed
+// Run with: node prisma/seed.js
 
-const { PrismaClient } = require('@prisma/client');
 const { Pool } = require('pg');
-const { PrismaPg } = require('@prisma/adapter-pg');
-
-// Create connection
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 // Platform catalog data
 const CATALOG_PLATFORMS = [
@@ -172,53 +164,6 @@ const CATALOG_PLATFORMS = [
     ]
   },
   {
-    id: '7a4c3aa0-7a4c-47a4-f7a4-7a4c3aa00000',
-    name: 'Snapchat Ads',
-    slug: 'snapchat-ads',
-    domain: 'Paid Media',
-    description: 'Snapchat Business Center',
-    icon: 'fab fa-snapchat',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Medium',
-    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'PARTNER_DELEGATION', roles: ['Admin', 'Standard'], description: 'Business Center partner' },
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'Standard', 'Read-only'], description: 'Invite user to account' }
-    ]
-  },
-  {
-    id: '8b5d4bb1-8b5d-48b5-08b5-8b5d4bb10000',
-    name: 'Microsoft Advertising (Bing Ads)',
-    slug: 'microsoft-advertising',
-    domain: 'Paid Media',
-    description: 'Microsoft Advertising / Bing Ads',
-    icon: 'fab fa-microsoft',
-    tier: 1,
-    clientFacing: true,
-    automationFeasibility: 'High',
-    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'PARTNER_DELEGATION', roles: ['Super Admin', 'Standard', 'Viewer'], description: 'Manager account link' },
-      { pattern: 'NAMED_INVITE', roles: ['Super Admin', 'Standard', 'Viewer'], description: 'Invite user to account' }
-    ]
-  },
-  {
-    id: '9c6e5cc2-9c6e-49c6-19c6-9c6e5cc20000',
-    name: 'Reddit Ads',
-    slug: 'reddit-ads',
-    domain: 'Paid Media',
-    description: 'Reddit Ads Manager',
-    icon: 'fab fa-reddit',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Low-Medium',
-    supportedItemTypes: ['NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'Member'], description: 'Invite user to ad account' }
-    ]
-  },
-  {
     id: 'ad7f6dd3-ad7f-4ad7-2ad7-ad7f6dd30000',
     name: 'Snowflake',
     slug: 'snowflake',
@@ -232,22 +177,6 @@ const CATALOG_PLATFORMS = [
     accessPatterns: [
       { pattern: 'GROUP_ACCESS', roles: ['ACCOUNTADMIN', 'SYSADMIN', 'Custom'], description: 'SSO/SCIM role assignment' },
       { pattern: 'PROXY_TOKEN', roles: ['Service Account'], description: 'Service account access' }
-    ]
-  },
-  {
-    id: 'be8a7ee4-be8a-4be8-3be8-be8a7ee40000',
-    name: 'Fivetran',
-    slug: 'fivetran',
-    domain: 'Data Integration',
-    description: 'Fivetran data pipelines',
-    icon: 'fas fa-database',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Medium-High',
-    supportedItemTypes: ['GROUP_ACCESS', 'NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'GROUP_ACCESS', roles: ['Admin', 'User'], description: 'Service account access' },
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'User', 'Read-only'], description: 'Invite user to workspace' }
     ]
   },
   {
@@ -299,54 +228,6 @@ const CATALOG_PLATFORMS = [
     ]
   },
   {
-    id: 'f2ce1228-f2ce-4f2c-7f2c-f2ce12280000',
-    name: 'The Trade Desk',
-    slug: 'the-trade-desk',
-    domain: 'Paid Media',
-    description: 'The Trade Desk DSP',
-    icon: 'fas fa-ad',
-    tier: 1,
-    clientFacing: true,
-    automationFeasibility: 'Medium-High',
-    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'PARTNER_DELEGATION', roles: ['Admin', 'User'], description: 'Seat/partner link' },
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'User', 'Viewer'], description: 'Invite user to advertiser' }
-    ]
-  },
-  {
-    id: '03df2339-03df-403d-803d-03df23390000',
-    name: 'StackAdapt',
-    slug: 'stackadapt',
-    domain: 'Paid Media',
-    description: 'StackAdapt programmatic',
-    icon: 'fas fa-layer-group',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Medium',
-    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'PARTNER_DELEGATION', roles: ['Admin', 'User'], description: 'Seat/partner link' },
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'User'], description: 'Invite user to advertiser' }
-    ]
-  },
-  {
-    id: '14e0344a-14e0-414e-914e-14e0344a0000',
-    name: 'YouTube Ads',
-    slug: 'youtube-ads',
-    domain: 'Paid Media',
-    description: 'YouTube advertising (via Google Ads)',
-    icon: 'fab fa-youtube',
-    tier: 1,
-    clientFacing: true,
-    automationFeasibility: 'High',
-    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'PARTNER_DELEGATION', roles: ['Admin', 'Standard'], description: 'Via Google Ads MCC' },
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'Standard'], description: 'Invite to linked account' }
-    ]
-  },
-  {
     id: '25f1455b-25f1-425f-a25f-25f1455b0000',
     name: 'Looker Studio (Data Studio)',
     slug: 'looker-studio',
@@ -360,103 +241,63 @@ const CATALOG_PLATFORMS = [
     accessPatterns: [
       { pattern: 'NAMED_INVITE', roles: ['Editor', 'Viewer'], description: 'Share report/data source' }
     ]
-  },
-  {
-    id: '36a2566c-36a2-436a-b36a-36a2566c0000',
-    name: 'Power BI',
-    slug: 'power-bi',
-    domain: 'Analytics',
-    description: 'Microsoft Power BI',
-    icon: 'fas fa-chart-pie',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Medium',
-    supportedItemTypes: ['NAMED_INVITE', 'GROUP_ACCESS'],
-    accessPatterns: [
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'Member', 'Viewer'], description: 'Invite to workspace' },
-      { pattern: 'GROUP_ACCESS', roles: ['Workspace Role'], description: 'Azure AD group' }
-    ]
-  },
-  {
-    id: '47b3677d-47b3-447b-c47b-47b3677d0000',
-    name: 'Triple Whale',
-    slug: 'triple-whale',
-    domain: 'Analytics',
-    description: 'E-commerce analytics',
-    icon: 'fas fa-whale',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Medium',
-    supportedItemTypes: ['NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'Member'], description: 'Invite user to store' }
-    ]
-  },
-  {
-    id: '58c4788e-58c4-458c-d58c-58c4788e0000',
-    name: 'CallRail',
-    slug: 'callrail',
-    domain: 'Analytics',
-    description: 'Call tracking and analytics',
-    icon: 'fas fa-phone',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Medium',
-    supportedItemTypes: ['NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'Manager', 'Read-only'], description: 'Invite user to company' }
-    ]
-  },
-  {
-    id: '69d5899f-69d5-469d-e69d-69d5899f0000',
-    name: 'Funnel.io',
-    slug: 'funnel-io',
-    domain: 'Data Integration',
-    description: 'Marketing data hub',
-    icon: 'fas fa-funnel-dollar',
-    tier: 2,
-    clientFacing: true,
-    automationFeasibility: 'Medium',
-    supportedItemTypes: ['PROXY_TOKEN', 'NAMED_INVITE'],
-    accessPatterns: [
-      { pattern: 'PROXY_TOKEN', roles: ['Integration'], description: 'OAuth/API integration' },
-      { pattern: 'NAMED_INVITE', roles: ['Admin', 'User'], description: 'Invite to workspace' }
-    ]
   }
 ];
 
 async function main() {
   console.log('🌱 Seeding platform catalog...');
   
-  // Upsert all platforms
-  for (const platform of CATALOG_PLATFORMS) {
-    await prisma.catalogPlatform.upsert({
-      where: { id: platform.id },
-      update: {
-        name: platform.name,
-        slug: platform.slug,
-        domain: platform.domain,
-        description: platform.description,
-        icon: platform.icon,
-        tier: platform.tier,
-        clientFacing: platform.clientFacing,
-        automationFeasibility: platform.automationFeasibility,
-        supportedItemTypes: platform.supportedItemTypes,
-        accessPatterns: platform.accessPatterns,
-      },
-      create: platform,
-    });
-    console.log(`  ✓ ${platform.name}`);
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://pamuser:pampassword@localhost:5432/pam_identity_hub?schema=public'
+  });
+
+  try {
+    for (const platform of CATALOG_PLATFORMS) {
+      const query = `
+        INSERT INTO catalog_platforms (
+          id, name, slug, domain, description, icon, tier, "clientFacing", 
+          "automationFeasibility", "supportedItemTypes", "accessPatterns",
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          slug = EXCLUDED.slug,
+          domain = EXCLUDED.domain,
+          description = EXCLUDED.description,
+          icon = EXCLUDED.icon,
+          tier = EXCLUDED.tier,
+          "clientFacing" = EXCLUDED."clientFacing",
+          "automationFeasibility" = EXCLUDED."automationFeasibility",
+          "supportedItemTypes" = EXCLUDED."supportedItemTypes",
+          "accessPatterns" = EXCLUDED."accessPatterns",
+          "updatedAt" = NOW()
+      `;
+      
+      await pool.query(query, [
+        platform.id,
+        platform.name,
+        platform.slug,
+        platform.domain,
+        platform.description,
+        platform.icon,
+        platform.tier,
+        platform.clientFacing,
+        platform.automationFeasibility,
+        platform.supportedItemTypes,
+        JSON.stringify(platform.accessPatterns)
+      ]);
+      console.log(`  ✓ ${platform.name}`);
+    }
+    
+    console.log(`\n✅ Seeded ${CATALOG_PLATFORMS.length} platforms`);
+  } finally {
+    await pool.end();
   }
-  
-  console.log(`\n✅ Seeded ${CATALOG_PLATFORMS.length} platforms`);
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seed failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error('❌ Seed failed:', e);
+  process.exit(1);
+});
