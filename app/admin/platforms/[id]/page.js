@@ -231,8 +231,16 @@ export default function PlatformConfigPage() {
     if (formData.itemType === 'SHARED_ACCOUNT_PAM') {
       base.pamConfig = {
         ownership: formData.pamOwnership,
-        agencyIdentityEmail: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamAgencyIdentityEmail : undefined,
+        // Identity strategy for Agency-Owned
+        identityStrategy: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamIdentityStrategy : undefined,
+        // For STATIC strategy - single email
+        agencyIdentityEmail: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'STATIC' ? formData.pamAgencyIdentityEmail : undefined,
+        // For CLIENT_DEDICATED strategy - per-client identity
+        identityType: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'CLIENT_DEDICATED' ? formData.pamIdentityType : undefined,
+        namingTemplate: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'CLIENT_DEDICATED' ? formData.pamNamingTemplate : undefined,
+        // Role template for both strategies
         roleTemplate: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamRoleTemplate : undefined,
+        // Checkout policy - always present for PAM
         checkoutPolicy: { durationMinutes: Number(formData.pamCheckoutDuration) || 60 },
         rotationPolicy: { trigger: formData.pamRotationTrigger }
       };
@@ -262,9 +270,16 @@ export default function PlatformConfigPage() {
 
     // PAM validation
     if (formData.itemType === 'SHARED_ACCOUNT_PAM' && formData.pamOwnership === 'AGENCY_OWNED') {
-      if (!formData.pamAgencyIdentityEmail || !formData.pamRoleTemplate) {
-        toast({ title: 'Validation Error', description: 'Agency Identity Email and Role Template are required for Agency-Owned PAM', variant: 'destructive' });
-        return false;
+      if (formData.pamIdentityStrategy === 'STATIC') {
+        if (!formData.pamAgencyIdentityEmail || !formData.pamRoleTemplate) {
+          toast({ title: 'Validation Error', description: 'Agency Identity Email and Role Template are required for Static Agency Identity', variant: 'destructive' });
+          return false;
+        }
+      } else if (formData.pamIdentityStrategy === 'CLIENT_DEDICATED') {
+        if (!formData.pamNamingTemplate || !formData.pamRoleTemplate) {
+          toast({ title: 'Validation Error', description: 'Naming Template and Role Template are required for Client-Dedicated Identity', variant: 'destructive' });
+          return false;
+        }
       }
     }
 
