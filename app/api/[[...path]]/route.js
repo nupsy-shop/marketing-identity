@@ -171,6 +171,91 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: sessions });
     }
 
+    // ─── PLUGIN API ENDPOINTS ─────────────────────────────────────────────────────
+
+    // GET /api/plugins - List all registered plugins
+    if (path === 'plugins') {
+      const manifests = PluginRegistry.getAllManifests();
+      return NextResponse.json({ success: true, data: manifests });
+    }
+
+    // GET /api/plugins/:platformKey - Get plugin details
+    if (path.match(/^plugins\/[^/]+$/)) {
+      const platformKey = path.split('/')[1];
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: 'Plugin not found' }, { status: 404 });
+      }
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          manifest: plugin.manifest,
+          supportedAccessItemTypes: plugin.manifest.supportedAccessItemTypes,
+          supportedRoleTemplates: plugin.manifest.supportedRoleTemplates,
+        }
+      });
+    }
+
+    // GET /api/plugins/:platformKey/schema/agency-config?accessItemType=X
+    if (path.match(/^plugins\/[^/]+\/schema\/agency-config$/)) {
+      const platformKey = path.split('/')[1];
+      const accessItemType = url.searchParams.get('accessItemType');
+      
+      if (!accessItemType) {
+        return NextResponse.json({ success: false, error: 'accessItemType query param required' }, { status: 400 });
+      }
+      
+      const schema = PluginRegistry.getAgencyConfigJsonSchema(platformKey, accessItemType);
+      if (!schema) {
+        return NextResponse.json({ success: false, error: 'Schema not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: schema });
+    }
+
+    // GET /api/plugins/:platformKey/schema/client-target?accessItemType=X
+    if (path.match(/^plugins\/[^/]+\/schema\/client-target$/)) {
+      const platformKey = path.split('/')[1];
+      const accessItemType = url.searchParams.get('accessItemType');
+      
+      if (!accessItemType) {
+        return NextResponse.json({ success: false, error: 'accessItemType query param required' }, { status: 400 });
+      }
+      
+      const schema = PluginRegistry.getClientTargetJsonSchema(platformKey, accessItemType);
+      if (!schema) {
+        return NextResponse.json({ success: false, error: 'Schema not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: schema });
+    }
+
+    // GET /api/plugins/:platformKey/schema/request-options?accessItemType=X
+    if (path.match(/^plugins\/[^/]+\/schema\/request-options$/)) {
+      const platformKey = path.split('/')[1];
+      const accessItemType = url.searchParams.get('accessItemType');
+      
+      if (!accessItemType) {
+        return NextResponse.json({ success: false, error: 'accessItemType query param required' }, { status: 400 });
+      }
+      
+      const schema = PluginRegistry.getRequestOptionsJsonSchema(platformKey, accessItemType);
+      // Request options schema is optional, so return empty object if not found
+      return NextResponse.json({ success: true, data: schema || {} });
+    }
+
+    // GET /api/plugins/:platformKey/roles
+    if (path.match(/^plugins\/[^/]+\/roles$/)) {
+      const platformKey = path.split('/')[1];
+      const roles = PluginRegistry.getRoleTemplates(platformKey);
+      return NextResponse.json({ success: true, data: roles });
+    }
+
+    // GET /api/plugins/:platformKey/access-types
+    if (path.match(/^plugins\/[^/]+\/access-types$/)) {
+      const platformKey = path.split('/')[1];
+      const types = PluginRegistry.getSupportedAccessItemTypes(platformKey);
+      return NextResponse.json({ success: true, data: types });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('GET error:', error);
