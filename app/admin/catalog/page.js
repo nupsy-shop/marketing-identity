@@ -58,11 +58,26 @@ function AppCatalogContent() {
 
   const handleAddToClient = (platform) => {
     if (!selectedClient) {
-      alert('Please select a client first');
+      toast({
+        title: 'Select a client first',
+        description: 'Choose a client from the dropdown above before adding a platform.',
+        variant: 'destructive'
+      });
       return;
     }
     setSelectedPlatform(platform);
     setConfigDialogOpen(true);
+  };
+
+  const handleConfigSuccess = () => {
+    if (selectedPlatform) {
+      setSuccessPlatforms(prev => new Set([...prev, selectedPlatform.id]));
+    }
+    toast({
+      title: 'Platform added!',
+      description: `${selectedPlatform?.name} has been configured. Go to the client page to see it.`
+    });
+    loadData();
   };
 
   // Filter platforms
