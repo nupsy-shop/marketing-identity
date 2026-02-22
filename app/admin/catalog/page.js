@@ -1,54 +1,39 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import PlatformConfigurationDialog from '@/components/PlatformConfigurationDialog';
 import { useToast } from '@/hooks/use-toast';
 
 function AppCatalogContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [platforms, setPlatforms] = useState([]);
-  const [clients, setClients] = useState([]);
+  const [agencyPlatforms, setAgencyPlatforms] = useState([]); // platforms already added to agency
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(null); // platformId being added
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedTier, setSelectedTier] = useState('');
-  const [selectedAutomation, setSelectedAutomation] = useState('');
-  const [selectedClient, setSelectedClient] = useState('');
-  const [configDialogOpen, setConfigDialogOpen] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState(null);
-  const [successPlatforms, setSuccessPlatforms] = useState(new Set());
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // Pre-select client from URL param
-  useEffect(() => {
-    const clientIdParam = searchParams.get('clientId');
-    if (clientIdParam) {
-      setSelectedClient(clientIdParam);
-    }
-  }, [searchParams]);
-
   const loadData = async () => {
+    setLoading(true);
     try {
-      const [platformsRes, clientsRes] = await Promise.all([
+      const [platformsRes, agencyRes] = await Promise.all([
         fetch('/api/platforms?clientFacing=true'),
-        fetch('/api/clients')
+        fetch('/api/agency/platforms')
       ]);
-      
       const platformsData = await platformsRes.json();
-      const clientsData = await clientsRes.json();
-      
+      const agencyData = await agencyRes.json();
       if (platformsData.success) setPlatforms(platformsData.data);
-      if (clientsData.success) setClients(clientsData.data);
+      if (agencyData.success) setAgencyPlatforms(agencyData.data);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -56,57 +41,87 @@ function AppCatalogContent() {
     }
   };
 
-  const handleAddToClient = (platform) => {
-    if (!selectedClient) {
-      toast({
-        title: 'Select a client first',
-        description: 'Choose a client from the dropdown above before adding a platform.',
-        variant: 'destructive'
+  const handleAddToAgency = async (platform) => {
+    setAdding(platform.id);
+    try {
+      const res = await fetch('/api/agency/platforms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platformId: platform.id })
       });
-      return;
+      const data = await res.json();
+
+      if (data.success) {
+        toast({
+          title: 'Added to Agency!',
+          description: `${platform.name} is ready to configure. Setting up access items now...`
+        });
+        // Navigate to the configuration page
+        router.push(`/admin/platforms/${data.data.id}`);
+      } else if (res.status === 409) {
+        // Already added — navigate to existing config
+        const existingId = data.data?.id;
+        toast({
+          title: 'Already added',
+          description: `${platform.name} is already in your agency. Opening configuration...`
+        });
+        if (existingId) router.push(`/admin/platforms/${existingId}`);
+      } else {
+        toast({ title: 'Error', description: data.error || 'Failed to add platform', variant: 'destructive' });
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to add platform', variant: 'destructive' });
+    } finally {
+      setAdding(null);
     }
-    setSelectedPlatform(platform);
-    setConfigDialogOpen(true);
   };
 
-  const handleConfigSuccess = () => {
-    if (selectedPlatform) {
-      setSuccessPlatforms(prev => new Set([...prev, selectedPlatform.id]));
-    }
-    toast({
-      title: 'Platform added!',
-      description: `${selectedPlatform?.name} has been configured. Go to the client page to see it.`
-    });
-    loadData();
-  };
+  // Build a Set of added platformIds for quick lookup
+  const addedPlatformIds = new Set(agencyPlatforms.map(ap => ap.platformId));
 
-  // Filter platforms
+  // Filter
   const filteredPlatforms = platforms.filter(p => {
     if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (selectedDomain && p.domain !== selectedDomain) return false;
     if (selectedTier && p.tier !== parseInt(selectedTier)) return false;
-    if (selectedAutomation && p.automationFeasibility !== selectedAutomation) return false;
     return true;
   });
 
-  // Group platforms by domain
-  const groupedPlatforms = filteredPlatforms.reduce((acc, platform) => {
-    const domain = platform.domain || 'Other';
-    if (!acc[domain]) {
-      acc[domain] = [];
-    }
-    acc[domain].push(platform);
+  // Group by domain
+  const groupedPlatforms = filteredPlatforms.reduce((acc, p) => {
+    const domain = p.domain || 'Other';
+    if (!acc[domain]) acc[domain] = [];
+    acc[domain].push(p);
     return acc;
   }, {});
 
-  // Get unique values for filters
   const domains = Array.from(new Set(platforms.map(p => p.domain))).sort();
-  const automationLevels = Array.from(new Set(platforms.map(p => p.automationFeasibility))).sort();
-
-  // Statistics
   const tier1Count = platforms.filter(p => p.tier === 1).length;
   const tier2Count = platforms.filter(p => p.tier === 2).length;
   const oauthCount = platforms.filter(p => p.oauthSupported).length;
+
+  const getDomainIcon = (domain) => {
+    const icons = {
+      'Paid Search': 'fas fa-search',
+      'Paid Social': 'fas fa-share-nodes',
+      'Analytics': 'fas fa-chart-bar',
+      'SEO & Analytics': 'fas fa-chart-line',
+      'Tagging & Tracking': 'fas fa-tag',
+      'Video Advertising': 'fab fa-youtube',
+      'Ecommerce': 'fas fa-shopping-bag',
+      'Ecommerce & Retail': 'fas fa-shopping-cart',
+      'CRM & Marketing Automation': 'fas fa-users-gear',
+      'CRM & Revenue Operations': 'fas fa-handshake',
+      'Email Marketing': 'fas fa-envelope',
+      'Email & SMS Marketing': 'fas fa-comment-dots',
+      'SMS & Email Marketing': 'fas fa-sms',
+      'Marketing Automation': 'fas fa-robot',
+      'Programmatic Advertising': 'fas fa-ad',
+      'Retail Media': 'fab fa-amazon',
+      'Data & Analytics': 'fas fa-database'
+    };
+    return icons[domain] || 'fas fa-cube';
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -116,29 +131,19 @@ function AppCatalogContent() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => router.push('/admin')}>
-                <i className="fas fa-arrow-left mr-2"></i>
-                Back to Dashboard
+                <i className="fas fa-arrow-left mr-2"></i>Back to Dashboard
               </Button>
               <div className="h-8 w-px bg-border" />
               <div>
                 <h1 className="text-2xl font-bold">Platform Catalog</h1>
-                <p className="text-sm text-muted-foreground">Browse and configure marketing platforms</p>
+                <p className="text-sm text-muted-foreground">Browse and add platforms to your agency</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Select Client</label>
-                <select
-                  className="border border-input rounded-md px-3 py-2 bg-background text-sm min-w-[200px]"
-                  value={selectedClient}
-                  onChange={(e) => setSelectedClient(e.target.value)}
-                >
-                  <option value="">Choose client...</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
-              </div>
+              <Button variant="outline" onClick={() => router.push('/admin/platforms')}>
+                <i className="fas fa-layer-group mr-2"></i>
+                My Platforms ({agencyPlatforms.length})
+              </Button>
               <Badge variant="secondary" className="text-lg px-4 py-2">
                 {platforms.length} Platforms
               </Badge>
@@ -148,73 +153,38 @@ function AppCatalogContent() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Platforms</p>
-                  <p className="text-3xl font-bold">{platforms.length}</p>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[
+            { label: 'Total Platforms', value: platforms.length, icon: 'fas fa-layer-group', color: 'blue' },
+            { label: 'Tier 1 (Full Asset)', value: tier1Count, icon: 'fas fa-star', color: 'purple' },
+            { label: 'Tier 2 (Platform)', value: tier2Count, icon: 'fas fa-cubes', color: 'green' },
+            { label: 'Added to Agency', value: agencyPlatforms.length, icon: 'fas fa-check-circle', color: 'orange' }
+          ].map(stat => (
+            <Card key={stat.label}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    <p className="text-3xl font-bold">{stat.value}</p>
+                  </div>
+                  <div className={`w-12 h-12 rounded-full bg-${stat.color}-100 flex items-center justify-center`}>
+                    <i className={`${stat.icon} text-2xl text-${stat.color}-600`}></i>
+                  </div>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <i className="fas fa-layer-group text-2xl text-blue-600"></i>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tier 1 (Full Asset)</p>
-                  <p className="text-3xl font-bold">{tier1Count}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                  <i className="fas fa-star text-2xl text-purple-600"></i>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tier 2 (Platform)</p>
-                  <p className="text-3xl font-bold">{tier2Count}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <i className="fas fa-cubes text-2xl text-green-600"></i>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">OAuth Supported</p>
-                  <p className="text-3xl font-bold">{oauthCount}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
-                  <i className="fas fa-key text-2xl text-orange-600"></i>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Filters */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Filter Platforms</CardTitle>
-            <CardDescription>Narrow down by category, tier, or automation level</CardDescription>
+            <CardDescription>Narrow down by category or tier</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Search</label>
                 <div className="relative">
@@ -227,11 +197,10 @@ function AppCatalogContent() {
                   <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"></i>
                 </div>
               </div>
-
               <div>
                 <label className="text-sm font-medium mb-2 block">Domain</label>
                 <select
-                  className="w-full border border-input rounded-md px-3 py-2 bg-background"
+                  className="w-full border border-input rounded-md px-3 py-2 bg-background text-sm"
                   value={selectedDomain}
                   onChange={(e) => setSelectedDomain(e.target.value)}
                 >
@@ -239,108 +208,70 @@ function AppCatalogContent() {
                   {domains.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
-
               <div>
                 <label className="text-sm font-medium mb-2 block">Tier</label>
                 <select
-                  className="w-full border border-input rounded-md px-3 py-2 bg-background"
+                  className="w-full border border-input rounded-md px-3 py-2 bg-background text-sm"
                   value={selectedTier}
                   onChange={(e) => setSelectedTier(e.target.value)}
                 >
                   <option value="">All Tiers</option>
-                  <option value="1">Tier 1 (Full Asset Support)</option>
-                  <option value="2">Tier 2 (Platform Level)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Automation</label>
-                <select
-                  className="w-full border border-input rounded-md px-3 py-2 bg-background"
-                  value={selectedAutomation}
-                  onChange={(e) => setSelectedAutomation(e.target.value)}
-                >
-                  <option value="">All Levels</option>
-                  {automationLevels.map(a => <option key={a} value={a}>{a}</option>)}
+                  <option value="1">Tier 1 — Full Asset</option>
+                  <option value="2">Tier 2 — Platform</option>
                 </select>
               </div>
             </div>
-
-            {(searchTerm || selectedDomain || selectedTier || selectedAutomation) && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Active filters:</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedDomain('');
-                    setSelectedTier('');
-                    setSelectedAutomation('');
-                  }}
-                >
-                  <i className="fas fa-times mr-2"></i>
-                  Clear All
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Results Count */}
-        <div className="mb-4">
+        {/* Results summary */}
+        <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
-            Showing <span className="font-semibold text-foreground">{filteredPlatforms.length}</span> of{' '}
-            <span className="font-semibold text-foreground">{platforms.length}</span> platforms
+            Showing <strong>{filteredPlatforms.length}</strong> of <strong>{platforms.length}</strong> platforms
           </p>
+          {(searchTerm || selectedDomain || selectedTier) && (
+            <Button variant="ghost" size="sm" onClick={() => { setSearchTerm(''); setSelectedDomain(''); setSelectedTier(''); }}>
+              <i className="fas fa-times mr-1"></i>Clear filters
+            </Button>
+          )}
         </div>
 
-        {/* Grouped Platform Cards */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
             <p className="text-muted-foreground">Loading platforms...</p>
           </div>
-        ) : Object.keys(groupedPlatforms).length === 0 ? (
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <i className="fas fa-search text-4xl text-muted-foreground mb-4"></i>
-                <h3 className="text-lg font-semibold mb-2">No platforms found</h3>
-                <p className="text-muted-foreground mb-4">Try adjusting your filters</p>
-                <Button onClick={() => {
-                  setSearchTerm('');
-                  setSelectedDomain('');
-                  setSelectedTier('');
-                  setSelectedAutomation('');
-                }}>
-                  Clear Filters
-                </Button>
-              </div>
+        ) : filteredPlatforms.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="py-12 text-center">
+              <i className="fas fa-search text-4xl text-muted-foreground mb-4 block"></i>
+              <h3 className="font-semibold mb-2">No platforms found</h3>
+              <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-8">
-            {Object.entries(groupedPlatforms).sort().map(([domain, domainPlatforms]) => (
+            {Object.entries(groupedPlatforms).sort(([a], [b]) => a.localeCompare(b)).map(([domain, domainPlatforms]) => (
               <div key={domain}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                    <i className="fas fa-folder text-white"></i>
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <i className={`${getDomainIcon(domain)} text-primary text-sm`}></i>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{domain}</h2>
-                    <p className="text-sm text-muted-foreground">{domainPlatforms.length} platform{domainPlatforms.length !== 1 ? 's' : ''}</p>
-                  </div>
+                  <h2 className="text-lg font-semibold">{domain}</h2>
+                  <span className="text-sm text-muted-foreground">{domainPlatforms.length} platform{domainPlatforms.length !== 1 ? 's' : ''}</span>
                 </div>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {domainPlatforms.map(platform => (
-                    <PlatformCard 
-                      key={platform.id} 
+                    <PlatformCard
+                      key={platform.id}
                       platform={platform}
-                      onAddToClient={handleAddToClient}
-                      hasClientSelected={!!selectedClient}
-                      isAdded={successPlatforms.has(platform.id)}
+                      isAdded={addedPlatformIds.has(platform.id)}
+                      isAdding={adding === platform.id}
+                      onAddToAgency={handleAddToAgency}
+                      onConfigure={() => {
+                        const ap = agencyPlatforms.find(a => a.platformId === platform.id);
+                        if (ap) router.push(`/admin/platforms/${ap.id}`);
+                      }}
                     />
                   ))}
                 </div>
@@ -349,39 +280,11 @@ function AppCatalogContent() {
           </div>
         )}
       </div>
-
-      {/* Platform Configuration Dialog */}
-      <PlatformConfigurationDialog
-        open={configDialogOpen}
-        onOpenChange={setConfigDialogOpen}
-        platform={selectedPlatform}
-        clientId={selectedClient}
-        onSuccess={handleConfigSuccess}
-      />
     </div>
   );
 }
 
-export default function AppCatalogPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
-      <AppCatalogContent />
-    </Suspense>
-  );
-}
-
-function PlatformCard({ platform, onAddToClient, hasClientSelected, isAdded }) {
-  const getTierBadgeColor = (tier) => {
-    if (tier === 1) return 'bg-purple-100 text-purple-700 border-purple-200';
-    return 'bg-blue-100 text-blue-700 border-blue-200';
-  };
-
-  const getAutomationBadgeColor = (automation) => {
-    if (automation?.includes('High')) return 'bg-green-100 text-green-700 border-green-200';
-    if (automation?.includes('Medium')) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-    return 'bg-gray-100 text-gray-700 border-gray-200';
-  };
-
+function PlatformCard({ platform, isAdded, isAdding, onAddToAgency, onConfigure }) {
   return (
     <Card className={`hover:shadow-lg transition-all duration-200 border-2 group ${isAdded ? 'border-green-300 bg-green-50/30' : 'hover:border-primary/50'}`}>
       <CardHeader className="pb-3">
@@ -413,12 +316,8 @@ function PlatformCard({ platform, onAddToClient, hasClientSelected, isAdded }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
-          <Badge className={getTierBadgeColor(platform.tier)}>
-            {platform.tier === 1 ? (
-              <><i className="fas fa-star mr-1"></i>Tier 1 — Asset Level</>
-            ) : (
-              <><i className="fas fa-layer-group mr-1"></i>Tier 2 — Platform Level</>
-            )}
+          <Badge className={platform.tier === 1 ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-100 text-blue-700 border-blue-200'}>
+            {platform.tier === 1 ? <><i className="fas fa-star mr-1"></i>Tier 1 — Asset Level</> : <><i className="fas fa-layer-group mr-1"></i>Tier 2 — Platform Level</>}
           </Badge>
         </div>
 
@@ -443,27 +342,37 @@ function PlatformCard({ platform, onAddToClient, hasClientSelected, isAdded }) {
           </div>
         )}
 
-        <Button
-          variant={isAdded ? 'outline' : 'outline'}
-          className={`w-full transition-colors ${
-            isAdded
-              ? 'border-green-300 text-green-700 hover:bg-green-50'
-              : hasClientSelected
-              ? 'group-hover:bg-primary group-hover:text-primary-foreground'
-              : ''
-          }`}
-          onClick={() => onAddToClient(platform)}
-          disabled={!hasClientSelected}
-        >
-          {isAdded ? (
-            <><i className="fas fa-plus mr-2"></i>Add Another Configuration</>
-          ) : hasClientSelected ? (
-            <><i className="fas fa-plus mr-2"></i>Configure & Add to Client</>
-          ) : (
-            <><i className="fas fa-user mr-2"></i>Select a Client First</>
-          )}
-        </Button>
+        {isAdded ? (
+          <Button
+            variant="outline"
+            className="w-full border-green-300 text-green-700 hover:bg-green-50"
+            onClick={onConfigure}
+          >
+            <i className="fas fa-cog mr-2"></i>Configure Access Items
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+            onClick={() => onAddToAgency(platform)}
+            disabled={isAdding}
+          >
+            {isAdding ? (
+              <><i className="fas fa-spinner fa-spin mr-2"></i>Adding...</>
+            ) : (
+              <><i className="fas fa-plus mr-2"></i>Add to Agency</>
+            )}
+          </Button>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+export default function AppCatalogPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+      <AppCatalogContent />
+    </Suspense>
   );
 }
