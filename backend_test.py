@@ -95,7 +95,7 @@ def test_named_invite_client_dedicated_restriction():
     test_1a = log_test(
         "Named Invite - CLIENT_DEDICATED Rejection", 
         resp is not None and resp.status_code == 400 and "CLIENT_DEDICATED identity strategy is not allowed for Named Invite" in resp.text,
-        f"Status: {resp.status_code if resp else 'N/A'}, Contains Error: {('CLIENT_DEDICATED identity strategy is not allowed for Named Invite' in resp.text) if resp else 'N/A'}"
+        f"Status: {resp.status_code if resp else 'N/A'}"
     )
     
     # Test 1b: AGENCY_GROUP should succeed for NAMED_INVITE
