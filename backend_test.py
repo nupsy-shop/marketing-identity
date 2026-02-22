@@ -177,15 +177,24 @@ class IdentityTaxonomyTester:
         """Test 2: Access Items with Identity Taxonomy Fields"""
         print("\n🧪 Testing Access Items with Identity Taxonomy Fields...")
         
-        # First create an agency platform
+        # First create or use existing agency platform
         try:
             platform_data = {"platformId": "0f75633f-0f75-40f7-80f7-0f75633f0000"}  # Google Analytics / GA4
-            result = self.make_request("POST", "agency/platforms", platform_data)
-            if result and result.get("success"):
+            
+            # Use special handling since POST might return 409 if platform already exists
+            url = f"{API_BASE}/agency/platforms"
+            response = requests.post(url, json=platform_data, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
                 self.agency_platform_id = result.get("data", {}).get("id")
                 self.log_result("Create agency platform for testing", True, f"Agency platform ID: {self.agency_platform_id}")
+            elif response.status_code == 409:
+                result = response.json()
+                self.agency_platform_id = result.get("data", {}).get("id")
+                self.log_result("Use existing agency platform for testing", True, f"Agency platform ID: {self.agency_platform_id}")
             else:
-                self.log_result("Create agency platform for testing", False, "Failed to create agency platform")
+                self.log_result("Create agency platform for testing", False, f"Failed with status {response.status_code}")
                 return
         except Exception as e:
             self.log_result("Create agency platform for testing", False, str(e))
