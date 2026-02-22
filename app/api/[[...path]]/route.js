@@ -186,6 +186,19 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: identities });
     }
 
+    // GET /api/client-asset-fields?platformName=...&itemType=... - Get asset fields for onboarding
+    if (path === 'client-asset-fields') {
+      const url = new URL(request.url);
+      const platformName = url.searchParams.get('platformName') || '';
+      const itemType = url.searchParams.get('itemType') || 'NAMED_INVITE';
+      
+      // Import the client asset fields module
+      const { getClientAssetFields } = await import('@/lib/data/client-asset-fields.js');
+      const fields = getClientAssetFields(platformName, itemType);
+      
+      return NextResponse.json({ success: true, fields });
+    }
+
     // GET /api/integration-identities/:id - Get integration identity by ID
     if (path.match(/^integration-identities\/[^/]+$/) && !path.endsWith('/toggle')) {
       const id = path.split('/')[1];
