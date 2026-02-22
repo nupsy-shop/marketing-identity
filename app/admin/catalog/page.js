@@ -322,11 +322,20 @@ export default function AppCatalogPage() {
           </div>
         )}
       </div>
+
+      {/* Platform Configuration Dialog */}
+      <PlatformConfigurationDialog
+        open={configDialogOpen}
+        onOpenChange={setConfigDialogOpen}
+        platform={selectedPlatform}
+        clientId={selectedClient}
+        onSuccess={loadData}
+      />
     </div>
   );
 }
 
-function PlatformCard({ platform }) {
+function PlatformCard({ platform, onAddToClient, hasClientSelected }) {
   const getTierBadgeColor = (tier) => {
     if (tier === 1) return 'bg-purple-100 text-purple-700 border-purple-200';
     return 'bg-blue-100 text-blue-700 border-blue-200';
