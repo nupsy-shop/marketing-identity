@@ -10,17 +10,25 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  getFieldsForAccessItem, 
   getClientInstructions,
   requiresAssetSelection 
 } from '@/lib/data/platform-access-instructions.js';
+import {
+  IDENTITY_PURPOSE,
+  HUMAN_IDENTITY_STRATEGY,
+  CLIENT_DEDICATED_IDENTITY_TYPE,
+  ITEM_TYPE_CONFIG,
+  getInstructionsPreview,
+  generateClientDedicatedIdentity
+} from '@/lib/data/field-policy.js';
 
+// Item type cards for selection
 const ITEM_TYPES = [
-  { value: 'NAMED_INVITE', label: 'Named Invite', icon: 'fas fa-envelope', desc: 'Invite a specific user by email' },
-  { value: 'PARTNER_DELEGATION', label: 'Partner Delegation', icon: 'fas fa-handshake', desc: 'Grant access via partner/agency seat' },
-  { value: 'GROUP_ACCESS', label: 'Group / Service Account', icon: 'fas fa-users', desc: 'Add a group or service account' },
-  { value: 'PROXY_TOKEN', label: 'Proxy Token / API Key', icon: 'fas fa-key', desc: 'Generate a token for programmatic access' },
-  { value: 'SHARED_ACCOUNT_PAM', label: 'Shared Account (PAM)', icon: 'fas fa-shield-halved', desc: 'Privileged shared account with checkout policy' }
+  { value: 'NAMED_INVITE', label: 'Named Invite', icon: 'fas fa-user-plus', desc: 'Human interactive access via user/group invite' },
+  { value: 'PARTNER_DELEGATION', label: 'Partner Delegation', icon: 'fas fa-handshake', desc: 'Grant access via partner/agency seat or manager account' },
+  { value: 'GROUP_ACCESS', label: 'Group / Service Account', icon: 'fas fa-users-cog', desc: 'Service account or group-based access' },
+  { value: 'PROXY_TOKEN', label: 'API / Integration Token', icon: 'fas fa-key', desc: 'Non-interactive integration via API keys' },
+  { value: 'SHARED_ACCOUNT_PAM', label: 'Shared Account (PAM)', icon: 'fas fa-shield-halved', desc: 'Privileged shared account with checkout policy', pam: true }
 ];
 
 export default function PlatformConfigPage() {
@@ -32,49 +40,47 @@ export default function PlatformConfigPage() {
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [integrationIdentities, setIntegrationIdentities] = useState([]);
   const [formData, setFormData] = useState(defaultForm());
-  const [dynamicFields, setDynamicFields] = useState([]);
-  const [agencyDataValues, setAgencyDataValues] = useState({});
 
   function defaultForm() {
     return {
       itemType: 'NAMED_INVITE',
-      accessPattern: '',
-      patternLabel: '',
       label: '',
       role: '',
       notes: '',
+      accessPattern: '',
+      patternLabel: '',
+      // Identity taxonomy
+      identityPurpose: IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
+      humanIdentityStrategy: HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED,
+      clientDedicatedIdentityType: CLIENT_DEDICATED_IDENTITY_TYPE.GROUP,
+      namingTemplate: '{clientSlug}-{platformKey}@youragency.com',
+      agencyGroupEmail: '',
+      // Integration reference
+      integrationIdentityId: '',
+      // Partner delegation agency identifiers
+      managerAccountId: '',
+      businessManagerId: '',
+      businessCenterId: '',
+      seatId: '',
+      // Validation
+      validationMethod: 'ATTESTATION',
       // PAM fields
       pamOwnership: 'CLIENT_OWNED',
-      pamUsername: '',
       pamAgencyIdentityEmail: '',
       pamRoleTemplate: '',
-      pamRequiresDedicatedLogin: true,
       pamCheckoutDuration: 60,
-      pamRotationTrigger: 'onCheckin',
-      pamProvisioningSource: 'MANUAL'
+      pamRotationTrigger: 'onCheckin'
     };
   }
 
   useEffect(() => {
-    if (params.id) loadPlatform();
-  }, [params.id]);
-
-  // Update dynamic fields when platform or access pattern changes
-  useEffect(() => {
-    if (agencyPlatform?.platform && formData.accessPattern) {
-      const platformName = agencyPlatform.platform.name;
-      const pattern = formData.patternLabel || formData.accessPattern;
-      const fields = getFieldsForAccessItem(platformName, pattern);
-      setDynamicFields(fields);
-      
-      // Check if asset selection is needed (for info display)
-      const assetInfo = requiresAssetSelection(platformName, pattern);
-      if (assetInfo.required) {
-        console.log('Asset selection will be required during onboarding:', assetInfo.assetTypes);
-      }
+    if (params.id) {
+      loadPlatform();
+      loadIntegrationIdentities();
     }
-  }, [agencyPlatform?.platform?.name, formData.accessPattern, formData.patternLabel]);
+  }, [params.id]);
 
   const loadPlatform = async () => {
     setLoading(true);
@@ -94,6 +100,18 @@ export default function PlatformConfigPage() {
     }
   };
 
+  const loadIntegrationIdentities = async () => {
+    try {
+      const res = await fetch('/api/integration-identities');
+      const data = await res.json();
+      if (data.success) {
+        setIntegrationIdentities(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load integration identities:', err);
+    }
+  };
+
   const openAddForm = () => {
     const platform = agencyPlatform?.platform;
     const firstPattern = platform?.accessPatterns?.[0];
@@ -103,7 +121,6 @@ export default function PlatformConfigPage() {
       patternLabel: firstPattern?.label || '',
       role: firstPattern?.roles?.[0] || ''
     });
-    setAgencyDataValues({});
     setEditingItem(null);
     setShowAddForm(true);
   };
@@ -111,22 +128,28 @@ export default function PlatformConfigPage() {
   const openEditForm = (item) => {
     setFormData({
       itemType: item.itemType || 'NAMED_INVITE',
-      accessPattern: item.accessPattern || '',
-      patternLabel: item.patternLabel || '',
       label: item.label || '',
       role: item.role || '',
       notes: item.notes || '',
+      accessPattern: item.accessPattern || '',
+      patternLabel: item.patternLabel || '',
+      identityPurpose: item.identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
+      humanIdentityStrategy: item.humanIdentityStrategy || HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED,
+      clientDedicatedIdentityType: item.clientDedicatedIdentityType || CLIENT_DEDICATED_IDENTITY_TYPE.GROUP,
+      namingTemplate: item.namingTemplate || '{clientSlug}-{platformKey}@youragency.com',
+      agencyGroupEmail: item.agencyGroupEmail || '',
+      integrationIdentityId: item.integrationIdentityId || '',
+      managerAccountId: item.agencyData?.managerAccountId || '',
+      businessManagerId: item.agencyData?.businessManagerId || '',
+      businessCenterId: item.agencyData?.businessCenterId || '',
+      seatId: item.agencyData?.seatId || '',
+      validationMethod: item.validationMethod || 'ATTESTATION',
       pamOwnership: item.pamConfig?.ownership || 'CLIENT_OWNED',
-      pamUsername: item.pamConfig?.username || '',
       pamAgencyIdentityEmail: item.pamConfig?.agencyIdentityEmail || '',
       pamRoleTemplate: item.pamConfig?.roleTemplate || '',
-      pamRequiresDedicatedLogin: item.pamConfig?.requiresDedicatedAgencyLogin ?? true,
       pamCheckoutDuration: item.pamConfig?.checkoutPolicy?.durationMinutes || 60,
-      pamRotationTrigger: item.pamConfig?.rotationPolicy?.trigger || 'onCheckin',
-      pamProvisioningSource: item.pamConfig?.provisioningSource || 'MANUAL'
+      pamRotationTrigger: item.pamConfig?.rotationPolicy?.trigger || 'onCheckin'
     });
-    // Load existing agency data values
-    setAgencyDataValues(item.agencyData || {});
     setEditingItem(item.id);
     setShowAddForm(true);
   };
@@ -140,12 +163,6 @@ export default function PlatformConfigPage() {
       patternLabel: sel?.label || patternValue,
       role: sel?.roles?.[0] || ''
     }));
-    // Reset agency data when pattern changes
-    setAgencyDataValues({});
-  };
-
-  const handleAgencyDataChange = (fieldName, value) => {
-    setAgencyDataValues(prev => ({ ...prev, [fieldName]: value }));
   };
 
   const buildPayload = () => {
@@ -160,22 +177,58 @@ export default function PlatformConfigPage() {
       label: formData.label,
       role: formData.role,
       notes: formData.notes || undefined,
-      agencyData: Object.keys(agencyDataValues).length > 0 ? agencyDataValues : undefined,
-      clientInstructions: clientInstructions
+      clientInstructions: clientInstructions,
+      // Identity taxonomy
+      identityPurpose: formData.identityPurpose,
+      validationMethod: formData.validationMethod
     };
 
+    // Human interactive settings
+    if (formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE && formData.itemType === 'NAMED_INVITE') {
+      base.humanIdentityStrategy = formData.humanIdentityStrategy;
+      
+      if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED) {
+        base.clientDedicatedIdentityType = formData.clientDedicatedIdentityType;
+        base.namingTemplate = formData.namingTemplate;
+      } else if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
+        base.agencyGroupEmail = formData.agencyGroupEmail;
+      }
+      // INDIVIDUAL_USERS - no email fields needed here
+    }
+
+    // Integration identity reference
+    if (formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE || formData.itemType === 'PROXY_TOKEN') {
+      base.integrationIdentityId = formData.integrationIdentityId || undefined;
+    }
+
+    // Partner Delegation - agency identifiers
+    if (formData.itemType === 'PARTNER_DELEGATION') {
+      base.agencyData = {};
+      if (formData.managerAccountId) base.agencyData.managerAccountId = formData.managerAccountId;
+      if (formData.businessManagerId) base.agencyData.businessManagerId = formData.businessManagerId;
+      if (formData.businessCenterId) base.agencyData.businessCenterId = formData.businessCenterId;
+      if (formData.seatId) base.agencyData.seatId = formData.seatId;
+      if (Object.keys(base.agencyData).length === 0) delete base.agencyData;
+    }
+
+    // Group Access - check purpose
+    if (formData.itemType === 'GROUP_ACCESS') {
+      if (formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE) {
+        base.integrationIdentityId = formData.integrationIdentityId || undefined;
+      }
+    }
+
+    // Shared Account PAM
     if (formData.itemType === 'SHARED_ACCOUNT_PAM') {
       base.pamConfig = {
         ownership: formData.pamOwnership,
-        username: formData.pamOwnership === 'CLIENT_OWNED' ? formData.pamUsername || undefined : undefined,
-        requiresDedicatedAgencyLogin: formData.pamOwnership === 'CLIENT_OWNED' ? formData.pamRequiresDedicatedLogin : undefined,
-        agencyIdentityEmail: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamAgencyIdentityEmail || undefined : undefined,
-        roleTemplate: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamRoleTemplate || undefined : undefined,
-        provisioningSource: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamProvisioningSource : undefined,
+        agencyIdentityEmail: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamAgencyIdentityEmail : undefined,
+        roleTemplate: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamRoleTemplate : undefined,
         checkoutPolicy: { durationMinutes: Number(formData.pamCheckoutDuration) || 60 },
         rotationPolicy: { trigger: formData.pamRotationTrigger }
       };
     }
+
     return base;
   };
 
@@ -185,39 +238,26 @@ export default function PlatformConfigPage() {
       return false;
     }
 
-    // Validate required dynamic fields
-    for (const field of dynamicFields) {
-      if (field.required && !agencyDataValues[field.name]) {
-        toast({ title: 'Validation Error', description: `${field.label} is required`, variant: 'destructive' });
+    // Validate based on identity strategy
+    if (formData.itemType === 'NAMED_INVITE' && formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE) {
+      if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP && !formData.agencyGroupEmail) {
+        toast({ title: 'Validation Error', description: 'Agency Group Email is required for Agency Group strategy', variant: 'destructive' });
         return false;
       }
-      // Email validation
-      if (field.validation === 'email' && agencyDataValues[field.name]) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(agencyDataValues[field.name])) {
-          toast({ title: 'Validation Error', description: `${field.label} must be a valid email address`, variant: 'destructive' });
-          return false;
-        }
-      }
-      // Numeric validation
-      if (field.validation === 'numeric' && agencyDataValues[field.name]) {
-        if (!/^\d+(-\d+)*$/.test(agencyDataValues[field.name])) {
-          toast({ title: 'Validation Error', description: `${field.label} must be numeric (dashes allowed)`, variant: 'destructive' });
-          return false;
-        }
+      if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && !formData.namingTemplate) {
+        toast({ title: 'Validation Error', description: 'Naming Template is required for Client-Dedicated strategy', variant: 'destructive' });
+        return false;
       }
     }
 
+    // PAM validation
     if (formData.itemType === 'SHARED_ACCOUNT_PAM' && formData.pamOwnership === 'AGENCY_OWNED') {
-      if (!formData.pamAgencyIdentityEmail) {
-        toast({ title: 'Validation Error', description: 'Agency Identity Email is required for Agency-Owned accounts', variant: 'destructive' });
-        return false;
-      }
-      if (!formData.pamRoleTemplate) {
-        toast({ title: 'Validation Error', description: 'Role Template is required for Agency-Owned accounts', variant: 'destructive' });
+      if (!formData.pamAgencyIdentityEmail || !formData.pamRoleTemplate) {
+        toast({ title: 'Validation Error', description: 'Agency Identity Email and Role Template are required for Agency-Owned PAM', variant: 'destructive' });
         return false;
       }
     }
+
     return true;
   };
 
@@ -240,7 +280,6 @@ export default function PlatformConfigPage() {
         setAgencyPlatform(data.data);
         setShowAddForm(false);
         setEditingItem(null);
-        setAgencyDataValues({});
         toast({ title: editingItem ? 'Item updated' : 'Item added', description: `"${formData.label}" saved` });
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to save item', variant: 'destructive' });
@@ -280,12 +319,24 @@ export default function PlatformConfigPage() {
   const availablePatterns = platform?.accessPatterns || [];
   const selectedPatternRoles = availablePatterns.find(p => p.pattern === formData.accessPattern)?.roles || [];
 
-  const namedItems = accessItems.filter(i => i.itemType !== 'SHARED_ACCOUNT_PAM');
+  // Separate items by type
+  const humanItems = accessItems.filter(i => i.identityPurpose !== IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE && i.itemType !== 'SHARED_ACCOUNT_PAM');
+  const integrationItems = accessItems.filter(i => i.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE || i.itemType === 'PROXY_TOKEN');
   const pamItems = accessItems.filter(i => i.itemType === 'SHARED_ACCOUNT_PAM');
 
-  // Get client instructions preview
-  const instructionsPreview = formData.accessPattern 
-    ? getClientInstructions(platform?.name, formData.patternLabel || formData.accessPattern)
+  // Instructions preview
+  const instructionsPreview = getInstructionsPreview(formData, platform);
+
+  // Check what agency identifiers are needed for Partner Delegation
+  const platformName = platform?.name?.toLowerCase() || '';
+  const needsMccId = platformName.includes('google ads') || platformName.includes('youtube');
+  const needsBmId = platformName.includes('meta') || platformName.includes('facebook') || platformName.includes('pinterest') || platformName.includes('linkedin');
+  const needsBcId = platformName.includes('tiktok') || platformName.includes('snapchat');
+  const needsSeatId = platformName.includes('dv360') || platformName.includes('trade desk') || platformName.includes('stackadapt');
+
+  // Sample identity preview for CLIENT_DEDICATED
+  const sampleIdentity = formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED
+    ? generateClientDedicatedIdentity(formData.namingTemplate, { name: 'Acme Corp' }, platform)
     : null;
 
   return (
@@ -354,7 +405,7 @@ export default function PlatformConfigPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-semibold">Access Items</h2>
-              <p className="text-sm text-muted-foreground">Define configurations available across all client requests</p>
+              <p className="text-sm text-muted-foreground">Define reusable access templates for client requests</p>
             </div>
             {!showAddForm && (
               <Button onClick={openAddForm}>
@@ -368,7 +419,7 @@ export default function PlatformConfigPage() {
             <Card className="mb-4 border-primary/50 shadow-md">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">{editingItem ? 'Edit Access Item' : 'New Access Item'}</CardTitle>
-                <CardDescription>Define a specific access configuration for client requests</CardDescription>
+                <CardDescription>Define a reusable access configuration template</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Item Type */}
@@ -379,12 +430,16 @@ export default function PlatformConfigPage() {
                       <div
                         key={t.value}
                         className={`border rounded-lg p-3 cursor-pointer transition-colors ${formData.itemType === t.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
-                        onClick={() => setFormData(prev => ({ ...prev, itemType: t.value }))}
+                        onClick={() => setFormData(prev => ({ 
+                          ...prev, 
+                          itemType: t.value,
+                          identityPurpose: t.value === 'PROXY_TOKEN' ? IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE : IDENTITY_PURPOSE.HUMAN_INTERACTIVE
+                        }))}
                       >
                         <div className="flex items-center gap-2">
                           <i className={`${t.icon} text-primary text-sm`}></i>
                           <span className="font-medium text-sm">{t.label}</span>
-                          {t.value === 'SHARED_ACCOUNT_PAM' && <Badge className="bg-red-100 text-red-700 border-red-200 text-xs ml-auto">PAM</Badge>}
+                          {t.pam && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs ml-auto">PAM</Badge>}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{t.desc}</p>
                       </div>
@@ -392,7 +447,210 @@ export default function PlatformConfigPage() {
                   </div>
                 </div>
 
-                {/* PAM: Ownership */}
+                {/* Identity Purpose for GROUP_ACCESS */}
+                {formData.itemType === 'GROUP_ACCESS' && (
+                  <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+                    <Label className="text-sm font-medium mb-2 block">Identity Purpose <span className="text-destructive">*</span></Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: IDENTITY_PURPOSE.HUMAN_INTERACTIVE, label: 'Human Interactive', icon: 'fas fa-user', desc: 'User group that logs in' },
+                        { value: IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE, label: 'Integration (Non-Human)', icon: 'fas fa-robot', desc: 'Service account or API' }
+                      ].map(o => (
+                        <div
+                          key={o.value}
+                          className={`border rounded-lg p-3 cursor-pointer transition-colors ${formData.identityPurpose === o.value ? 'border-purple-500 bg-white' : 'border-purple-200 hover:border-purple-400'}`}
+                          onClick={() => setFormData(prev => ({ ...prev, identityPurpose: o.value }))}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <i className={`${o.icon} text-purple-600 text-sm`}></i>
+                            <span className="font-medium text-sm">{o.label}</span>
+                          </div>
+                          <p className="text-xs text-purple-800">{o.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Human Identity Strategy for NAMED_INVITE */}
+                {formData.itemType === 'NAMED_INVITE' && formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE && (
+                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                    <Label className="text-sm font-medium mb-2 block">Identity Strategy <span className="text-destructive">*</span></Label>
+                    <div className="space-y-2">
+                      {[
+                        { value: HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED, label: 'Client-Dedicated Identity', icon: 'fas fa-user-tag', desc: 'Generate unique identity per client (recommended)', recommended: true },
+                        { value: HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP, label: 'Agency Group', icon: 'fas fa-users', desc: 'Use a single agency-wide group email' },
+                        { value: HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS, label: 'Individual Users', icon: 'fas fa-user-friends', desc: 'Select specific users when creating request' }
+                      ].map(o => (
+                        <div
+                          key={o.value}
+                          className={`border rounded-lg p-3 cursor-pointer transition-colors ${formData.humanIdentityStrategy === o.value ? 'border-blue-500 bg-white' : 'border-blue-200 hover:border-blue-400'}`}
+                          onClick={() => setFormData(prev => ({ ...prev, humanIdentityStrategy: o.value }))}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <i className={`${o.icon} text-blue-600 text-sm`}></i>
+                            <span className="font-medium text-sm">{o.label}</span>
+                            {o.recommended && <Badge className="bg-green-100 text-green-700 text-xs ml-2">Recommended</Badge>}
+                            {formData.humanIdentityStrategy === o.value && <i className="fas fa-check-circle text-blue-600 ml-auto"></i>}
+                          </div>
+                          <p className="text-xs text-blue-800">{o.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* CLIENT_DEDICATED specific fields */}
+                    {formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && (
+                      <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
+                        <div>
+                          <Label className="text-sm">Identity Type</Label>
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            {[
+                              { value: CLIENT_DEDICATED_IDENTITY_TYPE.GROUP, label: 'Group', desc: 'Preferred if platform supports' },
+                              { value: CLIENT_DEDICATED_IDENTITY_TYPE.MAILBOX, label: 'Mailbox', desc: 'Loginable (PAM-manageable)' }
+                            ].map(t => (
+                              <div
+                                key={t.value}
+                                className={`border rounded p-2 cursor-pointer text-sm ${formData.clientDedicatedIdentityType === t.value ? 'border-blue-500 bg-blue-50' : 'border-blue-200'}`}
+                                onClick={() => setFormData(prev => ({ ...prev, clientDedicatedIdentityType: t.value }))}
+                              >
+                                <p className="font-medium">{t.label}</p>
+                                <p className="text-xs text-muted-foreground">{t.desc}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm">Naming Template <span className="text-destructive">*</span></Label>
+                          <Input
+                            placeholder="{clientSlug}-{platformKey}@youragency.com"
+                            value={formData.namingTemplate}
+                            onChange={e => setFormData(prev => ({ ...prev, namingTemplate: e.target.value }))}
+                            className="mt-1 font-mono text-sm"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Variables: {'{clientSlug}'}, {'{platformKey}'}</p>
+                        </div>
+                        {sampleIdentity && (
+                          <div className="p-2 rounded bg-white border border-blue-200">
+                            <p className="text-xs text-muted-foreground">Sample identity for "Acme Corp":</p>
+                            <p className="font-mono text-sm text-blue-700">{sampleIdentity}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* AGENCY_GROUP specific fields */}
+                    {formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP && (
+                      <div className="mt-4 pt-4 border-t border-blue-200">
+                        <Label className="text-sm">Agency Group Email <span className="text-destructive">*</span></Label>
+                        <Input
+                          type="email"
+                          placeholder="analytics-team@youragency.com"
+                          value={formData.agencyGroupEmail}
+                          onChange={e => setFormData(prev => ({ ...prev, agencyGroupEmail: e.target.value }))}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">This email will be invited to all client accounts</p>
+                      </div>
+                    )}
+
+                    {/* INDIVIDUAL_USERS info */}
+                    {formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS && (
+                      <div className="mt-4 pt-4 border-t border-blue-200">
+                        <div className="p-3 rounded bg-amber-50 border border-amber-200">
+                          <p className="text-sm text-amber-800"><i className="fas fa-info-circle mr-2"></i>Invitees will be selected when generating each client access request.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Integration Identity Reference */}
+                {(formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE || formData.itemType === 'PROXY_TOKEN') && (
+                  <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+                    <Label className="text-sm font-medium mb-2 block">Integration Identity</Label>
+                    <select
+                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-sm"
+                      value={formData.integrationIdentityId}
+                      onChange={e => setFormData(prev => ({ ...prev, integrationIdentityId: e.target.value }))}
+                    >
+                      <option value="">Select an integration identity...</option>
+                      {integrationIdentities.filter(i => i.isActive).map(i => (
+                        <option key={i.id} value={i.id}>{i.name} ({i.type})</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      <i className="fas fa-external-link-alt mr-1"></i>
+                      <a href="/admin/integrations" className="text-primary hover:underline" target="_blank">Manage Integration Identities</a>
+                    </p>
+                  </div>
+                )}
+
+                {/* Partner Delegation - Agency Identifiers */}
+                {formData.itemType === 'PARTNER_DELEGATION' && (
+                  <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+                    <Label className="text-sm font-medium mb-2 block"><i className="fas fa-id-card mr-2"></i>Agency Identifiers</Label>
+                    <p className="text-xs text-green-700 mb-3">These are your agency's account IDs that clients will link to.</p>
+                    <div className="space-y-3">
+                      {needsMccId && (
+                        <div>
+                          <Label className="text-sm">Google Ads Manager (MCC) ID</Label>
+                          <Input
+                            placeholder="e.g., 123-456-7890"
+                            value={formData.managerAccountId}
+                            onChange={e => setFormData(prev => ({ ...prev, managerAccountId: e.target.value }))}
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+                      {needsBmId && (
+                        <div>
+                          <Label className="text-sm">Business Manager ID</Label>
+                          <Input
+                            placeholder="e.g., 1234567890"
+                            value={formData.businessManagerId}
+                            onChange={e => setFormData(prev => ({ ...prev, businessManagerId: e.target.value }))}
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+                      {needsBcId && (
+                        <div>
+                          <Label className="text-sm">Business Center ID</Label>
+                          <Input
+                            placeholder="e.g., 7123456789012345"
+                            value={formData.businessCenterId}
+                            onChange={e => setFormData(prev => ({ ...prev, businessCenterId: e.target.value }))}
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+                      {needsSeatId && (
+                        <div>
+                          <Label className="text-sm">Seat / Partner ID</Label>
+                          <Input
+                            placeholder="Your agency seat ID"
+                            value={formData.seatId}
+                            onChange={e => setFormData(prev => ({ ...prev, seatId: e.target.value }))}
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+                      {!needsMccId && !needsBmId && !needsBcId && !needsSeatId && (
+                        <div>
+                          <Label className="text-sm">Agency Identifier</Label>
+                          <Input
+                            placeholder="Your agency's partner/manager ID"
+                            value={formData.managerAccountId}
+                            onChange={e => setFormData(prev => ({ ...prev, managerAccountId: e.target.value }))}
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* PAM Configuration */}
                 {formData.itemType === 'SHARED_ACCOUNT_PAM' && (
                   <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 space-y-4">
                     <div className="flex items-center gap-2">
@@ -400,64 +658,32 @@ export default function PlatformConfigPage() {
                       <p className="font-semibold text-sm text-amber-900">PAM Configuration</p>
                     </div>
 
-                    {/* Ownership radio */}
                     <div>
                       <Label className="text-sm font-medium mb-2 block">Ownership Model <span className="text-destructive">*</span></Label>
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          { value: 'CLIENT_OWNED', label: 'Client-Owned', icon: 'fas fa-user', desc: 'Client provides credentials. Higher risk — encourage dedicated login.' },
-                          { value: 'AGENCY_OWNED', label: 'Agency-Owned', icon: 'fas fa-building', desc: 'Agency identity — client must invite and assign a role.' }
+                          { value: 'CLIENT_OWNED', label: 'Client-Owned', desc: 'Client provides credentials during onboarding' },
+                          { value: 'AGENCY_OWNED', label: 'Agency-Owned', desc: 'Client invites agency identity' }
                         ].map(o => (
                           <div
                             key={o.value}
-                            className={`border rounded-lg p-3 cursor-pointer transition-colors ${formData.pamOwnership === o.value ? 'border-amber-500 bg-white' : 'border-amber-200 hover:border-amber-400'}`}
+                            className={`border rounded-lg p-3 cursor-pointer ${formData.pamOwnership === o.value ? 'border-amber-500 bg-white' : 'border-amber-200'}`}
                             onClick={() => setFormData(prev => ({ ...prev, pamOwnership: o.value }))}
                           >
-                            <div className="flex items-center gap-2 mb-1">
-                              <i className={`${o.icon} text-amber-600 text-sm`}></i>
-                              <span className="font-medium text-sm">{o.label}</span>
-                              {formData.pamOwnership === o.value && <i className="fas fa-check-circle text-amber-600 ml-auto text-xs"></i>}
-                            </div>
+                            <p className="font-medium text-sm">{o.label}</p>
                             <p className="text-xs text-amber-800">{o.desc}</p>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* CLIENT_OWNED fields */}
-                    {formData.pamOwnership === 'CLIENT_OWNED' && (
-                      <div className="space-y-3 border-t border-amber-200 pt-3">
-                        <p className="text-xs text-amber-700 font-medium"><i className="fas fa-info-circle mr-1"></i>Client-owned: the client will provide credentials during onboarding</p>
-                        <div>
-                          <Label className="text-sm">Username hint (optional)</Label>
-                          <Input
-                            placeholder="e.g., agency-login@client.com"
-                            value={formData.pamUsername}
-                            onChange={e => setFormData(prev => ({ ...prev, pamUsername: e.target.value }))}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Switch
-                            checked={formData.pamRequiresDedicatedLogin}
-                            onCheckedChange={v => setFormData(prev => ({ ...prev, pamRequiresDedicatedLogin: v }))}
-                          />
-                          <div>
-                            <p className="text-sm font-medium">Require dedicated agency login</p>
-                            <p className="text-xs text-muted-foreground">Recommend client creates a dedicated credential for agency use</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AGENCY_OWNED fields */}
                     {formData.pamOwnership === 'AGENCY_OWNED' && (
                       <div className="space-y-3 border-t border-amber-200 pt-3">
-                        <p className="text-xs text-amber-700 font-medium"><i className="fas fa-info-circle mr-1"></i>Agency-owned: client must invite this identity and assign the specified role</p>
                         <div>
                           <Label className="text-sm">Agency Identity Email <span className="text-destructive">*</span></Label>
                           <Input
-                            placeholder="e.g., agency-bot@youragency.com"
+                            type="email"
+                            placeholder="shared-account@youragency.com"
                             value={formData.pamAgencyIdentityEmail}
                             onChange={e => setFormData(prev => ({ ...prev, pamAgencyIdentityEmail: e.target.value }))}
                             className="mt-1"
@@ -466,28 +692,15 @@ export default function PlatformConfigPage() {
                         <div>
                           <Label className="text-sm">Role Template <span className="text-destructive">*</span></Label>
                           <Input
-                            placeholder="e.g., Admin, Editor, Viewer"
+                            placeholder="e.g., Admin, Editor"
                             value={formData.pamRoleTemplate}
                             onChange={e => setFormData(prev => ({ ...prev, pamRoleTemplate: e.target.value }))}
                             className="mt-1"
                           />
                         </div>
-                        <div>
-                          <Label className="text-sm">Provisioning Source</Label>
-                          <select
-                            className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
-                            value={formData.pamProvisioningSource}
-                            onChange={e => setFormData(prev => ({ ...prev, pamProvisioningSource: e.target.value }))}
-                          >
-                            <option value="MANUAL">Manual</option>
-                            <option value="OKTA">Okta</option>
-                            <option value="INTERNAL_DIRECTORY">Internal Directory</option>
-                          </select>
-                        </div>
                       </div>
                     )}
 
-                    {/* Shared PAM policies */}
                     <div className="grid grid-cols-2 gap-3 border-t border-amber-200 pt-3">
                       <div>
                         <Label className="text-sm">Checkout Duration (min)</Label>
@@ -518,11 +731,11 @@ export default function PlatformConfigPage() {
                 )}
 
                 {/* Common fields */}
-                <div className="space-y-3 border-t pt-3">
+                <div className="space-y-3 border-t pt-4">
                   <div>
                     <Label className="text-sm">Label <span className="text-destructive">*</span></Label>
                     <Input
-                      placeholder={formData.itemType === 'SHARED_ACCOUNT_PAM' ? 'e.g., Google Ads – Shared Agency Login' : 'e.g., Google Ads – Standard Access'}
+                      placeholder="e.g., GA4 Standard Access"
                       value={formData.label}
                       onChange={e => setFormData(prev => ({ ...prev, label: e.target.value }))}
                       className="mt-1"
@@ -554,44 +767,32 @@ export default function PlatformConfigPage() {
                     </div>
                   </div>
 
-                  {/* Dynamic Fields from Excel "Data to collect" */}
-                  {dynamicFields.length > 0 && formData.itemType !== 'SHARED_ACCOUNT_PAM' && (
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <i className="fas fa-database text-blue-600"></i>
-                        <p className="font-semibold text-sm text-blue-900">Agency Configuration Data</p>
-                      </div>
-                      <p className="text-xs text-blue-700 mb-3">
-                        This data will be shown to clients during onboarding. They will use it to grant your agency access.
-                      </p>
-                      {dynamicFields.map(field => (
-                        <div key={field.name}>
-                          <Label className="text-sm">
-                            {field.label} {field.required && <span className="text-destructive">*</span>}
-                          </Label>
-                          <Input
-                            type={field.type === 'email' ? 'email' : 'text'}
-                            placeholder={field.placeholder}
-                            value={agencyDataValues[field.name] || ''}
-                            onChange={e => handleAgencyDataChange(field.name, e.target.value)}
-                            className="mt-1"
-                          />
-                          {field.helpText && (
-                            <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div>
+                    <Label className="text-sm">Validation Method</Label>
+                    <select
+                      className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
+                      value={formData.validationMethod}
+                      onChange={e => setFormData(prev => ({ ...prev, validationMethod: e.target.value }))}
+                    >
+                      <option value="ATTESTATION">Client Attestation</option>
+                      <option value="API_VERIFICATION">API Verification</option>
+                      <option value="EVIDENCE_UPLOAD">Evidence Upload</option>
+                      <option value="OAUTH_CALLBACK">OAuth Callback</option>
+                    </select>
+                  </div>
 
                   {/* Instructions Preview */}
                   {instructionsPreview && (
-                    <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <i className="fas fa-eye text-green-600"></i>
-                        <p className="font-semibold text-sm text-green-900">Client Instructions Preview</p>
+                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <i className="fas fa-eye text-emerald-600"></i>
+                        <p className="font-semibold text-sm text-emerald-900">Client Onboarding Preview</p>
                       </div>
-                      <p className="text-xs text-green-800">{instructionsPreview}</p>
+                      <p className="text-xs text-emerald-800">{instructionsPreview}</p>
+                      <p className="text-xs text-emerald-600 mt-2 italic">
+                        <i className="fas fa-info-circle mr-1"></i>
+                        Asset selection (property ID, ad accounts, etc.) will be collected during client onboarding.
+                      </p>
                     </div>
                   )}
 
@@ -607,7 +808,7 @@ export default function PlatformConfigPage() {
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <Button variant="ghost" onClick={() => { setShowAddForm(false); setEditingItem(null); setAgencyDataValues({}); }}>Cancel</Button>
+                  <Button variant="ghost" onClick={() => { setShowAddForm(false); setEditingItem(null); }}>Cancel</Button>
                   <Button onClick={handleSaveItem} disabled={saving}>
                     {saving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Saving...</>
                       : editingItem ? <><i className="fas fa-check mr-2"></i>Update</>
@@ -618,30 +819,45 @@ export default function PlatformConfigPage() {
             </Card>
           )}
 
-          {/* Items by category */}
+          {/* Items grouped by type */}
           {accessItems.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="py-12 text-center">
                 <i className="fas fa-list-check text-4xl text-muted-foreground mb-4 block"></i>
                 <h3 className="font-semibold mb-2">No access items yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">Add access items to define what clients will be asked to grant.</p>
+                <p className="text-sm text-muted-foreground mb-4">Add access items to define reusable templates for client requests.</p>
                 {!showAddForm && <Button variant="outline" onClick={openAddForm}><i className="fas fa-plus mr-2"></i>Add First Item</Button>}
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-6">
-              {/* Standard access items */}
-              {namedItems.length > 0 && (
+              {/* Human Interactive Items */}
+              {humanItems.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Standard Access Items ({namedItems.length})</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <i className="fas fa-user text-blue-600"></i>Human Interactive ({humanItems.length})
+                  </p>
                   <div className="space-y-2">
-                    {namedItems.map(item => (
+                    {humanItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={openEditForm} onDelete={handleDeleteItem} />
                     ))}
                   </div>
                 </div>
               )}
-              {/* PAM items */}
+              {/* Integration Items */}
+              {integrationItems.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <i className="fas fa-robot text-purple-600"></i>Integration (Non-Human) ({integrationItems.length})
+                  </p>
+                  <div className="space-y-2">
+                    {integrationItems.map(item => (
+                      <ItemRow key={item.id} item={item} onEdit={openEditForm} onDelete={handleDeleteItem} isIntegration />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* PAM Items */}
               {pamItems.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -662,43 +878,36 @@ export default function PlatformConfigPage() {
   );
 }
 
-function ItemRow({ item, onEdit, onDelete, isPam = false }) {
-  const pamConfig = item.pamConfig;
-  const agencyData = item.agencyData || {};
-  
-  // Get the primary agency data value for display
-  const primaryAgencyValue = agencyData.managerAccountId || agencyData.businessManagerId || 
-    agencyData.businessCenterId || agencyData.seatId || agencyData.agencyEmail || 
-    agencyData.serviceAccountEmail || agencyData.agencyIdentity;
+function ItemRow({ item, onEdit, onDelete, isPam = false, isIntegration = false }) {
+  const strategy = item.humanIdentityStrategy;
+  const strategyLabel = strategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED ? 'Client-Dedicated'
+    : strategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP ? 'Agency Group'
+    : strategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS ? 'Individual Users'
+    : null;
 
   return (
-    <Card className={`border ${isPam ? 'border-amber-200 bg-amber-50/30' : ''}`}>
+    <Card className={`border ${isPam ? 'border-amber-200 bg-amber-50/30' : isIntegration ? 'border-purple-200 bg-purple-50/30' : ''}`}>
       <CardContent className="py-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <p className="font-medium text-sm">{item.label}</p>
               <Badge variant="secondary" className="text-xs">{item.role}</Badge>
+              {strategyLabel && <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">{strategyLabel}</Badge>}
+              {isIntegration && <Badge variant="outline" className="text-xs text-purple-600 border-purple-300">Integration</Badge>}
               {isPam && (
-                <Badge className={`text-xs ${pamConfig?.ownership === 'CLIENT_OWNED' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
-                  <i className="fas fa-shield-halved mr-1"></i>
-                  {pamConfig?.ownership === 'CLIENT_OWNED' ? 'Client-Owned' : 'Agency-Owned'}
+                <Badge className={`text-xs ${item.pamConfig?.ownership === 'CLIENT_OWNED' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
+                  {item.pamConfig?.ownership === 'CLIENT_OWNED' ? 'Client-Owned' : 'Agency-Owned'}
                 </Badge>
               )}
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               <span>{item.patternLabel || item.accessPattern}</span>
-              {primaryAgencyValue && !isPam && (
-                <span className="text-blue-600"><i className="fas fa-id-badge mr-1"></i>{primaryAgencyValue}</span>
-              )}
-              {isPam && pamConfig?.ownership === 'AGENCY_OWNED' && pamConfig?.agencyIdentityEmail && (
-                <span><i className="fas fa-envelope mr-1"></i>{pamConfig.agencyIdentityEmail}</span>
-              )}
-              {isPam && pamConfig?.ownership === 'AGENCY_OWNED' && pamConfig?.roleTemplate && (
-                <span><i className="fas fa-user-shield mr-1"></i>Role: {pamConfig.roleTemplate}</span>
-              )}
-              {isPam && pamConfig?.checkoutPolicy?.durationMinutes && (
-                <span><i className="fas fa-clock mr-1"></i>{pamConfig.checkoutPolicy.durationMinutes}min checkout</span>
+              {item.agencyGroupEmail && <span><i className="fas fa-envelope mr-1"></i>{item.agencyGroupEmail}</span>}
+              {item.namingTemplate && <span><i className="fas fa-tag mr-1"></i>{item.namingTemplate}</span>}
+              {item.agencyData?.managerAccountId && <span><i className="fas fa-id-badge mr-1"></i>{item.agencyData.managerAccountId}</span>}
+              {isPam && item.pamConfig?.checkoutPolicy?.durationMinutes && (
+                <span><i className="fas fa-clock mr-1"></i>{item.pamConfig.checkoutPolicy.durationMinutes}min checkout</span>
               )}
             </div>
           </div>
