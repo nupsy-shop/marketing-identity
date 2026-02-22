@@ -697,7 +697,7 @@ export default function PlatformConfigPage() {
                           <div
                             key={o.value}
                             className={`border rounded-lg p-3 cursor-pointer ${formData.pamOwnership === o.value ? 'border-amber-500 bg-white' : 'border-amber-200'}`}
-                            onClick={() => setFormData(prev => ({ ...prev, pamOwnership: o.value }))}
+                            onClick={() => setFormData(prev => ({ ...prev, pamOwnership: o.value, pamIdentityStrategy: o.value === 'AGENCY_OWNED' ? 'STATIC' : undefined }))}
                           >
                             <p className="font-medium text-sm">{o.label}</p>
                             <p className="text-xs text-amber-800">{o.desc}</p>
@@ -706,56 +706,175 @@ export default function PlatformConfigPage() {
                       </div>
                     </div>
 
+                    {/* Agency-Owned Identity Strategy */}
                     {formData.pamOwnership === 'AGENCY_OWNED' && (
-                      <div className="space-y-3 border-t border-amber-200 pt-3">
+                      <div className="space-y-4 border-t border-amber-200 pt-4">
                         <div>
-                          <Label className="text-sm">Agency Identity Email <span className="text-destructive">*</span></Label>
-                          <Input
-                            type="email"
-                            placeholder="shared-account@youragency.com"
-                            value={formData.pamAgencyIdentityEmail}
-                            onChange={e => setFormData(prev => ({ ...prev, pamAgencyIdentityEmail: e.target.value }))}
-                            className="mt-1"
-                          />
+                          <Label className="text-sm font-medium mb-2 block">Identity Strategy <span className="text-destructive">*</span></Label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { value: 'STATIC', label: 'Static Agency Identity', desc: 'Use a single agency email for all clients', icon: 'fas fa-envelope' },
+                              { value: 'CLIENT_DEDICATED', label: 'Client-Dedicated Identity', desc: 'Generate unique identity per client', icon: 'fas fa-user-tag' }
+                            ].map(o => (
+                              <div
+                                key={o.value}
+                                className={`border rounded-lg p-3 cursor-pointer transition-colors ${formData.pamIdentityStrategy === o.value ? 'border-amber-500 bg-white' : 'border-amber-200 hover:border-amber-400'}`}
+                                onClick={() => setFormData(prev => ({ ...prev, pamIdentityStrategy: o.value }))}
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  <i className={`${o.icon} text-amber-600 text-sm`}></i>
+                                  <span className="font-medium text-sm">{o.label}</span>
+                                  {formData.pamIdentityStrategy === o.value && <i className="fas fa-check-circle text-amber-600 ml-auto"></i>}
+                                </div>
+                                <p className="text-xs text-amber-800">{o.desc}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <Label className="text-sm">Role Template <span className="text-destructive">*</span></Label>
-                          <Input
-                            placeholder="e.g., Admin, Editor"
-                            value={formData.pamRoleTemplate}
-                            onChange={e => setFormData(prev => ({ ...prev, pamRoleTemplate: e.target.value }))}
-                            className="mt-1"
-                          />
-                        </div>
+
+                        {/* STATIC identity - single email */}
+                        {formData.pamIdentityStrategy === 'STATIC' && (
+                          <div className="space-y-3">
+                            <div>
+                              <Label className="text-sm">Agency Identity Email <span className="text-destructive">*</span></Label>
+                              <Input
+                                type="email"
+                                placeholder="shared-account@youragency.com"
+                                value={formData.pamAgencyIdentityEmail}
+                                onChange={e => setFormData(prev => ({ ...prev, pamAgencyIdentityEmail: e.target.value }))}
+                                className="mt-1"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">This single email will be invited to all client accounts</p>
+                            </div>
+                            <div>
+                              <Label className="text-sm">Role Template <span className="text-destructive">*</span></Label>
+                              <Input
+                                placeholder="e.g., Admin, Editor"
+                                value={formData.pamRoleTemplate}
+                                onChange={e => setFormData(prev => ({ ...prev, pamRoleTemplate: e.target.value }))}
+                                className="mt-1"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* CLIENT_DEDICATED identity - per-client email */}
+                        {formData.pamIdentityStrategy === 'CLIENT_DEDICATED' && (
+                          <div className="space-y-3">
+                            <div>
+                              <Label className="text-sm">Identity Type</Label>
+                              <div className="grid grid-cols-2 gap-2 mt-1">
+                                {[
+                                  { value: 'GROUP', label: 'Group', desc: 'Google Group / Distribution List' },
+                                  { value: 'MAILBOX', label: 'Mailbox', desc: 'Loginable account (uses PAM checkout)' }
+                                ].map(t => (
+                                  <div
+                                    key={t.value}
+                                    className={`border rounded p-2 cursor-pointer text-sm ${formData.pamIdentityType === t.value ? 'border-amber-500 bg-white' : 'border-amber-200'}`}
+                                    onClick={() => setFormData(prev => ({ ...prev, pamIdentityType: t.value }))}
+                                  >
+                                    <p className="font-medium">{t.label}</p>
+                                    <p className="text-xs text-muted-foreground">{t.desc}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-sm">Naming Template <span className="text-destructive">*</span></Label>
+                              <Input
+                                placeholder="{clientSlug}-{platformKey}@youragency.com"
+                                value={formData.pamNamingTemplate}
+                                onChange={e => setFormData(prev => ({ ...prev, pamNamingTemplate: e.target.value }))}
+                                className="mt-1 font-mono text-sm"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">Variables: {'{clientSlug}'}, {'{platformKey}'}</p>
+                            </div>
+                            {/* Preview */}
+                            {formData.pamNamingTemplate && (
+                              <div className="p-3 rounded bg-white border border-amber-200">
+                                <p className="text-xs text-muted-foreground">Sample identity for "Acme Corp":</p>
+                                <p className="font-mono text-sm text-amber-700">
+                                  {formData.pamNamingTemplate
+                                    .replace('{clientSlug}', 'acme-corp')
+                                    .replace('{platformKey}', platform?.slug || 'platform')}
+                                </p>
+                              </div>
+                            )}
+                            <div>
+                              <Label className="text-sm">Role Template <span className="text-destructive">*</span></Label>
+                              <Input
+                                placeholder="e.g., Admin, Editor"
+                                value={formData.pamRoleTemplate}
+                                onChange={e => setFormData(prev => ({ ...prev, pamRoleTemplate: e.target.value }))}
+                                className="mt-1"
+                              />
+                            </div>
+                            
+                            {/* PAM Checkout Policy - only for MAILBOX */}
+                            {formData.pamIdentityType === 'MAILBOX' && (
+                              <div className="p-3 rounded bg-amber-100 border border-amber-300 space-y-3">
+                                <p className="text-xs font-semibold text-amber-900"><i className="fas fa-key mr-1"></i>PAM Checkout Policy (Mailbox only)</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <Label className="text-xs">Checkout Duration (min)</Label>
+                                    <Input
+                                      type="number"
+                                      value={formData.pamCheckoutDuration}
+                                      onChange={e => setFormData(prev => ({ ...prev, pamCheckoutDuration: e.target.value }))}
+                                      className="mt-1"
+                                      min={15}
+                                      max={480}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Rotation Trigger</Label>
+                                    <select
+                                      className="w-full mt-1 border border-input rounded-md px-2 py-1.5 bg-background text-sm"
+                                      value={formData.pamRotationTrigger}
+                                      onChange={e => setFormData(prev => ({ ...prev, pamRotationTrigger: e.target.value }))}
+                                    >
+                                      <option value="onCheckin">On Check-in</option>
+                                      <option value="scheduled">Scheduled</option>
+                                      <option value="offboard">On Offboarding</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3 border-t border-amber-200 pt-3">
-                      <div>
-                        <Label className="text-sm">Checkout Duration (min)</Label>
-                        <Input
-                          type="number"
-                          value={formData.pamCheckoutDuration}
-                          onChange={e => setFormData(prev => ({ ...prev, pamCheckoutDuration: e.target.value }))}
-                          className="mt-1"
-                          min={15}
-                          max={480}
-                        />
+                    {/* Client-Owned PAM - Checkout settings */}
+                    {formData.pamOwnership === 'CLIENT_OWNED' && (
+                      <div className="grid grid-cols-2 gap-3 border-t border-amber-200 pt-3">
+                        <div>
+                          <Label className="text-sm">Checkout Duration (min)</Label>
+                          <Input
+                            type="number"
+                            value={formData.pamCheckoutDuration}
+                            onChange={e => setFormData(prev => ({ ...prev, pamCheckoutDuration: e.target.value }))}
+                            className="mt-1"
+                            min={15}
+                            max={480}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm">Rotation Trigger</Label>
+                          <select
+                            className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
+                            value={formData.pamRotationTrigger}
+                            onChange={e => setFormData(prev => ({ ...prev, pamRotationTrigger: e.target.value }))}
+                          >
+                            <option value="onCheckin">On Check-in</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="offboard">On Offboarding</option>
+                            <option value="manual">Manual</option>
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <Label className="text-sm">Rotation Trigger</Label>
-                        <select
-                          className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
-                          value={formData.pamRotationTrigger}
-                          onChange={e => setFormData(prev => ({ ...prev, pamRotationTrigger: e.target.value }))}
-                        >
-                          <option value="onCheckin">On Check-in</option>
-                          <option value="scheduled">Scheduled</option>
-                          <option value="offboard">On Offboarding</option>
-                          <option value="manual">Manual</option>
-                        </select>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
