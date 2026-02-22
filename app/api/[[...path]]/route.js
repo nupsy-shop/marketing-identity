@@ -240,7 +240,7 @@ export async function POST(request) {
     }
 
     // POST /api/clients/:id/configured-apps - Add platform to client with configuration
-    if (path === 'clients' && path.match(/^clients\/[^/]+\/configured-apps$/)) {
+    if (path.match(/^clients\/[^/]+\/configured-apps$/)) {
       const id = path.split('/')[1];
       const { platformId, items } = body || {};
       
