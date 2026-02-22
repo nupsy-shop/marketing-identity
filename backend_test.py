@@ -654,15 +654,18 @@ class IdentityTaxonomyTester:
             e2e_client_id = result.get("data", {}).get("id")
             self.log_result("E2E Flow - Create client", True, "TechCorp Solutions created")
 
-            # Step 2: Create agency platform with Google Analytics
+            # Step 2: Create or use existing agency platform with Google Analytics
             platform_data = {"platformId": "0f75633f-0f75-40f7-80f7-0f75633f0000"}  # Google Analytics / GA4
             result = self.make_request("POST", "agency/platforms", platform_data)
-            if not (result and result.get("success")):
-                self.log_result("E2E Flow - Create agency platform", False, "Failed to create agency platform")
+            if result and result.get("success"):
+                e2e_agency_platform_id = result.get("data", {}).get("id")
+                self.log_result("E2E Flow - Create agency platform", True, "Google Analytics agency platform created")
+            elif result and result.get("data", {}).get("id"):  # 409 conflict - platform already exists
+                e2e_agency_platform_id = result.get("data", {}).get("id")
+                self.log_result("E2E Flow - Use existing agency platform", True, "Using existing Google Analytics agency platform")
+            else:
+                self.log_result("E2E Flow - Create agency platform", False, "Failed to create or find agency platform")
                 return
-                
-            e2e_agency_platform_id = result.get("data", {}).get("id")
-            self.log_result("E2E Flow - Create agency platform", True, "Google Analytics agency platform created")
 
             # Step 3: Add access item with CLIENT_DEDICATED strategy and naming template
             item_data = {
