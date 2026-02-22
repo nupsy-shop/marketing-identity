@@ -1,4 +1,4 @@
-'use client';
+import EnhancedAccessRequestDialog from '@/components/EnhancedAccessRequestDialog';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
