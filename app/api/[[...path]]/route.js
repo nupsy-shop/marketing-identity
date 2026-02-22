@@ -525,8 +525,6 @@ export async function POST(request) {
           platformId: item.platformId,
           accessPattern: item.accessPattern,
           role: item.role,
-          assetType: item.assetType,
-          assetId: item.assetId,
           assetName: item.assetName,
           status: 'pending',
           // Copy item subtype and PAM fields
@@ -536,6 +534,13 @@ export async function POST(request) {
           pamUsername: item.pamUsername || undefined,
           pamAgencyIdentityEmail: item.pamAgencyIdentityEmail || undefined,
           pamRoleTemplate: item.pamRoleTemplate || undefined,
+          // NEW: Agency data fields from Excel
+          agencyData: item.agencyData || undefined,
+          // NEW: Client instructions from Excel
+          clientInstructions: item.clientInstructions || undefined,
+          // Client-selected asset (populated during onboarding)
+          selectedAssetType: undefined,
+          selectedAssetId: undefined,
           validationMode: item.pamOwnership === 'CLIENT_OWNED' ? 'AUTO'
             : item.pamOwnership === 'AGENCY_OWNED' ? 'ATTESTATION'
             : undefined
