@@ -354,6 +354,11 @@ export default function PlatformConfigPage() {
   // Get available roles from platform's accessPatterns for the Role Template dropdown
   const availableRoles = [...new Set((platform?.accessPatterns || []).flatMap(p => p.roles || []))];
   
+  // Platform roles for dropdowns (fallback to common roles if none defined)
+  const platformRoles = availableRoles.length > 0 
+    ? availableRoles 
+    : ['Administrator', 'Admin', 'Editor', 'Analyst', 'Viewer', 'Read-only'];
+  
   // Filter item types based on platform's supportedItemTypes
   const supportedItemTypes = platform?.supportedItemTypes || [];
   const filteredItemTypes = ITEM_TYPES.filter(it => 
