@@ -432,29 +432,42 @@ export default function PlatformConfigPage() {
                 <CardDescription>Define a reusable access configuration template</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Item Type */}
+                {/* Item Type - filtered by platform's supportedItemTypes */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Item Type <span className="text-destructive">*</span></Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {ITEM_TYPES.map(t => (
-                      <div
-                        key={t.value}
-                        className={`border rounded-lg p-3 cursor-pointer transition-colors ${formData.itemType === t.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
-                        onClick={() => setFormData(prev => ({ 
-                          ...prev, 
-                          itemType: t.value,
-                          identityPurpose: t.value === 'PROXY_TOKEN' ? IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE : IDENTITY_PURPOSE.HUMAN_INTERACTIVE
-                        }))}
-                      >
-                        <div className="flex items-center gap-2">
-                          <i className={`${t.icon} text-primary text-sm`}></i>
-                          <span className="font-medium text-sm">{t.label}</span>
-                          {t.pam && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs ml-auto">PAM</Badge>}
+                  {filteredItemTypes.length === 0 ? (
+                    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-center">
+                      <i className="fas fa-exclamation-triangle text-amber-500 text-xl mb-2 block"></i>
+                      <p className="text-sm text-amber-800">No item types configured for this platform.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {filteredItemTypes.map(t => (
+                        <div
+                          key={t.value}
+                          className={`border rounded-lg p-3 cursor-pointer transition-colors ${formData.itemType === t.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                          onClick={() => setFormData(prev => ({ 
+                            ...prev, 
+                            itemType: t.value,
+                            identityPurpose: t.value === 'PROXY_TOKEN' ? IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE : IDENTITY_PURPOSE.HUMAN_INTERACTIVE
+                          }))}
+                        >
+                          <div className="flex items-center gap-2">
+                            <i className={`${t.icon} text-primary text-sm`}></i>
+                            <span className="font-medium text-sm">{t.label}</span>
+                            {t.pam && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs ml-auto">PAM</Badge>}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{t.desc}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{t.desc}</p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+                  {supportedItemTypes.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      {platform?.name} supports: {filteredItemTypes.map(t => t.label).join(', ')}
+                    </p>
+                  )}
                 </div>
 
                 {/* Identity Purpose for GROUP_ACCESS */}
