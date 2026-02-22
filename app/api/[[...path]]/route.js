@@ -13,6 +13,16 @@ import {
   getAccessRequestsByClientId,
   updateAccessRequest
 } from '@/lib/data/stores';
+import {
+  configuredApps,
+  addConfiguredApp,
+  getConfiguredAppById,
+  getConfiguredAppsByClientId,
+  getConfiguredApp,
+  updateConfiguredApp,
+  removeConfiguredApp,
+  toggleConfiguredAppStatus
+} from '@/lib/data/configured-apps';
 import { getConnectorForPlatform } from '@/lib/connectors';
 
 // Helper to parse request body
