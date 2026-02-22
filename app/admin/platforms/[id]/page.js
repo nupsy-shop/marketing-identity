@@ -159,26 +159,21 @@ export default function PlatformConfigPage() {
     setShowAddForm(true);
   };
 
-  const handlePatternChange = (patternValue) => {
-    const platform = agencyPlatform?.platform;
-    const sel = platform?.accessPatterns?.find(p => p.pattern === patternValue);
-    setFormData(prev => ({
-      ...prev,
-      accessPattern: patternValue,
-      patternLabel: sel?.label || patternValue,
-      role: sel?.roles?.[0] || ''
-    }));
-  };
+  // Note: Pattern is now derived automatically from itemType - no handlePatternChange needed
 
   const buildPayload = () => {
     const platformName = agencyPlatform?.platform?.name;
-    const pattern = formData.patternLabel || formData.accessPattern;
-    const clientInstructions = getClientInstructions(platformName, pattern);
+    // Pattern is derived from itemType - NOT from user selection
+    const derivedPattern = ITEM_TYPE_TO_PATTERN[formData.itemType] || formData.itemType;
+    const itemTypeConfig = ITEM_TYPES.find(t => t.value === formData.itemType);
+    const patternLabel = itemTypeConfig?.label || derivedPattern;
+    const clientInstructions = getClientInstructions(platformName, patternLabel);
 
     const base = {
       itemType: formData.itemType,
-      accessPattern: formData.accessPattern,
-      patternLabel: formData.patternLabel,
+      // Pattern is auto-derived from itemType - stored for reference only
+      accessPattern: derivedPattern,
+      patternLabel: patternLabel,
       label: formData.label,
       role: formData.role,
       notes: formData.notes || undefined,
