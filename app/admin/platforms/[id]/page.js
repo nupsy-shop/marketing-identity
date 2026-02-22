@@ -258,14 +258,10 @@ export default function PlatformConfigPage() {
       return false;
     }
 
-    // Validate based on identity strategy
+    // Validate based on identity strategy - Named Invite
     if (formData.itemType === 'NAMED_INVITE' && formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE) {
       if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP && !formData.agencyGroupEmail) {
-        toast({ title: 'Validation Error', description: 'Agency Group Email is required for Agency Group strategy', variant: 'destructive' });
-        return false;
-      }
-      if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && !formData.namingTemplate) {
-        toast({ title: 'Validation Error', description: 'Naming Template is required for Client-Dedicated strategy', variant: 'destructive' });
+        toast({ title: 'Validation Error', description: 'Agency User Email is required for Agency Group strategy', variant: 'destructive' });
         return false;
       }
     }
