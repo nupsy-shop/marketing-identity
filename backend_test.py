@@ -38,21 +38,24 @@ def api_request(method, endpoint, data=None, expected_status=200):
     
     try:
         if method.upper() == "GET":
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=30)
         elif method.upper() == "POST":
-            response = requests.post(url, json=data, headers=headers)
+            response = requests.post(url, json=data, headers=headers, timeout=30)
         elif method.upper() == "PUT":
-            response = requests.put(url, json=data, headers=headers)
+            response = requests.put(url, json=data, headers=headers, timeout=30)
         elif method.upper() == "PATCH":
-            response = requests.patch(url, json=data, headers=headers)
+            response = requests.patch(url, json=data, headers=headers, timeout=30)
         elif method.upper() == "DELETE":
-            response = requests.delete(url, headers=headers)
+            response = requests.delete(url, headers=headers, timeout=30)
         else:
             raise ValueError(f"Unsupported method: {method}")
             
         return response
+    except requests.exceptions.RequestException as e:
+        print(f"{Colors.RED}API Request Error for {method} {url}: {e}{Colors.END}")
+        return None
     except Exception as e:
-        print(f"{Colors.RED}API Request Error: {e}{Colors.END}")
+        print(f"{Colors.RED}Unexpected Error: {e}{Colors.END}")
         return None
 
 def test_named_invite_client_dedicated_restriction():
