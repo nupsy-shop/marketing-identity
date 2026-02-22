@@ -126,6 +126,42 @@ export async function GET(request) {
       });
     }
 
+    // GET /api/audit-logs
+    if (path === 'audit-logs') {
+      const logs = getAuditLogs();
+      return NextResponse.json({ success: true, data: logs });
+    }
+
+    // GET /api/pam/sessions - Active PAM checkout sessions
+    if (path === 'pam/sessions') {
+      const sessions = getActivePamSessions();
+      // Enrich with request and item info
+      const enriched = sessions.map(s => {
+        const req = getAccessRequestById(s.requestId);
+        const item = req?.items.find(i => i.id === s.itemId);
+        const platform = item ? getPlatformById(item.platformId) : null;
+        const client = req ? getClientById(req.clientId) : null;
+        return { ...s, item, platform, client };
+      });
+      return NextResponse.json({ success: true, data: enriched });
+    }
+
+    // GET /api/pam/items - All PAM access request items across all requests
+    if (path === 'pam/items') {
+      const allPamItems = [];
+      for (const req of accessRequests) {
+        const client = getClientById(req.clientId);
+        for (const item of req.items) {
+          if (item.itemType === 'SHARED_ACCOUNT_PAM') {
+            const platform = getPlatformById(item.platformId);
+            const activeSession = pamSessions.find(s => s.requestId === req.id && s.itemId === item.id && s.active);
+            allPamItems.push({ ...item, requestId: req.id, client, platform, activeSession });
+          }
+        }
+      }
+      return NextResponse.json({ success: true, data: allPamItems });
+    }
+
     // GET /api/agency/platforms - List all agency platforms with enrichment
     if (path === 'agency/platforms') {
       const allAP = getAllAgencyPlatforms();
