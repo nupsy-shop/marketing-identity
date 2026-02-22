@@ -91,8 +91,8 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: client });
     }
 
-    // GET /api/clients/:id/requests - Get client's access requests
-    if (path.match(/^clients\/[^/]+\/requests$/)) {
+    // GET /api/clients/:id/requests OR /api/clients/:id/access-requests - Get client's access requests
+    if (path.match(/^clients\/[^/]+\/requests$/) || path.match(/^clients\/[^/]+\/access-requests$/)) {
       const clientId = path.split('/')[1];
       const requests = await db.getAccessRequestsByClientId(clientId);
       return NextResponse.json({ success: true, data: requests });
