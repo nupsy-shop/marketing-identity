@@ -1,104 +1,442 @@
-import { MongoClient } from 'mongodb'
-import { v4 as uuidv4 } from 'uuid'
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
+import { platforms, getPlatformById } from '@/lib/data/platforms';
+import {
+  clients,
+  accessRequests,
+  addClient,
+  getClientById,
+  getAllClients,
+  addAccessRequest,
+  getAccessRequestById,
+  getAccessRequestByToken,
+  getAccessRequestsByClientId,
+  updateAccessRequest
+} from '@/lib/data/stores';
+import { getConnectorForPlatform } from '@/lib/connectors';
 
-// MongoDB connection
-let client
-let db
-
-async function connectToMongo() {
-  if (!client) {
-    client = new MongoClient(process.env.MONGO_URL)
-    await client.connect()
-    db = client.db(process.env.DB_NAME)
+// Helper to parse request body
+async function getBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
   }
-  return db
 }
 
-// Helper function to handle CORS
-function handleCORS(response) {
-  response.headers.set('Access-Control-Allow-Origin', process.env.CORS_ORIGINS || '*')
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  response.headers.set('Access-Control-Allow-Credentials', 'true')
-  return response
-}
-
-// OPTIONS handler for CORS
-export async function OPTIONS() {
-  return handleCORS(new NextResponse(null, { status: 200 }))
-}
-
-// Route handler function
-async function handleRoute(request, { params }) {
-  const { path = [] } = params
-  const route = `/${path.join('/')}`
-  const method = request.method
+// GET handler
+export async function GET(request) {
+  const { pathname, searchParams } = new URL(request.url);
+  const path = pathname.replace('/api/', '');
 
   try {
-    const db = await connectToMongo()
-
-    // Root endpoint - GET /api/root (since /api/ is not accessible with catch-all)
-    if (route === '/root' && method === 'GET') {
-      return handleCORS(NextResponse.json({ message: "Hello World" }))
-    }
-    // Root endpoint - GET /api/root (since /api/ is not accessible with catch-all)
-    if (route === '/' && method === 'GET') {
-      return handleCORS(NextResponse.json({ message: "Hello World" }))
-    }
-
-    // Status endpoints - POST /api/status
-    if (route === '/status' && method === 'POST') {
-      const body = await request.json()
+    // GET /api/platforms - List all platforms
+    if (path === 'platforms') {
+      const domain = searchParams.get('domain');
+      const automation = searchParams.get('automation');
       
-      if (!body.client_name) {
-        return handleCORS(NextResponse.json(
-          { error: "client_name is required" }, 
-          { status: 400 }
-        ))
+      let filtered = platforms;
+      if (domain) {
+        filtered = filtered.filter(p => p.domain === domain);
+      }
+      if (automation) {
+        filtered = filtered.filter(p => p.automationFeasibility === automation);
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: filtered
+      });
+    }
+
+    // GET /api/platforms/:id - Get platform by ID
+    if (path.startsWith('platforms/') && path.split('/').length === 2) {
+      const id = path.split('/')[1];
+      const platform = getPlatformById(id);
+      
+      if (!platform) {
+        return NextResponse.json(
+          { success: false, error: 'Platform not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: platform
+      });
+    }
+
+    // GET /api/clients - List all clients
+    if (path === 'clients') {
+      return NextResponse.json({
+        success: true,
+        data: getAllClients()
+      });
+    }
+
+    // GET /api/clients/:id - Get client by ID
+    if (path.startsWith('clients/') && path.split('/').length === 2) {
+      const id = path.split('/')[1];
+      const client = getClientById(id);
+      
+      if (!client) {
+        return NextResponse.json(
+          { success: false, error: 'Client not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: client
+      });
+    }
+
+    // GET /api/clients/:id/access-requests - Get all access requests for a client
+    if (path.match(/^clients\/[^/]+\/access-requests$/)) {
+      const id = path.split('/')[1];
+      const requests = getAccessRequestsByClientId(id);
+      
+      return NextResponse.json({
+        success: true,
+        data: requests
+      });
+    }
+
+    // GET /api/access-requests/:id - Get access request by ID
+    if (path.startsWith('access-requests/') && path.split('/').length === 2) {
+      const id = path.split('/')[1];
+      const request = getAccessRequestById(id);
+      
+      if (!request) {
+        return NextResponse.json(
+          { success: false, error: 'Access request not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: request
+      });
+    }
+
+    // GET /api/onboarding/:token - Get access request by token (for client onboarding)
+    if (path.startsWith('onboarding/') && path.split('/').length === 2) {
+      const token = path.split('/')[1];
+      const request = getAccessRequestByToken(token);
+      
+      if (!request) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid onboarding token' },
+          { status: 404 }
+        );
       }
 
-      const statusObj = {
-        id: uuidv4(),
-        client_name: body.client_name,
-        timestamp: new Date()
-      }
-
-      await db.collection('status_checks').insertOne(statusObj)
-      return handleCORS(NextResponse.json(statusObj))
-    }
-
-    // Status endpoints - GET /api/status
-    if (route === '/status' && method === 'GET') {
-      const statusChecks = await db.collection('status_checks')
-        .find({})
-        .limit(1000)
-        .toArray()
-
-      // Remove MongoDB's _id field from response
-      const cleanedStatusChecks = statusChecks.map(({ _id, ...rest }) => rest)
+      // Include client and platform details
+      const client = getClientById(request.clientId);
+      const platformDetails = request.platformStatuses.map(ps => ({
+        ...ps,
+        platform: getPlatformById(ps.platformId)
+      }));
       
-      return handleCORS(NextResponse.json(cleanedStatusChecks))
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...request,
+          client,
+          platformStatuses: platformDetails
+        }
+      });
     }
 
-    // Route not found
-    return handleCORS(NextResponse.json(
-      { error: `Route ${route} not found` }, 
+    return NextResponse.json(
+      { success: false, error: 'Not found' },
       { status: 404 }
-    ))
-
+    );
   } catch (error) {
-    console.error('API Error:', error)
-    return handleCORS(NextResponse.json(
-      { error: "Internal server error" }, 
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
       { status: 500 }
-    ))
+    );
   }
 }
 
-// Export all HTTP methods
-export const GET = handleRoute
-export const POST = handleRoute
-export const PUT = handleRoute
-export const DELETE = handleRoute
-export const PATCH = handleRoute
+// POST handler
+export async function POST(request) {
+  const { pathname } = new URL(request.url);
+  const path = pathname.replace('/api/', '');
+  const body = await getBody(request);
+
+  try {
+    // POST /api/clients - Create new client
+    if (path === 'clients') {
+      const { name, email } = body || {};
+      
+      if (!name || !email) {
+        return NextResponse.json(
+          { success: false, error: 'Name and email are required' },
+          { status: 400 }
+        );
+      }
+
+      const client = {
+        id: uuidv4(),
+        name,
+        email,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      addClient(client);
+      
+      return NextResponse.json({
+        success: true,
+        data: client
+      });
+    }
+
+    // POST /api/access-requests - Create new access request
+    if (path === 'access-requests') {
+      const { clientId, platformIds } = body || {};
+      
+      if (!clientId || !platformIds || !Array.isArray(platformIds)) {
+        return NextResponse.json(
+          { success: false, error: 'clientId and platformIds array are required' },
+          { status: 400 }
+        );
+      }
+
+      const client = getClientById(clientId);
+      if (!client) {
+        return NextResponse.json(
+          { success: false, error: 'Client not found' },
+          { status: 404 }
+        );
+      }
+
+      // Validate all platform IDs
+      for (const platformId of platformIds) {
+        if (!getPlatformById(platformId)) {
+          return NextResponse.json(
+            { success: false, error: `Invalid platform ID: ${platformId}` },
+            { status: 400 }
+          );
+        }
+      }
+
+      const accessRequest = {
+        id: uuidv4(),
+        clientId,
+        token: uuidv4(),
+        platformStatuses: platformIds.map(platformId => ({
+          platformId,
+          status: 'pending'
+        })),
+        createdBy: 'admin-1', // TODO: Get from session
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      addAccessRequest(accessRequest);
+      
+      return NextResponse.json({
+        success: true,
+        data: accessRequest
+      });
+    }
+
+    // POST /api/access-requests/:id/validate - Validate a platform in an access request
+    if (path.match(/^access-requests\/[^/]+\/validate$/)) {
+      const id = path.split('/')[1];
+      const { platformId, notes } = body || {};
+      
+      if (!platformId) {
+        return NextResponse.json(
+          { success: false, error: 'platformId is required' },
+          { status: 400 }
+        );
+      }
+
+      const accessRequest = getAccessRequestById(id);
+      if (!accessRequest) {
+        return NextResponse.json(
+          { success: false, error: 'Access request not found' },
+          { status: 404 }
+        );
+      }
+
+      // Find and update the platform status
+      const platformStatus = accessRequest.platformStatuses.find(
+        ps => ps.platformId === platformId
+      );
+
+      if (!platformStatus) {
+        return NextResponse.json(
+          { success: false, error: 'Platform not found in this access request' },
+          { status: 404 }
+        );
+      }
+
+      platformStatus.status = 'validated';
+      platformStatus.validatedAt = new Date();
+      if (notes) {
+        platformStatus.notes = notes;
+      }
+
+      // Check if all platforms are validated
+      const allValidated = accessRequest.platformStatuses.every(
+        ps => ps.status === 'validated'
+      );
+
+      if (allValidated && !accessRequest.completedAt) {
+        accessRequest.completedAt = new Date();
+      }
+
+      updateAccessRequest(id, accessRequest);
+      
+      return NextResponse.json({
+        success: true,
+        data: accessRequest
+      });
+    }
+
+    // POST /api/access-requests/:id/refresh - Refresh validation status for all platforms
+    if (path.match(/^access-requests\/[^/]+\/refresh$/)) {
+      const id = path.split('/')[1];
+      const accessRequest = getAccessRequestById(id);
+      
+      if (!accessRequest) {
+        return NextResponse.json(
+          { success: false, error: 'Access request not found' },
+          { status: 404 }
+        );
+      }
+
+      // Use connectors to verify access for each platform
+      const results = [];
+      for (const platformStatus of accessRequest.platformStatuses) {
+        const platform = getPlatformById(platformStatus.platformId);
+        if (!platform) continue;
+
+        const connector = getConnectorForPlatform(platform);
+        const client = getClientById(accessRequest.clientId);
+        
+        try {
+          const result = await connector.verifyAccess({
+            accountId: client?.email || '',
+            userEmail: 'agency@example.com'
+          });
+
+          if (result.success && result.data === true) {
+            platformStatus.status = 'validated';
+            platformStatus.validatedAt = new Date();
+          }
+          
+          results.push({
+            platformId: platformStatus.platformId,
+            verified: result.data,
+            error: result.error
+          });
+        } catch (error) {
+          results.push({
+            platformId: platformStatus.platformId,
+            verified: false,
+            error: error.message
+          });
+        }
+      }
+
+      updateAccessRequest(id, accessRequest);
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          accessRequest,
+          verificationResults: results
+        }
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Not found' },
+      { status: 404 }
+    );
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE handler
+export async function DELETE(request) {
+  const { pathname } = new URL(request.url);
+  const path = pathname.replace('/api/', '');
+
+  try {
+    // DELETE /api/access-requests/:id/platforms/:platformId - Revoke platform access
+    if (path.match(/^access-requests\/[^/]+\/platforms\/[^/]+$/)) {
+      const parts = path.split('/');
+      const requestId = parts[1];
+      const platformId = parts[3];
+
+      const accessRequest = getAccessRequestById(requestId);
+      if (!accessRequest) {
+        return NextResponse.json(
+          { success: false, error: 'Access request not found' },
+          { status: 404 }
+        );
+      }
+
+      const platformStatus = accessRequest.platformStatuses.find(
+        ps => ps.platformId === platformId
+      );
+
+      if (!platformStatus) {
+        return NextResponse.json(
+          { success: false, error: 'Platform not found in this access request' },
+          { status: 404 }
+        );
+      }
+
+      // Use connector to revoke access
+      const platform = getPlatformById(platformId);
+      if (platform) {
+        const connector = getConnectorForPlatform(platform);
+        const client = getClientById(accessRequest.clientId);
+        
+        await connector.revokeAccess({
+          accountId: client?.email || '',
+          userEmail: 'agency@example.com'
+        });
+      }
+
+      platformStatus.status = 'pending';
+      platformStatus.validatedAt = undefined;
+      platformStatus.notes = 'Access revoked by admin';
+
+      updateAccessRequest(requestId, accessRequest);
+      
+      return NextResponse.json({
+        success: true,
+        data: accessRequest
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Not found' },
+      { status: 404 }
+    );
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
