@@ -13,7 +13,7 @@ import {
   getFieldsForAccessItem, 
   getClientInstructions,
   requiresAssetSelection 
-} from '@/lib/data/platform-access-instructions';
+} from '@/lib/data/platform-access-instructions.js';
 
 const ITEM_TYPES = [
   { value: 'NAMED_INVITE', label: 'Named Invite', icon: 'fas fa-envelope', desc: 'Invite a specific user by email' },
