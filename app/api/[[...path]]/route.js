@@ -350,6 +350,10 @@ export async function POST(request) {
       if (!ap) {
         return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
+      
+      // Get the platform definition to check supported item types
+      const platformDef = getPlatformById(ap.platformId);
+      
       const { 
         itemType = 'NAMED_INVITE', 
         accessPattern, 
@@ -369,6 +373,15 @@ export async function POST(request) {
         integrationIdentityId,
         validationMethod
       } = body || {};
+
+      // Server-side validation: Check if itemType is supported by this platform
+      const supportedItemTypes = platformDef?.supportedItemTypes || [];
+      if (supportedItemTypes.length > 0 && !supportedItemTypes.includes(itemType)) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Item type "${itemType}" is not supported by ${platformDef?.name || 'this platform'}. Supported types: ${supportedItemTypes.join(', ')}` 
+        }, { status: 400 });
+      }
 
       // Item Type → Pattern mapping (pattern is derived from itemType)
       const ITEM_TYPE_TO_PATTERN = {
