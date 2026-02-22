@@ -248,7 +248,8 @@ async function main() {
   console.log('🌱 Seeding platform catalog...');
   
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://pamuser:pampassword@localhost:5432/pam_identity_hub?schema=public'
+    connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_Uk0aJn7LlZOd@ep-small-mode-ai4td3or-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require',
+    ssl: { rejectUnauthorized: false }
   });
 
   try {
