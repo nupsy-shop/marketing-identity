@@ -330,7 +330,16 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Backend API comprehensive testing completed"
+    - "Landing Page and Navigation"
+    - "Admin Dashboard - Initial State and Tabs"
+    - "Platform Browser Tab and Filtering"
+    - "Create Client Flow and Dialog"
+    - "Client Detail Page and Access Requests"
+    - "Access Request Creation and Management"
+    - "Client Onboarding Flow"
+    - "Platform Access Cards and Instructions"
+    - "Onboarding Completion and Progress Tracking"
+    - "Error Handling and Invalid States"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
