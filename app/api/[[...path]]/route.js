@@ -840,6 +840,29 @@ export async function PUT(request) {
   const body = await getBody(request);
 
   try {
+    // PUT /api/integration-identities/:id - Update integration identity
+    if (path.match(/^integration-identities\/[^/]+$/)) {
+      const id = path.split('/')[1];
+      const identity = getIntegrationIdentityById(id);
+      if (!identity) {
+        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
+      }
+      const { type, name, description, email, clientId: oauthClientId, clientSecret, apiKey, scopes, rotationPolicy, allowedPlatforms } = body || {};
+      const updated = updateIntegrationIdentity(id, {
+        type: type || identity.type,
+        name: name || identity.name,
+        description: description ?? identity.description,
+        email: email ?? identity.email,
+        clientId: oauthClientId ?? identity.clientId,
+        clientSecret: clientSecret || undefined, // Only update if provided
+        apiKey: apiKey || undefined,
+        scopes: scopes || identity.scopes,
+        rotationPolicy: rotationPolicy || identity.rotationPolicy,
+        allowedPlatforms: allowedPlatforms || identity.allowedPlatforms
+      });
+      return NextResponse.json({ success: true, data: updated });
+    }
+
     // PUT /api/agency/platforms/:id/items/:itemId - Update an access item
     if (path.match(/^agency\/platforms\/[^/]+\/items\/[^/]+$/)) {
       const parts = path.split('/');
@@ -849,18 +872,54 @@ export async function PUT(request) {
       if (!ap) {
         return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-      const { accessPattern, patternLabel, label, role, assetType, assetId, notes } = body || {};
+      const { 
+        accessPattern, 
+        patternLabel, 
+        label, 
+        role, 
+        notes,
+        pamConfig,
+        agencyData,
+        clientInstructions,
+        // Identity Taxonomy fields
+        identityPurpose,
+        humanIdentityStrategy,
+        clientDedicatedIdentityType,
+        namingTemplate,
+        agencyGroupEmail,
+        integrationIdentityId,
+        validationMethod
+      } = body || {};
+      
       if (!accessPattern || !label || !role) {
         return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
       }
+
+      // Validate using Field Policy Engine
+      const validation = validateAccessItemPayload(body, true);
+      if (!validation.valid) {
+        return NextResponse.json({ success: false, error: validation.errors.join('; ') }, { status: 400 });
+      }
+
       const updated = updateAccessItem(apId, itemId, {
         accessPattern,
         patternLabel: patternLabel || accessPattern,
         label,
         role,
-        assetType: assetType || undefined,
-        assetId: assetId || undefined,
-        notes: notes || undefined
+        notes: notes || undefined,
+        // Identity Taxonomy fields
+        identityPurpose: identityPurpose || undefined,
+        humanIdentityStrategy: humanIdentityStrategy || undefined,
+        clientDedicatedIdentityType: clientDedicatedIdentityType || undefined,
+        namingTemplate: namingTemplate || undefined,
+        agencyGroupEmail: agencyGroupEmail || undefined,
+        integrationIdentityId: integrationIdentityId || undefined,
+        validationMethod: validationMethod || undefined,
+        // Agency data
+        agencyData: agencyData || undefined,
+        clientInstructions: clientInstructions || undefined,
+        // PAM config
+        pamConfig: pamConfig || undefined
       });
       if (!updated) {
         return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
@@ -884,6 +943,16 @@ export async function PATCH(request) {
   const path = pathname.replace('/api/', '');
 
   try {
+    // PATCH /api/integration-identities/:id/toggle - Toggle active status
+    if (path.match(/^integration-identities\/[^/]+\/toggle$/)) {
+      const id = path.split('/')[1];
+      const identity = toggleIntegrationIdentityStatus(id);
+      if (!identity) {
+        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: identity });
+    }
+
     // PATCH /api/agency/platforms/:id/toggle - Toggle isEnabled
     if (path.match(/^agency\/platforms\/[^/]+\/toggle$/)) {
       const id = path.split('/')[2];
