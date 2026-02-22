@@ -400,7 +400,7 @@ export async function POST(request) {
       const parts = path.split('/');
       const token = parts[1];
       const itemId = parts[3];
-      const { attestationText, evidenceBase64, evidenceFileName } = body || {};
+      const { attestationText, evidenceBase64, evidenceFileName, assetType, assetId } = body || {};
       const req = getAccessRequestByToken(token);
       if (!req) return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
       const item = req.items.find(i => i.id === itemId);
@@ -409,13 +409,18 @@ export async function POST(request) {
       item.validatedAt = new Date();
       item.validatedBy = 'client_attestation';
       item.validationMode = evidenceBase64 ? 'EVIDENCE' : 'ATTESTATION';
+      // Store client-selected asset details (from onboarding)
+      if (assetType) item.selectedAssetType = assetType;
+      if (assetId) item.selectedAssetId = assetId;
       item.validationResult = {
         timestamp: new Date(),
         actor: 'client',
         mode: item.validationMode,
         details: attestationText || 'Client confirmed access was granted',
         evidenceRef: evidenceBase64 || undefined,
-        attestationText: attestationText || undefined
+        attestationText: attestationText || undefined,
+        selectedAssetType: assetType || undefined,
+        selectedAssetId: assetId || undefined
       };
       addAuditLog({
         event: evidenceBase64 ? 'EVIDENCE_UPLOADED' : 'ACCESS_ATTESTED',
@@ -423,7 +428,7 @@ export async function POST(request) {
         requestId: req.id,
         itemId,
         platformId: item.platformId,
-        details: { attestationText, hasEvidence: !!evidenceBase64, evidenceFileName }
+        details: { attestationText, hasEvidence: !!evidenceBase64, evidenceFileName, assetType, assetId }
       });
       const allDone = req.items.every(i => i.status === 'validated');
       if (allDone && !req.completedAt) req.completedAt = new Date();
