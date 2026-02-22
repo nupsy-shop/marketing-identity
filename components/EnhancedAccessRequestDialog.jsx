@@ -131,14 +131,19 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
           accessPattern: item.accessPattern,
           role: item.role,
           assetName: item.label,
-          // Item type and PAM fields
+          // Item type
           itemType: item.itemType || 'NAMED_INVITE',
+          // PAM fields - including new identity strategy
           pamOwnership: item.pamConfig?.ownership || undefined,
-          pamGrantMethod: item.pamConfig?.grantMethod || undefined,
-          pamUsername: item.pamConfig?.username || undefined,
+          pamIdentityStrategy: item.pamConfig?.identityStrategy || undefined,
+          pamIdentityType: item.pamConfig?.identityType || undefined,
+          pamNamingTemplate: item.pamConfig?.namingTemplate || undefined,
           pamAgencyIdentityEmail: item.pamConfig?.agencyIdentityEmail || undefined,
           pamRoleTemplate: item.pamConfig?.roleTemplate || undefined,
-          // Identity Taxonomy fields
+          pamGrantMethod: item.pamConfig?.grantMethod || undefined,
+          pamCheckoutPolicy: item.pamConfig?.checkoutPolicy || undefined,
+          pamRotationPolicy: item.pamConfig?.rotationPolicy || undefined,
+          // Identity Taxonomy fields (for Named Invite)
           identityPurpose: item.identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
           humanIdentityStrategy: item.humanIdentityStrategy || undefined,
           namingTemplate: item.namingTemplate || undefined,
