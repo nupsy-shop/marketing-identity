@@ -41,8 +41,11 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
     }
   };
 
+  // Use "|" as separator to avoid conflicts with UUID dashes
+  const makeKey = (appId, itemId) => `${appId}|${itemId}`;
+
   const toggleKey = (appId, itemId) => {
-    const key = `${appId}-${itemId}`;
+    const key = makeKey(appId, itemId);
     setSelectedKeys(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
@@ -53,7 +56,7 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
       setSelectedKeys([]);
     } else {
       const allKeys = configuredApps.flatMap(app =>
-        app.items.map(item => `${app.id}-${item.id}`)
+        app.items.map(item => makeKey(app.id, item.id))
       );
       setSelectedKeys(allKeys);
     }
@@ -62,8 +65,9 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
   // Get resolved selected items data for review/submission
   const getSelectedItemsData = () => {
     return selectedKeys.map(key => {
-      const [appId, ...itemIdParts] = key.split('-');
-      const itemId = itemIdParts.join('-');
+      const sepIndex = key.indexOf('|');
+      const appId = key.substring(0, sepIndex);
+      const itemId = key.substring(sepIndex + 1);
       const app = configuredApps.find(a => a.id === appId);
       const item = app?.items.find(i => i.id === itemId);
       return { app, item };
