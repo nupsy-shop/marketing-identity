@@ -1054,6 +1054,65 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ PAM Identity Strategy backend implementation FULLY WORKING! 100% SUCCESS RATE (17/17 tests passed). Comprehensive testing completed: ✅ Agency Platform PAM Item Creation - STATIC strategy (requires agencyIdentityEmail, roleTemplate), CLIENT_DEDICATED strategy (requires namingTemplate, identityType, roleTemplate), CLIENT_OWNED (no agency identity fields), supportedItemTypes validation working correctly, ✅ Access Request PAM Identity Generation - CLIENT_DEDICATED generates resolvedIdentity using naming template and client name, STATIC strategy resolvedIdentity equals pamAgencyIdentityEmail, CLIENT_OWNED has no resolvedIdentity, pamConfig stored correctly on access request items, ✅ PUT Access Item Update - pamConfig.identityStrategy changes persisted correctly, ✅ End-to-End Flow - Complete workflow from client creation → Google Analytics platform (supports SHARED_ACCOUNT_PAM) → PAM access item creation → access request → resolvedIdentity generation works perfectly. All PAM identity strategies operational and production-ready!"
+  - task: "Client Asset Fields API - /api/client-asset-fields Endpoint"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Client Asset Fields API working perfectly. Successfully tested: (1) GET /api/client-asset-fields?platformName=Google%20Analytics%20/%20GA4&itemType=NAMED_INVITE returns 2 fields (propertyId with validation pattern, role with select options), (2) Meta Business Manager returns 2 fields (adAccountIds, pageIds), (3) Google Ads returns 1 field (adAccountId), (4) Shopify returns 2 fields (storeUrl, permissions). Platform-specific field parsing, validation rules, and form field definitions working correctly across different platforms."
+
+  - task: "Onboarding Token Retrieval with Complete Data Structure"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Onboarding token retrieval working perfectly. Successfully tested: (1) Create client and access request with GA4 item, (2) GET /api/onboarding/{token} returns complete data structure with client info, items array, and platform enrichment, (3) Platform objects include all required metadata (name, iconName, description, access patterns), (4) Items include proper itemType, validationMethod, and identity fields. Complete onboarding data structure operational."
+
+  - task: "ClientProvidedTarget Storage via Attest Endpoint"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ClientProvidedTarget storage working perfectly. Successfully tested: (1) POST /api/onboarding/{token}/items/{itemId}/attest with clientProvidedTarget object containing propertyId and role fields, (2) clientProvidedTarget data stored correctly on access request item, (3) Item status changes to 'validated' after attestation, (4) Data persists and is retrievable via subsequent GET /api/onboarding/{token} calls. Client asset data collection and storage fully functional."
+
+  - task: "PAM Credential Submission with ClientProvidedTarget Integration"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PAM credential submission with clientProvidedTarget working perfectly. Successfully tested: (1) Create access request with SHARED_ACCOUNT_PAM + CLIENT_OWNED item, (2) POST /api/onboarding/{token}/items/{itemId}/submit-credentials with username, password, AND clientProvidedTarget object, (3) Both credentials (pamUsername, pamSecretRef) and clientProvidedTarget stored correctly, (4) Item status changes to 'validated', (5) Complete integration of PAM credential flow with client asset data collection operational."
+
+  - task: "End-to-End Onboarding Flow with Client Asset Fields"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Complete end-to-end onboarding flow with client asset fields working perfectly. Successfully tested full 7-step workflow: (1) Create client, (2) Create/use existing agency platform with GA4, (3) Add NAMED_INVITE item to agency platform (without client asset fields - collected during onboarding), (4) Create access request, (5) Retrieve onboarding data with complete structure including platform details, (6) Submit attestation with clientProvidedTarget containing GA4 Property ID and role, (7) Final verification shows validated status and stored client asset data. All integration points functional."
 
 test_plan:
   current_focus: []
