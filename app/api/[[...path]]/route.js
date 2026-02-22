@@ -117,6 +117,23 @@ export async function GET(request) {
       });
     }
 
+    // GET /api/clients/:id/configured-apps - Get configured apps for a client
+    if (path.match(/^clients\/[^/]+\/configured-apps$/)) {
+      const id = path.split('/')[1];
+      const apps = getConfiguredAppsByClientId(id);
+      
+      // Enrich with platform details
+      const enrichedApps = apps.map(app => ({
+        ...app,
+        platform: getPlatformById(app.platformId)
+      }));
+      
+      return NextResponse.json({
+        success: true,
+        data: enrichedApps
+      });
+    }
+
     // GET /api/clients/:id/access-requests - Get all access requests for a client
     if (path.match(/^clients\/[^/]+\/access-requests$/)) {
       const id = path.split('/')[1];
