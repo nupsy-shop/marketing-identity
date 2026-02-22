@@ -214,11 +214,40 @@ export async function POST(request) {
 
     // POST /api/access-requests - Create new access request
     if (path === 'access-requests') {
-      const { clientId, platformIds } = body || {};
+      const { clientId, items } = body || {};
       
-      if (!clientId || !platformIds || !Array.isArray(platformIds)) {
+      // Support both old format (platformIds) and new format (items)
+      let requestItems = [];
+      
+      if (items && Array.isArray(items)) {
+        // New format: enhanced with pattern, role, assets
+        requestItems = items.map(item => ({
+          id: uuidv4(),
+          platformId: item.platformId,
+          accessPattern: item.accessPattern,
+          role: item.role,
+          assetType: item.assetType,
+          assetId: item.assetId,
+          assetName: item.assetName,
+          status: 'pending'
+        }));
+      } else if (body.platformIds && Array.isArray(body.platformIds)) {
+        // Old format: just platformIds (backward compatibility)
+        requestItems = body.platformIds.map(platformId => ({
+          id: uuidv4(),
+          platformId,
+          accessPattern: 'Default',
+          role: 'Standard',
+          status: 'pending'
+        }));
+      } else {
         return NextResponse.json(
-          { success: false, error: 'clientId and platformIds array are required' },
+          { success: false, error: 'items array or platformIds array is required' },
+          { status: 400 }\n        );\n      }
+      
+      if (!clientId) {
+        return NextResponse.json(
+          { success: false, error: 'clientId is required' },
           { status: 400 }
         );
       }
@@ -232,10 +261,10 @@ export async function POST(request) {
       }
 
       // Validate all platform IDs
-      for (const platformId of platformIds) {
-        if (!getPlatformById(platformId)) {
+      for (const item of requestItems) {
+        if (!getPlatformById(item.platformId)) {
           return NextResponse.json(
-            { success: false, error: `Invalid platform ID: ${platformId}` },
+            { success: false, error: `Invalid platform ID: ${item.platformId}` },
             { status: 400 }
           );
         }
@@ -245,10 +274,7 @@ export async function POST(request) {
         id: uuidv4(),
         clientId,
         token: uuidv4(),
-        platformStatuses: platformIds.map(platformId => ({
-          platformId,
-          status: 'pending'
-        })),
+        items: requestItems,
         createdBy: 'admin-1',
         createdAt: new Date(),
         updatedAt: new Date()
