@@ -370,7 +370,7 @@ export default function AppCatalogPage() {
   );
 }
 
-function PlatformCard({ platform, onAddToClient, hasClientSelected }) {
+function PlatformCard({ platform, onAddToClient, hasClientSelected, isAdded }) {
   const getTierBadgeColor = (tier) => {
     if (tier === 1) return 'bg-purple-100 text-purple-700 border-purple-200';
     return 'bg-blue-100 text-blue-700 border-blue-200';
@@ -383,7 +383,7 @@ function PlatformCard({ platform, onAddToClient, hasClientSelected }) {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/50 group">
+    <Card className={`hover:shadow-lg transition-all duration-200 border-2 group ${isAdded ? 'border-green-300 bg-green-50/30' : 'hover:border-primary/50'}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between mb-3">
           <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -393,15 +393,21 @@ function PlatformCard({ platform, onAddToClient, hasClientSelected }) {
               <i className="fas fa-cube text-2xl text-primary"></i>
             )}
           </div>
-          {platform.oauthSupported && (
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              <i className="fas fa-key mr-1"></i>
-              OAuth
-            </Badge>
-          )}
+          <div className="flex gap-1 flex-wrap justify-end">
+            {isAdded && (
+              <Badge className="bg-green-100 text-green-700 border-green-200">
+                <i className="fas fa-check mr-1"></i>Added
+              </Badge>
+            )}
+            {platform.oauthSupported && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                <i className="fas fa-key mr-1"></i>OAuth
+              </Badge>
+            )}
+          </div>
         </div>
         <CardTitle className="text-lg leading-tight">{platform.name}</CardTitle>
-        <CardDescription className="text-sm line-clamp-2">
+        <CardDescription className="text-sm line-clamp-3">
           {platform.description || platform.notes || 'Marketing platform integration'}
         </CardDescription>
       </CardHeader>
@@ -409,39 +415,58 @@ function PlatformCard({ platform, onAddToClient, hasClientSelected }) {
         <div className="flex flex-wrap gap-2">
           <Badge className={getTierBadgeColor(platform.tier)}>
             {platform.tier === 1 ? (
-              <><i className="fas fa-star mr-1"></i>Tier 1</>
+              <><i className="fas fa-star mr-1"></i>Tier 1 — Asset Level</>
             ) : (
-              <><i className="fas fa-layer-group mr-1"></i>Tier 2</>
+              <><i className="fas fa-layer-group mr-1"></i>Tier 2 — Platform Level</>
             )}
-          </Badge>
-          <Badge className={getAutomationBadgeColor(platform.automationFeasibility)}>
-            {platform.automationFeasibility}
           </Badge>
         </div>
 
         {platform.accessPatterns && platform.accessPatterns.length > 0 && (
           <div className="pt-2 border-t">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Access Patterns:</p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              {platform.accessPatterns.length} Access Pattern{platform.accessPatterns.length !== 1 ? 's' : ''}:
+            </p>
             <div className="space-y-1">
-              {platform.accessPatterns.slice(0, 2).map((ap, idx) => (
+              {platform.accessPatterns.map((ap, idx) => (
                 <div key={idx} className="text-xs flex items-start gap-2">
-                  <i className="fas fa-check-circle text-green-500 mt-0.5"></i>
-                  <span className="flex-1">{ap.label}</span>
+                  <i className="fas fa-check-circle text-green-500 mt-0.5 flex-shrink-0"></i>
+                  <div>
+                    <span className="font-medium">{ap.label}</span>
+                    {ap.description && (
+                      <p className="text-muted-foreground line-clamp-2 mt-0.5">{ap.description}</p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <Button 
-          variant="outline" 
-          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+        <Button
+          variant={isAdded ? 'outline' : 'outline'}
+          className={`w-full transition-colors ${
+            isAdded
+              ? 'border-green-300 text-green-700 hover:bg-green-50'
+              : hasClientSelected
+              ? 'group-hover:bg-primary group-hover:text-primary-foreground'
+              : ''
+          }`}
           onClick={() => onAddToClient(platform)}
           disabled={!hasClientSelected}
         >
-          <i className="fas fa-plus mr-2"></i>
-          {hasClientSelected ? 'Add to Client' : 'Select Client First'}
+          {isAdded ? (
+            <><i className="fas fa-plus mr-2"></i>Add Another Configuration</>
+          ) : hasClientSelected ? (
+            <><i className="fas fa-plus mr-2"></i>Configure & Add to Client</>
+          ) : (
+            <><i className="fas fa-user mr-2"></i>Select a Client First</>
+          )}
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
       </CardContent>
     </Card>
   );
