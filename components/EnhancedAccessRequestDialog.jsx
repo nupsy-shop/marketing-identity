@@ -114,31 +114,23 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
         <DialogHeader>
           <DialogTitle>Create Access Request</DialogTitle>
           <DialogDescription>
-            {step === 1 && 'Step 1: Select platforms'}
-            {step === 2 && 'Step 2: Configure access patterns and roles'}
-            {step === 3 && 'Step 3: Review and create'}
+            {step === 1 && 'Step 1: Select configured items'}
+            {step === 2 && 'Step 2: Review and create'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Progress Indicator */}
+        {/* Progress Indicator - 2 Steps */}
         <div className="flex items-center gap-2 mb-4">
           <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
               {step > 1 ? <i className="fas fa-check"></i> : '1'}
             </div>
-            <span className="text-sm font-medium">Platforms</span>
+            <span className="text-sm font-medium">Select Items</span>
           </div>
           <div className="flex-1 h-px bg-border"></div>
           <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-              {step > 2 ? <i className="fas fa-check"></i> : '2'}
-            </div>
-            <span className="text-sm font-medium">Configure</span>
-          </div>
-          <div className="flex-1 h-px bg-border"></div>
-          <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-              3
+              2
             </div>
             <span className="text-sm font-medium">Review</span>
           </div>
