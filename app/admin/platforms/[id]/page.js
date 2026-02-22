@@ -233,8 +233,9 @@ export default function PlatformConfigPage() {
   };
 
   const validateForm = () => {
-    if (!formData.label || !formData.accessPattern || !formData.role) {
-      toast({ title: 'Validation Error', description: 'Label, Access Pattern and Role are required', variant: 'destructive' });
+    // Pattern is derived from itemType, so we only need label and role
+    if (!formData.label || !formData.role) {
+      toast({ title: 'Validation Error', description: 'Label and Role Template are required', variant: 'destructive' });
       return false;
     }
 
