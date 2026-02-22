@@ -76,6 +76,7 @@ def make_request(method, endpoint, data=None, expected_status=200):
 def test_phase2_platform_data():
     """Test Phase 2 platform data updates"""
     print("\n=== Testing Phase 2 Platform Data Updates ===")
+    global google_analytics_platform_id
     
     # Test GET /api/platforms?clientFacing=true - Should return 27 platforms
     success, result = make_request('GET', 'platforms?clientFacing=true')
@@ -116,7 +117,6 @@ def test_phase2_platform_data():
                 gong_found = True
             elif 'google analytics' in platform_name or 'ga4' in platform_name:
                 google_analytics_ga4_found = True
-                global google_analytics_platform_id
                 google_analytics_platform_id = platform.get('id')
             elif 'microsoft advertising' in platform_name:
                 microsoft_advertising_found = True
