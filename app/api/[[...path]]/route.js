@@ -412,6 +412,14 @@ export async function POST(request) {
         return NextResponse.json({ success: false, error: 'itemType, label and role are required' }, { status: 400 });
       }
 
+      // Validate Named Invite Identity Strategy - CLIENT_DEDICATED is NOT allowed (only for PAM)
+      if (itemType === 'NAMED_INVITE' && humanIdentityStrategy === 'CLIENT_DEDICATED') {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'CLIENT_DEDICATED identity strategy is not allowed for Named Invite items. Use AGENCY_GROUP or INDIVIDUAL_USERS instead. For auto-generated client-specific identities, use Shared Account (PAM) with Agency-Owned ownership.' 
+        }, { status: 400 });
+      }
+
       // Validate using Field Policy Engine
       const validation = validateAccessItemPayload(body);
       if (!validation.valid) {
