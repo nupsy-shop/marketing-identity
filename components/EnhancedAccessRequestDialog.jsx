@@ -201,10 +201,12 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
                         {ap.accessItems.map(item => {
                           const key = makeKey(ap.id, item.id);
                           const isSelected = selectedKeys.includes(key);
+                          const isPam = item.itemType === 'SHARED_ACCOUNT_PAM';
+                          const pamOwnership = item.pamConfig?.ownership;
                           return (
                             <div
                               key={item.id}
-                              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'border-primary bg-primary/5' : isPam ? 'border-amber-200 hover:border-amber-400' : 'border-border hover:border-primary/50'}`}
                               onClick={() => toggleKey(ap.id, item.id)}
                             >
                               <Checkbox
@@ -214,10 +216,23 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
                                 className="mt-0.5"
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm">{item.label}</p>
+                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                  <p className="font-medium text-sm">{item.label}</p>
+                                  {isPam && (
+                                    <Badge className={`text-xs ${pamOwnership === 'CLIENT_OWNED' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
+                                      <i className="fas fa-shield-halved mr-1"></i>
+                                      {pamOwnership === 'CLIENT_OWNED' ? 'Shared Account (Client-owned)' : 'Shared Account (Agency-owned)'}
+                                    </Badge>
+                                  )}
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                   {item.patternLabel || item.accessPattern} &bull; {item.role}
                                 </p>
+                                {isPam && pamOwnership === 'AGENCY_OWNED' && item.pamConfig?.agencyIdentityEmail && (
+                                  <p className="text-xs text-blue-600 mt-0.5">
+                                    <i className="fas fa-envelope mr-1"></i>Invite: {item.pamConfig.agencyIdentityEmail}
+                                  </p>
+                                )}
                                 {item.assetType && (
                                   <p className="text-xs text-muted-foreground mt-0.5">
                                     {item.assetType}{item.assetId && ` #${item.assetId}`}
