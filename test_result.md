@@ -902,3 +902,77 @@ agent_communication:
     message: "🎉 PAM (PRIVILEGED ACCESS MANAGEMENT) TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (9/9 tests passed). Comprehensive testing of complete PAM onboarding flow: ✅ CLIENT_OWNED Flow - Credential submission via POST /api/onboarding/:token/items/:itemId/submit-credentials working, credentials stored securely, item status updated to validated, audit logging functional, ✅ AGENCY_OWNED Flow - Attestation via POST /api/onboarding/:token/items/:itemId/attest working, attestation data stored, evidence upload supported, audit logging functional, ✅ PAM Checkout/Checkin - POST /api/pam/:requestId/items/:itemId/checkout reveals credentials, creates sessions, POST checkin closes sessions, audit trails working, ✅ PAM APIs - GET /api/pam/sessions and /api/pam/items working correctly, ✅ Agency Platform PAM Items - SHARED_ACCOUNT_PAM creation with CLIENT_OWNED and AGENCY_OWNED configurations working, ✅ Access Request PAM Integration - PAM items properly included in access requests with correct validation modes, ✅ Onboarding PAM Fields - All PAM fields (ownership, grantMethod, agencyIdentityEmail, roleTemplate) properly included in onboarding response. The complete PAM system is PRODUCTION-READY and fully operational!"
   - agent: "testing"
     message: "🎉 PLATFORM ACCESS INSTRUCTIONS INTEGRATION TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (20/20 tests passed). Comprehensive testing of new Excel-based Platform Access Instructions integration: ✅ Dynamic Form Fields - Agency data fields (managerAccountId, businessManagerId, agencyEmail, seatId, serviceAccountEmail, ssoGroupName) properly stored and retrieved, ✅ Client Instructions - Multi-step instructions from Excel stored and displayed during onboarding with exact preservation, ✅ Agency Data Storage - All platform-specific agency data fields working (Google Ads MCC, Meta Business Manager, TikTok Business Center, Snowflake service accounts, DV360 seats), ✅ Asset Selection - selectedAssetType and selectedAssetId properly captured during attestation and stored in validation results, ✅ End-to-End Flow - Complete workflow from agency platform creation with agency data → access request → onboarding with instructions → attestation with asset selection. The Platform Access Instructions integration is PRODUCTION-READY and fully operational with Excel data integration!"
+  - task: "Identity Taxonomy - Integration Identities API CRUD"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented new Integration Identities API with full CRUD operations: GET /api/integration-identities (list all), POST /api/integration-identities (create), GET /api/integration-identities/:id (get by ID), PUT /api/integration-identities/:id (update), DELETE /api/integration-identities/:id (delete), PATCH /api/integration-identities/:id/toggle (toggle active status). Seeded with sample data (GA4 Service Account, GTM Service Account, Fivetran API Key). Needs testing."
+
+  - task: "Identity Taxonomy - Access Items with Identity Purpose/Strategy"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated POST /api/agency/platforms/:id/items and PUT endpoints to accept and store new Identity Taxonomy fields: identityPurpose (HUMAN_INTERACTIVE, INTEGRATION_NON_INTERACTIVE), humanIdentityStrategy (CLIENT_DEDICATED, AGENCY_GROUP, INDIVIDUAL_USERS), clientDedicatedIdentityType, namingTemplate, agencyGroupEmail, integrationIdentityId, validationMethod. Integrated with Field Policy Engine for validation. Needs testing."
+
+  - task: "Identity Taxonomy - Access Request with Identity Generation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated POST /api/access-requests to support new Identity Taxonomy fields and automatically generate resolvedIdentity for CLIENT_DEDICATED strategy using generateClientDedicatedIdentity from field-policy.js. Access request items now include identityPurpose, humanIdentityStrategy, namingTemplate, agencyGroupEmail, integrationIdentityId, inviteeEmails, resolvedIdentity, validationMethod. Needs testing."
+
+  - task: "Identity Taxonomy - Onboarding with clientProvidedTarget"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated POST /api/onboarding/:token/items/:itemId/attest to accept and store clientProvidedTarget object with platform-specific asset details. Onboarding page now displays resolvedIdentity prominently and collects client-specific asset fields (GA4 Property ID, GTM Container ID, etc). Backward compatible with assetType/assetId fields. Needs testing."
+
+  - task: "Identity Taxonomy - EnhancedAccessRequestDialog with INDIVIDUAL_USERS Support"
+    implemented: true
+    working: "NA"
+    file: "/app/components/EnhancedAccessRequestDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated EnhancedAccessRequestDialog to support new Identity Taxonomy. Shows identity strategy badges, displays resolved identity preview, handles INDIVIDUAL_USERS strategy with inline email input field. Passes all Identity Taxonomy fields to access request creation. Needs UI testing."
+
+test_plan:
+  current_focus:
+    - "Identity Taxonomy - Integration Identities API CRUD"
+    - "Identity Taxonomy - Access Items with Identity Purpose/Strategy"
+    - "Identity Taxonomy - Access Request with Identity Generation"
+    - "Identity Taxonomy - Onboarding with clientProvidedTarget"
+    - "Identity Taxonomy - EnhancedAccessRequestDialog with INDIVIDUAL_USERS Support"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "MAJOR IDENTITY TAXONOMY REFACTOR COMPLETED! Implemented comprehensive changes to support new identity model: (1) Integration Identities API - Full CRUD with seeded sample data for Service Accounts and API Keys, (2) Access Items - Now support identityPurpose (HUMAN_INTERACTIVE, INTEGRATION_NON_INTERACTIVE), humanIdentityStrategy (CLIENT_DEDICATED, AGENCY_GROUP, INDIVIDUAL_USERS), and related fields like namingTemplate, agencyGroupEmail, integrationIdentityId, (3) Access Requests - Automatically generate resolvedIdentity for CLIENT_DEDICATED strategy using naming templates, (4) Onboarding - Now displays resolved identity prominently and collects clientProvidedTarget asset details, (5) EnhancedAccessRequestDialog - Updated to show identity strategy badges, resolved identity preview, and INDIVIDUAL_USERS email input. All integrated with Field Policy Engine for validation. Please run comprehensive backend testing for all new Identity Taxonomy endpoints."
