@@ -570,21 +570,88 @@ export default function PlatformConfigPage() {
                 {/* Integration Identity Reference */}
                 {(formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE || formData.itemType === 'PROXY_TOKEN') && (
                   <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
-                    <Label className="text-sm font-medium mb-2 block">Integration Identity</Label>
-                    <select
-                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-sm"
-                      value={formData.integrationIdentityId}
-                      onChange={e => setFormData(prev => ({ ...prev, integrationIdentityId: e.target.value }))}
-                    >
-                      <option value="">Select an integration identity...</option>
-                      {integrationIdentities.filter(i => i.isActive).map(i => (
-                        <option key={i.id} value={i.id}>{i.name} ({i.type})</option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      <i className="fas fa-external-link-alt mr-1"></i>
-                      <a href="/admin/integrations" className="text-primary hover:underline" target="_blank">Manage Integration Identities</a>
-                    </p>
+                    <Label className="text-sm font-medium mb-2 block"><i className="fas fa-robot mr-2"></i>Integration / Service Account</Label>
+                    <p className="text-xs text-purple-700 mb-3">Configure the service account or API credentials for automated access.</p>
+                    
+                    {/* Service Account Email for GA4/Fivetran etc. */}
+                    {needsServiceAccount && (
+                      <div className="mb-3">
+                        <Label className="text-sm">Service Account Email</Label>
+                        <Input
+                          type="email"
+                          placeholder="my-service@project.iam.gserviceaccount.com"
+                          value={formData.serviceAccountEmail}
+                          onChange={e => setFormData(prev => ({ ...prev, serviceAccountEmail: e.target.value }))}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">For automated data export or integration</p>
+                      </div>
+                    )}
+                    
+                    {/* SSO Group for Snowflake/Salesforce etc. */}
+                    {needsSsoGroup && (
+                      <div className="mb-3">
+                        <Label className="text-sm">SSO Group / Role Name</Label>
+                        <Input
+                          placeholder="e.g., agency-analytics-role"
+                          value={formData.ssoGroupName}
+                          onChange={e => setFormData(prev => ({ ...prev, ssoGroupName: e.target.value }))}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Okta/Azure AD group or Snowflake role</p>
+                      </div>
+                    )}
+                    
+                    <div className="border-t border-purple-200 pt-3 mt-3">
+                      <Label className="text-sm">Pre-configured Integration Identity (optional)</Label>
+                      <select
+                        className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
+                        value={formData.integrationIdentityId}
+                        onChange={e => setFormData(prev => ({ ...prev, integrationIdentityId: e.target.value }))}
+                      >
+                        <option value="">Select an integration identity...</option>
+                        {integrationIdentities.filter(i => i.isActive).map(i => (
+                          <option key={i.id} value={i.id}>{i.name} ({i.type})</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        <i className="fas fa-external-link-alt mr-1"></i>
+                        <a href="/admin/integrations" className="text-primary hover:underline" target="_blank">Manage Integration Identities</a>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Group Access - Human or Service Account */}
+                {formData.itemType === 'GROUP_ACCESS' && formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE && (
+                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                    <Label className="text-sm font-medium mb-2 block"><i className="fas fa-users mr-2"></i>Group Configuration</Label>
+                    <p className="text-xs text-blue-700 mb-3">Configure the agency group or team that will have access.</p>
+                    
+                    {needsSsoGroup ? (
+                      <div>
+                        <Label className="text-sm">SSO Group / Team Name <span className="text-destructive">*</span></Label>
+                        <Input
+                          placeholder="e.g., agency-analytics-team"
+                          value={formData.ssoGroupName}
+                          onChange={e => setFormData(prev => ({ ...prev, ssoGroupName: e.target.value }))}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Okta/Azure group mapped to platform permissions</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <Label className="text-sm">Agency Group Email <span className="text-destructive">*</span></Label>
+                        <Input
+                          type="email"
+                          placeholder="analytics-team@youragency.com"
+                          value={formData.agencyGroupEmail}
+                          onChange={e => setFormData(prev => ({ ...prev, agencyGroupEmail: e.target.value }))}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Google Group or distribution list email</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
