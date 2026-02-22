@@ -505,14 +505,6 @@ export async function POST(request) {
       return NextResponse.json({ success: true, data: { ...ap2, platform: platform2 } });
     }
 
-    // POST /api/clients - Create new client
-      if (!platformId) {
-        return NextResponse.json({ success: false, error: 'platformId is required' }, { status: 400 });
-      }
-      const platform = getPlatformById(platformId);
-      if (!platform) {
-        return NextResponse.json({ success: false, error: 'Platform not found' }, { status: 404 });
-      }
     // POST /api/access-requests - Create new access request
     if (path === 'access-requests') {
       const { clientId, items } = body || {};
