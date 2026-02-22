@@ -311,6 +311,21 @@ ${platform.notes ? `\n**Note:** ${platform.notes}` : ''}
               </div>
             </div>
 
+            {/* Show enhanced metadata */}
+            {item.accessPattern && (
+              <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                <p className="text-xs font-medium text-blue-900">
+                  <i className="fas fa-info-circle mr-1"></i>
+                  Access: {item.accessPattern} • Role: {item.role}
+                </p>
+                {item.assetType && (
+                  <p className="text-xs text-blue-800 mt-1">
+                    Asset: {item.assetType} {item.assetName && `- ${item.assetName}`}
+                  </p>
+                )}
+              </div>
+            )}
+
             {!isValidated && (
               <div className="mt-4">
                 <Button 
