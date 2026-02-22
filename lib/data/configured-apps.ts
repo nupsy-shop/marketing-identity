@@ -36,7 +36,7 @@ export function getConfiguredAppById(id: string): ConfiguredApp | undefined {
 }
 
 export function getConfiguredAppsByClientId(clientId: string): ConfiguredApp[] {
-  return configuredApps.filter(a => a.clientId === clientId && a.isActive);
+  return configuredApps.filter(a => a.clientId === clientId);
 }
 
 export function getConfiguredApp(clientId: string, platformId: string): ConfiguredApp | undefined {
