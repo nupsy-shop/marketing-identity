@@ -34,10 +34,13 @@ def log_test(message, success=True):
 def log_error(message):
     print(f"❌ ERROR: {message}")
 
-def make_request(method, endpoint, data=None, expected_status=200):
+def make_request(method, endpoint, data=None, expected_status=200, allow_statuses=None):
     """Make API request with error handling"""
     url = f"{API_URL}/{endpoint}"
     headers = {"Content-Type": "application/json"}
+    
+    if allow_statuses is None:
+        allow_statuses = []
     
     try:
         if method == "GET":
@@ -55,7 +58,7 @@ def make_request(method, endpoint, data=None, expected_status=200):
         
         print(f"    {method} {url} -> {response.status_code}")
         
-        if response.status_code != expected_status:
+        if response.status_code != expected_status and response.status_code not in allow_statuses:
             try:
                 error_data = response.json()
                 log_error(f"Expected {expected_status}, got {response.status_code}: {error_data}")
