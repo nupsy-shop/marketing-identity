@@ -599,81 +599,34 @@ export async function DELETE(request) {
   const path = pathname.replace('/api/', '');
 
   try {
-    // DELETE /api/configured-apps/:id - Remove configured app
-    if (path.startsWith('configured-apps/') && path.split('/').length === 2) {
-      const id = path.split('/')[1];
-      
-      const success = removeConfiguredApp(id);
+    // DELETE /api/agency/platforms/:id - Remove platform from agency
+    if (path.match(/^agency\/platforms\/[^/]+$/) && path.split('/').length === 3) {
+      const id = path.split('/')[2];
+      const success = removeAgencyPlatform(id);
       if (!success) {
-        return NextResponse.json(
-          { success: false, error: 'Configured app not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-      
-      return NextResponse.json({
-        success: true,
-        data: { message: 'Configured app removed successfully' }
-      });
+      return NextResponse.json({ success: true, data: { message: 'Platform removed from agency' } });
     }
 
-    // DELETE /api/access-requests/:id/platforms/:platformId - Revoke platform access
-    if (path.match(/^access-requests\/[^/]+\/platforms\/[^/]+$/)) {
+    // DELETE /api/agency/platforms/:id/items/:itemId - Remove access item
+    if (path.match(/^agency\/platforms\/[^/]+\/items\/[^/]+$/)) {
       const parts = path.split('/');
-      const requestId = parts[1];
-      const platformId = parts[3];
-
-      const accessRequest = getAccessRequestById(requestId);
-      if (!accessRequest) {
-        return NextResponse.json(
-          { success: false, error: 'Access request not found' },
-          { status: 404 }
-        );
+      const apId = parts[2];
+      const itemId = parts[4];
+      const updated = removeAccessItem(apId, itemId);
+      if (!updated) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-
-      const platformStatus = accessRequest.platformStatuses.find(
-        ps => ps.platformId === platformId
-      );
-
-      if (!platformStatus) {
-        return NextResponse.json(
-          { success: false, error: 'Platform not found in this access request' },
-          { status: 404 }
-        );
-      }
-
-      const platform = getPlatformById(platformId);
-      if (platform) {
-        const connector = getConnectorForPlatform(platform);
-        const client = getClientById(accessRequest.clientId);
-        
-        await connector.revokeAccess({
-          accountId: client?.email || '',
-          userEmail: 'agency@example.com'
-        });
-      }
-
-      platformStatus.status = 'pending';
-      platformStatus.validatedAt = undefined;
-      platformStatus.notes = 'Access revoked by admin';
-
-      updateAccessRequest(requestId, accessRequest);
-      
       return NextResponse.json({
         success: true,
-        data: accessRequest
+        data: { ...updated, platform: getPlatformById(updated.platformId) }
       });
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Not found' },
-      { status: 404 }
-    );
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
