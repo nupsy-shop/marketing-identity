@@ -31,6 +31,15 @@ const ITEM_TYPES = [
   { value: 'SHARED_ACCOUNT_PAM', label: 'Shared Account (PAM)', icon: 'fas fa-shield-halved', desc: 'Privileged shared account with checkout policy', pam: true }
 ];
 
+// Item Type → Internal Pattern mapping (pattern is derived automatically from item type)
+const ITEM_TYPE_TO_PATTERN = {
+  'NAMED_INVITE': 'NAMED_INVITE',
+  'PARTNER_DELEGATION': 'PARTNER_DELEGATION',
+  'GROUP_ACCESS': 'GROUP_BASED',
+  'PROXY_TOKEN': 'PROXY',
+  'SHARED_ACCOUNT_PAM': 'PAM'
+};
+
 export default function PlatformConfigPage() {
   const router = useRouter();
   const params = useParams();
