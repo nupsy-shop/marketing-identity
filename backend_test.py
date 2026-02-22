@@ -10,13 +10,13 @@ from typing import Dict, Any, Optional, List
 BASE_URL = "https://pam-identity-hub.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
-class IdentityTaxonomyTester:
+class PAMIdentityStrategyTester:
     def __init__(self):
         self.client_id = None
         self.agency_platform_id = None
         self.access_request_id = None
         self.onboarding_token = None
-        self.integration_identity_id = None
+        self.pam_item_ids = {}  # Store different PAM item IDs
         self.test_results = []
 
     def log_result(self, test_name: str, success: bool, details: str = ""):
