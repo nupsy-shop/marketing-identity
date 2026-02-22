@@ -1,3 +1,5 @@
+'use client';
+
 import EnhancedAccessRequestDialog from '@/components/EnhancedAccessRequestDialog';
 
 import { useState, useEffect } from 'react';
