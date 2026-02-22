@@ -245,70 +245,62 @@ export async function POST(request) {
       });
     }
 
-    // POST /api/clients/:id/configured-apps - Add platform to client with configuration
-    if (path.match(/^clients\/[^/]+\/configured-apps$/)) {
-      const id = path.split('/')[1];
-      const { platformId, items } = body || {};
-      
-      if (!platformId || !items || !Array.isArray(items)) {
-        return NextResponse.json(
-          { success: false, error: 'platformId and items array are required' },
-          { status: 400 }
-        );
+    // POST /api/agency/platforms - Add platform to agency
+    if (path === 'agency/platforms') {
+      const { platformId } = body || {};
+      if (!platformId) {
+        return NextResponse.json({ success: false, error: 'platformId is required' }, { status: 400 });
       }
-
-      const client = getClientById(id);
-      if (!client) {
-        return NextResponse.json(
-          { success: false, error: 'Client not found' },
-          { status: 404 }
-        );
-      }
-
       const platform = getPlatformById(platformId);
       if (!platform) {
-        return NextResponse.json(
-          { success: false, error: 'Platform not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ success: false, error: 'Platform not found' }, { status: 404 });
       }
-
-      // Check if platform already configured for this client
-      const existing = getConfiguredApp(id, platformId);
+      const existing = getAgencyPlatformByPlatformId(platformId);
       if (existing) {
-        return NextResponse.json(
-          { success: false, error: 'Platform already configured for this client. Use PUT to update.' },
-          { status: 400 }
-        );
+        return NextResponse.json({
+          success: false,
+          error: 'Platform already added to agency',
+          data: { ...existing, platform }
+        }, { status: 409 });
       }
-
-      const configuredApp = {
+      const ap = {
         id: uuidv4(),
-        clientId: id,
         platformId,
-        isActive: true,
-        items: items.map(item => ({
-          id: uuidv4(),
-          accessPattern: item.accessPattern,
-          label: item.label,
-          role: item.role,
-          assetType: item.assetType,
-          assetId: item.assetId,
-          credentials: item.credentials,
-          notes: item.notes
-        })),
+        isEnabled: true,
+        accessItems: [],
         createdAt: new Date(),
         updatedAt: new Date()
       };
+      addAgencyPlatform(ap);
+      return NextResponse.json({ success: true, data: { ...ap, platform } });
+    }
 
-      addConfiguredApp(configuredApp);
-      
+    // POST /api/agency/platforms/:id/items - Add access item
+    if (path.match(/^agency\/platforms\/[^/]+\/items$/)) {
+      const apId = path.split('/')[2];
+      const ap = getAgencyPlatformById(apId);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
+      }
+      const { accessPattern, patternLabel, label, role, assetType, assetId, notes } = body || {};
+      if (!accessPattern || !label || !role) {
+        return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
+      }
+      const item = {
+        id: uuidv4(),
+        accessPattern,
+        patternLabel: patternLabel || accessPattern,
+        label,
+        role,
+        assetType: assetType || undefined,
+        assetId: assetId || undefined,
+        notes: notes || undefined,
+        createdAt: new Date()
+      };
+      const updated = addAccessItem(apId, item);
       return NextResponse.json({
         success: true,
-        data: {
-          ...configuredApp,
-          platform
-        }
+        data: { ...updated, platform: getPlatformById(updated.platformId) }
       });
     }
 
