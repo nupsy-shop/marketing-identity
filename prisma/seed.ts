@@ -1,7 +1,9 @@
 // Seed script for Marketing Identity Platform
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL
+});
 
 // Platform metadata with icons, descriptions, tiers, and detailed access patterns
 const platformsData = [
