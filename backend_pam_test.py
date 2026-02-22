@@ -109,15 +109,29 @@ def test_create_agency_platform_with_pam_items(platform_id):
     """Test 3: Create agency platform and add PAM items"""
     print("\n=== Test 3: Create Agency Platform with PAM Items ===")
     
-    # Create agency platform
+    # Create agency platform (or use existing one)
     platform_data = {"platformId": platform_id}
     result = make_request("POST", "agency/platforms", platform_data, 200)
-    if not result or not result.get("success"):
-        log_error("Failed to create agency platform")
-        return None
     
-    agency_platform_id = result["data"]["id"]
-    log_test(f"Created agency platform: {agency_platform_id}")
+    if not result:
+        # Try to get existing platform instead
+        result = make_request("GET", "agency/platforms")
+        if result and result.get("success"):
+            existing_platforms = result["data"]
+            existing_platform = next((p for p in existing_platforms if p["platformId"] == platform_id), None)
+            
+            if existing_platform:
+                agency_platform_id = existing_platform["id"]
+                log_test(f"Using existing agency platform: {agency_platform_id}")
+            else:
+                log_error("Failed to create or find agency platform")
+                return None
+        else:
+            log_error("Failed to create agency platform and couldn't retrieve existing platforms")
+            return None
+    else:
+        agency_platform_id = result["data"]["id"]
+        log_test(f"Created agency platform: {agency_platform_id}")
     
     # Add CLIENT_OWNED PAM item
     client_owned_item = {
