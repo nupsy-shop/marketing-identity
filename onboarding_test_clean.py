@@ -349,10 +349,7 @@ def test_end_to_end_flow():
             "items": [{
                 "platformId": ga_platform_id,
                 "accessPattern": "Named User Access",
-                "role": "Analyst",
-                "assetType": "GA4 Property", 
-                "assetId": "999888777",
-                "assetName": "E2E Test Property"
+                "role": "Analyst"
             }]
         }
         
