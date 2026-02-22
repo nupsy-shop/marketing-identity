@@ -322,7 +322,28 @@ export async function POST(request) {
       });
     }
 
-    // POST /api/agency/platforms/:id/items - Add access item (supports PAM)
+    // POST /api/integration-identities - Create new integration identity
+    if (path === 'integration-identities') {
+      const { type, name, description, email, clientId: oauthClientId, clientSecret, apiKey, scopes, rotationPolicy, allowedPlatforms } = body || {};
+      if (!name) {
+        return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
+      }
+      const identity = addIntegrationIdentity({
+        type: type || 'SERVICE_ACCOUNT',
+        name,
+        description,
+        email,
+        clientId: oauthClientId,
+        clientSecret,
+        apiKey,
+        scopes: scopes || [],
+        rotationPolicy: rotationPolicy || 'NONE',
+        allowedPlatforms: allowedPlatforms || []
+      });
+      return NextResponse.json({ success: true, data: identity });
+    }
+
+    // POST /api/agency/platforms/:id/items - Add access item (supports new Identity Taxonomy)
     if (path.match(/^agency\/platforms\/[^/]+\/items$/)) {
       const apId = path.split('/')[2];
       const ap = getAgencyPlatformById(apId);
