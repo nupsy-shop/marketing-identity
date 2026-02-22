@@ -99,9 +99,24 @@ export default function AppCatalogPage() {
                 <p className="text-sm text-muted-foreground">Browse and configure marketing platforms</p>
               </div>
             </div>
-            <Badge variant="secondary" className="text-lg px-4 py-2">
-              {platforms.length} Platforms
-            </Badge>
+            <div className="flex items-center gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Select Client</label>
+                <select
+                  className="border border-input rounded-md px-3 py-2 bg-background text-sm min-w-[200px]"
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                >
+                  <option value="">Choose client...</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
+              </div>
+              <Badge variant="secondary" className="text-lg px-4 py-2">
+                {platforms.length} Platforms
+              </Badge>
+            </div>
           </div>
         </div>
       </header>
