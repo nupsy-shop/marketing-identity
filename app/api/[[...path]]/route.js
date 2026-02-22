@@ -516,7 +516,7 @@ export async function POST(request) {
       const parts = path.split('/');
       const token = parts[1];
       const itemId = parts[3];
-      const { username, password } = body || {};
+      const { username, password, clientProvidedTarget } = body || {};
       if (!username || !password) {
         return NextResponse.json({ success: false, error: 'username and password are required' }, { status: 400 });
       }
@@ -524,7 +524,8 @@ export async function POST(request) {
       if (!req) return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
       const item = req.items.find(i => i.id === itemId);
       if (!item) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
-      if (item.pamOwnership !== 'CLIENT_OWNED') {
+      const ownership = item.pamOwnership || item.pamConfig?.ownership;
+      if (ownership !== 'CLIENT_OWNED') {
         return NextResponse.json({ success: false, error: 'This item is not a CLIENT_OWNED shared account' }, { status: 400 });
       }
       // Store a reference (in production: encrypt and store in vault)
@@ -535,11 +536,16 @@ export async function POST(request) {
       item.validatedAt = new Date();
       item.validatedBy = 'client_credential_submission';
       item.validationMode = 'AUTO';
+      // Store clientProvidedTarget (asset info collected during onboarding)
+      if (clientProvidedTarget && Object.keys(clientProvidedTarget).length > 0) {
+        item.clientProvidedTarget = clientProvidedTarget;
+      }
       item.validationResult = {
         timestamp: new Date(),
         actor: 'client',
         mode: 'CREDENTIAL_HANDOFF',
-        details: `Credentials submitted by client for username: ${username}`
+        details: `Credentials submitted by client for username: ${username}`,
+        clientProvidedTarget: item.clientProvidedTarget || undefined
       };
       addAuditLog({
         event: 'CREDENTIAL_SUBMITTED',
@@ -547,7 +553,7 @@ export async function POST(request) {
         requestId: req.id,
         itemId,
         platformId: item.platformId,
-        details: { username, requestToken: token }
+        details: { username, requestToken: token, clientProvidedTarget: item.clientProvidedTarget }
       });
       const allDone = req.items.every(i => i.status === 'validated');
       if (allDone && !req.completedAt) req.completedAt = new Date();
