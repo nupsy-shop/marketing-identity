@@ -14,15 +14,17 @@ import {
   updateAccessRequest
 } from '@/lib/data/stores';
 import {
-  configuredApps,
-  addConfiguredApp,
-  getConfiguredAppById,
-  getConfiguredAppsByClientId,
-  getConfiguredApp,
-  updateConfiguredApp,
-  removeConfiguredApp,
-  toggleConfiguredAppStatus
-} from '@/lib/data/configured-apps';
+  getAllAgencyPlatforms,
+  getAgencyPlatformById,
+  getAgencyPlatformByPlatformId,
+  addAgencyPlatform,
+  updateAgencyPlatform,
+  addAccessItem,
+  removeAccessItem,
+  updateAccessItem,
+  removeAgencyPlatform,
+  toggleAgencyPlatformStatus
+} from '@/lib/data/agency-platforms';
 import { getConnectorForPlatform } from '@/lib/connectors';
 
 // Helper to parse request body
