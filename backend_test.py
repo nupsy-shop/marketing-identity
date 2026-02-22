@@ -679,7 +679,7 @@ class IdentityTaxonomyTester:
             access_request_data = {
                 "clientId": e2e_client_id,
                 "items": [{
-                    "platformId": "google-analytics-ga4",
+                    "platformId": "0f75633f-0f75-40f7-80f7-0f75633f0000",  # Google Analytics / GA4
                     "accessPattern": "Admin Access",
                     "role": "Administrator",
                     "identityPurpose": "HUMAN_INTERACTIVE",
