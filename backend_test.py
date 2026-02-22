@@ -14,7 +14,7 @@ import sys
 from urllib.parse import urljoin
 
 # Configuration
-BASE_URL = "https://pam-identity-hub.preview.emergentagent.com/api"
+BASE_URL = "https://access-mgmt-postgres.preview.emergentagent.com/api"
 GOOGLE_ANALYTICS_PLATFORM_ID = "0f75633f-0f75-40f7-80f7-0f75633f0000"
 
 class Colors:
