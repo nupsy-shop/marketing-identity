@@ -423,11 +423,21 @@ export async function POST(request) {
         if (!pamConfig?.ownership) {
           return NextResponse.json({ success: false, error: 'pamConfig.ownership is required for SHARED_ACCOUNT_PAM items' }, { status: 400 });
         }
-        if (pamConfig.ownership === 'AGENCY_OWNED' && !pamConfig.agencyIdentityEmail) {
-          return NextResponse.json({ success: false, error: 'pamConfig.agencyIdentityEmail is required for AGENCY_OWNED items' }, { status: 400 });
-        }
-        if (pamConfig.ownership === 'AGENCY_OWNED' && !pamConfig.roleTemplate) {
-          return NextResponse.json({ success: false, error: 'pamConfig.roleTemplate is required for AGENCY_OWNED items' }, { status: 400 });
+        if (pamConfig.ownership === 'AGENCY_OWNED') {
+          // Validate based on identity strategy
+          const identityStrategy = pamConfig.identityStrategy || 'STATIC';
+          if (identityStrategy === 'STATIC') {
+            if (!pamConfig.agencyIdentityEmail) {
+              return NextResponse.json({ success: false, error: 'pamConfig.agencyIdentityEmail is required for Static Agency Identity' }, { status: 400 });
+            }
+          } else if (identityStrategy === 'CLIENT_DEDICATED') {
+            if (!pamConfig.namingTemplate) {
+              return NextResponse.json({ success: false, error: 'pamConfig.namingTemplate is required for Client-Dedicated Identity' }, { status: 400 });
+            }
+          }
+          if (!pamConfig.roleTemplate) {
+            return NextResponse.json({ success: false, error: 'pamConfig.roleTemplate is required for AGENCY_OWNED items' }, { status: 400 });
+          }
         }
       }
 
@@ -439,7 +449,7 @@ export async function POST(request) {
         label,
         role,
         notes: notes || undefined,
-        // Identity Taxonomy fields
+        // Identity Taxonomy fields (for Named Invite)
         identityPurpose: identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
         humanIdentityStrategy: humanIdentityStrategy || undefined,
         clientDedicatedIdentityType: clientDedicatedIdentityType || undefined,
@@ -451,11 +461,25 @@ export async function POST(request) {
         agencyData: agencyData || undefined,
         // Client instructions from Excel
         clientInstructions: clientInstructions || undefined,
+        // PAM configuration with full identity strategy support
         pamConfig: itemType === 'SHARED_ACCOUNT_PAM' ? {
-          ...pamConfig,
+          ownership: pamConfig.ownership,
+          // Identity strategy for Agency-Owned (STATIC or CLIENT_DEDICATED)
+          identityStrategy: pamConfig.ownership === 'AGENCY_OWNED' ? (pamConfig.identityStrategy || 'STATIC') : undefined,
+          // For STATIC strategy - single email
+          agencyIdentityEmail: pamConfig.agencyIdentityEmail || undefined,
+          // For CLIENT_DEDICATED strategy - per-client identity
+          identityType: pamConfig.identityType || undefined, // GROUP or MAILBOX
+          namingTemplate: pamConfig.namingTemplate || undefined,
+          // Role template for agency-owned
+          roleTemplate: pamConfig.roleTemplate || undefined,
+          // Grant method
           grantMethod: pamConfig.ownership === 'CLIENT_OWNED' ? 'CREDENTIAL_HANDOFF' : 'INVITE_AGENCY_IDENTITY',
           sessionMode: 'REVEAL',
-          requiresDedicatedAgencyLogin: pamConfig.ownership === 'CLIENT_OWNED' ? (pamConfig.requiresDedicatedAgencyLogin ?? true) : undefined
+          requiresDedicatedAgencyLogin: pamConfig.ownership === 'CLIENT_OWNED' ? (pamConfig.requiresDedicatedAgencyLogin ?? true) : undefined,
+          // Checkout policy
+          checkoutPolicy: pamConfig.checkoutPolicy || { durationMinutes: 60 },
+          rotationPolicy: pamConfig.rotationPolicy || { trigger: 'onCheckin' }
         } : undefined,
         createdAt: new Date()
       };
