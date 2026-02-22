@@ -243,7 +243,9 @@ export async function POST(request) {
       } else {
         return NextResponse.json(
           { success: false, error: 'items array or platformIds array is required' },
-          { status: 400 }\n        );\n      }
+          { status: 400 }
+        );
+      }
       
       if (!clientId) {
         return NextResponse.json(
