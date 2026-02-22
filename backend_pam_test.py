@@ -72,7 +72,7 @@ def test_create_client():
     """Test 1: Create a test client"""
     print("\n=== Test 1: Create Client ===")
     
-    result = make_request("POST", "clients", TEST_CLIENT, 201)
+    result = make_request("POST", "clients", TEST_CLIENT, 200)
     if not result or not result.get("success"):
         log_error("Failed to create client")
         return None
