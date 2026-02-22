@@ -20,13 +20,11 @@ def debug_agency_item_addition():
             agency_platform_id = platforms[0]['id']
             print(f"Using agency platform ID: {agency_platform_id}")
             
-            # Try to add item
+            # Try to add item (without client asset fields)
             item_data = {
                 "accessPattern": "Named User Access",
                 "label": "Debug GA4 Access",
                 "role": "Analyst",
-                "assetType": "GA4 Property",
-                "assetId": "debug123",
                 "notes": "Debug test item"
             }
             
