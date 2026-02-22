@@ -372,12 +372,12 @@ ${platform.notes ? `\n**Note:** ${platform.notes}` : ''}
                   </svg>
                   Connect via OAuth
                 </Button>
-                <Button variant="outline" className="flex-1" onClick={() => onMarkGranted(platformStatus.platformId)}>
+                <Button variant="outline" className="flex-1" onClick={() => onMarkGranted(item.id, item.platformId)}>
                   I have granted access manually
                 </Button>
               </>
             ) : (
-              <Button className="flex-1" onClick={() => onMarkGranted(platformStatus.platformId)}>
+              <Button className="flex-1" onClick={() => onMarkGranted(item.id, item.platformId)}>
                 I have granted access
               </Button>
             )}
