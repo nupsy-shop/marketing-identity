@@ -174,11 +174,10 @@ export default function OnboardingPage() {
 
           {/* Platform Checklist */}
           <div className="space-y-4">
-            {accessRequest.platformStatuses.map((ps, index) => (
+            {items.map((item, index) => (
               <PlatformAccessCard 
-                key={ps.platformId}
-                platformStatus={ps}
-                platform={ps.platform}
+                key={item.id || item.platformId}
+                item={item}
                 index={index + 1}
                 onMarkGranted={markAsGranted}
               />
