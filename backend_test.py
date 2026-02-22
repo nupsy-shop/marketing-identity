@@ -91,6 +91,13 @@ def test_named_invite_client_dedicated_restriction():
     }
     
     resp = api_request("POST", f"agency/platforms/{agency_platform_id}/items", client_dedicated_item, expected_status=400)
+    
+    # Debug output
+    print(f"DEBUG - Test 1a Response: {resp}")
+    if resp:
+        print(f"DEBUG - Status Code: {resp.status_code}")
+        print(f"DEBUG - Response Text: {resp.text}")
+    
     test_1a = log_test(
         "Named Invite - CLIENT_DEDICATED Rejection", 
         resp and resp.status_code == 400 and "CLIENT_DEDICATED identity strategy is not allowed for Named Invite" in resp.text,
