@@ -33,6 +33,24 @@ import {
   toggleAgencyPlatformStatus
 } from '@/lib/data/agency-platforms';
 import { getConnectorForPlatform } from '@/lib/connectors';
+import {
+  getAllIntegrationIdentities,
+  getIntegrationIdentityById,
+  addIntegrationIdentity,
+  updateIntegrationIdentity,
+  deleteIntegrationIdentity,
+  toggleIntegrationIdentityStatus,
+  seedIntegrationIdentities
+} from '@/lib/data/integration-identities';
+import {
+  IDENTITY_PURPOSE,
+  HUMAN_IDENTITY_STRATEGY,
+  validateAccessItemPayload,
+  generateClientDedicatedIdentity
+} from '@/lib/data/field-policy';
+
+// Initialize seed data for integration identities
+seedIntegrationIdentities();
 
 // Helper to parse request body
 async function getBody(request) {
