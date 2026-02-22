@@ -1,489 +1,1126 @@
 #!/usr/bin/env python3
 """
-Bug Fix Testing for Marketing Identity Platform
-Tests specific bug fixes requested in review:
-1. CLIENT_DEDICATED restriction for Named Invite
-2. CLIENT_DEDICATED works correctly for PAM  
-3. Group Access service account fields
-4. Pattern Derivation functionality
+Backend API Tests for PostgreSQL Database Migration to Neon Cloud
+Marketing Identity Platform - Comprehensive PostgreSQL Integration Testing
+
+This script tests all API endpoints to verify PostgreSQL database integration
+is working correctly with the Neon cloud database.
 """
 
-import requests
+import asyncio
+import aiohttp
 import json
-import sys
-from urllib.parse import urljoin
+import uuid
+from datetime import datetime
+from typing import Dict, Any, Optional
 
-# Configuration
-BASE_URL = "https://access-mgmt-postgres.preview.emergentagent.com/api"
-GOOGLE_ANALYTICS_PLATFORM_ID = "0f75633f-0f75-40f7-80f7-0f75633f0000"
+class PostgreSQLDatabaseMigrationTester:
+    def __init__(self):
+        self.base_url = "https://access-mgmt-postgres.preview.emergentagent.com/api"
+        self.session = None
+        self.test_results = []
+        self.created_resources = {
+            'clients': [],
+            'agency_platforms': [],
+            'access_requests': [],
+            'integration_identities': []
+        }
 
-class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    BLUE = '\033[94m'
-    YELLOW = '\033[93m'
-    END = '\033[0m'
-    BOLD = '\033[1m'
+    async def setup(self):
+        """Initialize HTTP session"""
+        self.session = aiohttp.ClientSession()
 
-def log_test(test_name, status, message=""):
-    status_color = Colors.GREEN if status else Colors.RED
-    status_text = "✅ PASS" if status else "❌ FAIL"
-    print(f"{Colors.BOLD}{test_name}{Colors.END}: {status_color}{status_text}{Colors.END} {message}")
-    return status
+    async def teardown(self):
+        """Close HTTP session and cleanup resources"""
+        if self.session:
+            await self.session.close()
 
-def api_request(method, endpoint, data=None, expected_status=200):
-    """Make API request and return response"""
-    url = urljoin(BASE_URL + "/", endpoint)
-    headers = {"Content-Type": "application/json"}
+    async def make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Dict:
+        """Make HTTP request and return response"""
+        url = f"{self.base_url}/{endpoint}"
+        
+        try:
+            if method.upper() == 'GET':
+                async with self.session.get(url) as resp:
+                    return {
+                        'status': resp.status,
+                        'data': await resp.json(),
+                        'success': True
+                    }
+            elif method.upper() == 'POST':
+                async with self.session.post(url, json=data) as resp:
+                    return {
+                        'status': resp.status,
+                        'data': await resp.json(),
+                        'success': True
+                    }
+            elif method.upper() == 'PUT':
+                async with self.session.put(url, json=data) as resp:
+                    return {
+                        'status': resp.status,
+                        'data': await resp.json(),
+                        'success': True
+                    }
+            elif method.upper() == 'DELETE':
+                async with self.session.delete(url) as resp:
+                    return {
+                        'status': resp.status,
+                        'data': await resp.json() if resp.content_type == 'application/json' else {},
+                        'success': True
+                    }
+            elif method.upper() == 'PATCH':
+                async with self.session.patch(url, json=data) as resp:
+                    return {
+                        'status': resp.status,
+                        'data': await resp.json(),
+                        'success': True
+                    }
+        except Exception as e:
+            return {
+                'status': 500,
+                'data': {'error': str(e)},
+                'success': False
+            }
+
+    def log_result(self, test_name: str, success: bool, message: str, details: Optional[Dict] = None):
+        """Log test result"""
+        result = {
+            'test': test_name,
+            'success': success,
+            'message': message,
+            'timestamp': datetime.now().isoformat(),
+            'details': details or {}
+        }
+        self.test_results.append(result)
+        
+        status = "✅" if success else "❌"
+        print(f"{status} {test_name}: {message}")
+        if details and not success:
+            print(f"   Details: {details}")
+
+    # ========================================================================
+    # PLATFORM CATALOG TESTS
+    # ========================================================================
     
-    try:
-        if method.upper() == "GET":
-            response = requests.get(url, headers=headers, timeout=30)
-        elif method.upper() == "POST":
-            response = requests.post(url, json=data, headers=headers, timeout=30)
-        elif method.upper() == "PUT":
-            response = requests.put(url, json=data, headers=headers, timeout=30)
-        elif method.upper() == "PATCH":
-            response = requests.patch(url, json=data, headers=headers, timeout=30)
-        elif method.upper() == "DELETE":
-            response = requests.delete(url, headers=headers, timeout=30)
-        else:
-            raise ValueError(f"Unsupported method: {method}")
+    async def test_platform_catalog_list_all(self):
+        """Test GET /api/platforms - List all catalog platforms"""
+        try:
+            resp = await self.make_request('GET', 'platforms')
             
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"{Colors.RED}API Request Error for {method} {url}: {e}{Colors.END}")
-        return None
-    except Exception as e:
-        print(f"{Colors.RED}Unexpected Error: {e}{Colors.END}")
-        return None
+            if resp['status'] != 200:
+                self.log_result("Platform Catalog - List All", False, 
+                              f"Expected status 200, got {resp['status']}", resp['data'])
+                return False
+            
+            data = resp['data']['data']
+            if not isinstance(data, list) or len(data) < 15:
+                self.log_result("Platform Catalog - List All", False,
+                              f"Expected 15+ platforms, got {len(data)}")
+                return False
+                
+            # Verify platform structure
+            if data and not all(key in data[0] for key in ['id', 'name', 'domain', 'tier']):
+                self.log_result("Platform Catalog - List All", False,
+                              "Platform structure missing required fields")
+                return False
+            
+            self.log_result("Platform Catalog - List All", True,
+                          f"Retrieved {len(data)} platforms successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result("Platform Catalog - List All", False, f"Exception: {str(e)}")
+            return False
 
-def test_named_invite_client_dedicated_restriction():
-    """Test 1: CLIENT_DEDICATED restriction for Named Invite - should receive 400 error"""
-    print(f"\n{Colors.BLUE}=== Test 1: Named Invite Identity Strategy Restrictions ==={Colors.END}")
-    
-    # Create agency platform first
-    platform_data = {"platformId": GOOGLE_ANALYTICS_PLATFORM_ID}
-    platform_resp = api_request("POST", "agency/platforms", platform_data)
-    
-    if not platform_resp or platform_resp.status_code != 200:
-        agency_platform_id = None
-        # Try to get existing platform
-        platforms_resp = api_request("GET", "agency/platforms")
-        if platforms_resp and platforms_resp.status_code == 200:
-            platforms = platforms_resp.json().get('data', [])
-            ga_platform = next((p for p in platforms if p['platformId'] == GOOGLE_ANALYTICS_PLATFORM_ID), None)
-            if ga_platform:
-                agency_platform_id = ga_platform['id']
-    else:
-        agency_platform_id = platform_resp.json()['data']['id']
-    
-    if not agency_platform_id:
-        return log_test("Named Invite - Setup Agency Platform", False, "Could not create or find agency platform")
-    
-    # Test 1a: CLIENT_DEDICATED should be rejected for NAMED_INVITE
-    client_dedicated_item = {
-        "itemType": "NAMED_INVITE",
-        "label": "GA4 Client Dedicated Access",
-        "role": "Analyst", 
-        "humanIdentityStrategy": "CLIENT_DEDICATED",
-        "namingTemplate": "{clientSlug}-ga4@agency.com"
-    }
-    
-    resp = api_request("POST", f"agency/platforms/{agency_platform_id}/items", client_dedicated_item, expected_status=400)
-    
-    test_1a = log_test(
-        "Named Invite - CLIENT_DEDICATED Rejection", 
-        resp is not None and resp.status_code == 400 and "CLIENT_DEDICATED identity strategy is not allowed for Named Invite" in resp.text,
-        f"Status: {resp.status_code if resp else 'N/A'}"
-    )
-    
-    # Test 1b: AGENCY_GROUP should succeed for NAMED_INVITE
-    agency_group_item = {
-        "itemType": "NAMED_INVITE",
-        "label": "GA4 Agency Group Access",
-        "role": "Analyst",
-        "humanIdentityStrategy": "AGENCY_GROUP", 
-        "agencyGroupEmail": "analytics-team@agency.com"
-    }
-    
-    resp = api_request("POST", f"agency/platforms/{agency_platform_id}/items", agency_group_item)
-    test_1b = log_test(
-        "Named Invite - AGENCY_GROUP Success",
-        resp and resp.status_code == 200,
-        f"Status: {resp.status_code if resp else 'N/A'}"
-    )
-    
-    # Test 1c: INDIVIDUAL_USERS should succeed for NAMED_INVITE  
-    individual_users_item = {
-        "itemType": "NAMED_INVITE",
-        "label": "GA4 Individual Users Access", 
-        "role": "Analyst",
-        "humanIdentityStrategy": "INDIVIDUAL_USERS"
-    }
-    
-    resp = api_request("POST", f"agency/platforms/{agency_platform_id}/items", individual_users_item)
-    test_1c = log_test(
-        "Named Invite - INDIVIDUAL_USERS Success",
-        resp and resp.status_code == 200,
-        f"Status: {resp.status_code if resp else 'N/A'}"
-    )
-    
-    return test_1a and test_1b and test_1c
+    async def test_platform_catalog_filtering(self):
+        """Test GET /api/platforms with filters"""
+        try:
+            # Test client-facing filter
+            resp = await self.make_request('GET', 'platforms?clientFacing=true')
+            if resp['status'] != 200:
+                self.log_result("Platform Catalog - Client Facing Filter", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            client_facing = resp['data']['data']
+            
+            # Test tier filter
+            resp = await self.make_request('GET', 'platforms?tier=1')
+            if resp['status'] != 200:
+                self.log_result("Platform Catalog - Tier Filter", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+                
+            tier_1 = resp['data']['data']
+            
+            # Test tier 2 filter
+            resp = await self.make_request('GET', 'platforms?tier=2')
+            if resp['status'] != 200:
+                self.log_result("Platform Catalog - Tier 2 Filter", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+                
+            tier_2 = resp['data']['data']
+            
+            self.log_result("Platform Catalog - Filtering", True,
+                          f"Client-facing: {len(client_facing)}, Tier 1: {len(tier_1)}, Tier 2: {len(tier_2)}")
+            return True
+            
+        except Exception as e:
+            self.log_result("Platform Catalog - Filtering", False, f"Exception: {str(e)}")
+            return False
 
-def test_pam_client_dedicated_identity():
-    """Test 2: CLIENT_DEDICATED works correctly for PAM"""
-    print(f"\n{Colors.BLUE}=== Test 2: PAM Client-Dedicated Identity ==={Colors.END}")
-    
-    # Get or create agency platform
-    platforms_resp = api_request("GET", "agency/platforms")
-    if not platforms_resp or platforms_resp.status_code != 200:
-        return log_test("PAM - Get Agency Platforms", False, "Could not get agency platforms")
-    
-    platforms = platforms_resp.json().get('data', [])
-    ga_platform = next((p for p in platforms if p['platformId'] == GOOGLE_ANALYTICS_PLATFORM_ID), None)
-    
-    if not ga_platform:
-        return log_test("PAM - Find GA Platform", False, "Google Analytics platform not found in agency")
-    
-    agency_platform_id = ga_platform['id']
-    
-    # Test 2a: Create SHARED_ACCOUNT_PAM with CLIENT_DEDICATED identity strategy
-    pam_item = {
-        "itemType": "SHARED_ACCOUNT_PAM",
-        "label": "GA4 PAM Account", 
-        "role": "Administrator",
-        "pamConfig": {
-            "ownership": "AGENCY_OWNED",
-            "identityStrategy": "CLIENT_DEDICATED",
-            "namingTemplate": "{clientSlug}-pam-ga4@agency.com",
-            "identityType": "MAILBOX", 
-            "roleTemplate": "Administrator"
-        }
-    }
-    
-    resp = api_request("POST", f"agency/platforms/{agency_platform_id}/items", pam_item)
-    
-    if not resp or resp.status_code != 200:
-        return log_test("PAM - Create CLIENT_DEDICATED Item", False, f"Status: {resp.status_code if resp else 'N/A'}")
-    
-    pam_item_data = resp.json()['data']
-    test_2a = log_test("PAM - Create CLIENT_DEDICATED Item", True, "PAM item created successfully")
-    
-    # Test 2b: Verify pamConfig is stored correctly
-    stored_pam_config = None
-    for item in pam_item_data['accessItems']:
-        if item.get('itemType') == 'SHARED_ACCOUNT_PAM':
-            stored_pam_config = item.get('pamConfig')
-            break
-    
-    pam_config_valid = (stored_pam_config and 
-                       stored_pam_config.get('identityStrategy') == 'CLIENT_DEDICATED' and
-                       stored_pam_config.get('namingTemplate') == '{clientSlug}-pam-ga4@agency.com' and
-                       stored_pam_config.get('identityType') == 'MAILBOX')
-    
-    test_2b = log_test(
-        "PAM - Verify pamConfig Storage", 
-        pam_config_valid,
-        f"pamConfig: {json.dumps(stored_pam_config, indent=2) if stored_pam_config else 'None'}"
-    )
-    
-    # Test 2c: Create access request and verify resolvedIdentity generation
-    client_data = {
-        "name": "Test Corporation",
-        "email": "test@testcorp.com"
-    }
-    client_resp = api_request("POST", "clients", client_data)
-    
-    if not client_resp or client_resp.status_code != 200:
-        return log_test("PAM - Create Test Client", False, "Could not create test client") and test_2a and test_2b
-    
-    client_id = client_resp.json()['data']['id']
-    
-    # Create access request with PAM item
-    access_request_data = {
-        "clientId": client_id,
-        "items": [{
-            "platformId": GOOGLE_ANALYTICS_PLATFORM_ID,
-            "itemType": "SHARED_ACCOUNT_PAM",
-            "accessPattern": "PAM",
-            "role": "Administrator", 
-            "pamOwnership": "AGENCY_OWNED",
-            "pamIdentityStrategy": "CLIENT_DEDICATED",
-            "pamNamingTemplate": "{clientSlug}-pam-ga4@agency.com",
-            "pamIdentityType": "MAILBOX",
-            "pamRoleTemplate": "Administrator"
-        }]
-    }
-    
-    req_resp = api_request("POST", "access-requests", access_request_data)
-    
-    if not req_resp or req_resp.status_code != 200:
-        return log_test("PAM - Create Access Request", False, f"Status: {req_resp.status_code if req_resp else 'N/A'}") and test_2a and test_2b
-    
-    access_request = req_resp.json()['data']
-    pam_item_in_request = access_request['items'][0] if access_request['items'] else None
-    
-    expected_identity = "test-corporation-pam-ga4@agency.com" 
-    test_2c = log_test(
-        "PAM - Verify resolvedIdentity Generation",
-        pam_item_in_request and pam_item_in_request.get('resolvedIdentity') == expected_identity,
-        f"Expected: {expected_identity}, Got: {pam_item_in_request.get('resolvedIdentity') if pam_item_in_request else 'N/A'}"
-    )
-    
-    return test_2a and test_2b and test_2c
+    async def test_platform_catalog_single(self):
+        """Test GET /api/platforms/:id - Get single platform"""
+        try:
+            # First get all platforms to get a valid ID
+            resp = await self.make_request('GET', 'platforms')
+            if resp['status'] != 200 or not resp['data']['data']:
+                self.log_result("Platform Catalog - Single Platform", False,
+                              "Could not get platforms list for test")
+                return False
+            
+            platform_id = resp['data']['data'][0]['id']
+            
+            # Test single platform retrieval
+            resp = await self.make_request('GET', f'platforms/{platform_id}')
+            if resp['status'] != 200:
+                self.log_result("Platform Catalog - Single Platform", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            platform = resp['data']['data']
+            if platform['id'] != platform_id:
+                self.log_result("Platform Catalog - Single Platform", False,
+                              "Returned platform ID doesn't match requested")
+                return False
+            
+            # Test 404 for invalid ID
+            resp = await self.make_request('GET', 'platforms/invalid-id')
+            if resp['status'] != 404:
+                self.log_result("Platform Catalog - Single Platform", False,
+                              f"Expected 404 for invalid ID, got {resp['status']}")
+                return False
+            
+            self.log_result("Platform Catalog - Single Platform", True,
+                          f"Retrieved platform {platform['name']} successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result("Platform Catalog - Single Platform", False, f"Exception: {str(e)}")
+            return False
 
-def test_group_access_service_account_fields():
-    """Test 3: Group Access service account fields storage"""
-    print(f"\n{Colors.BLUE}=== Test 3: Group Access Service Account Fields ==={Colors.END}")
+    # ========================================================================
+    # CLIENT CRUD TESTS
+    # ========================================================================
     
-    # Get agency platform
-    platforms_resp = api_request("GET", "agency/platforms")
-    if not platforms_resp or platforms_resp.status_code != 200:
-        return log_test("Group Access - Get Platforms", False, "Could not get agency platforms")
-    
-    platforms = platforms_resp.json().get('data', [])
-    ga_platform = next((p for p in platforms if p['platformId'] == GOOGLE_ANALYTICS_PLATFORM_ID), None)
-    
-    if not ga_platform:
-        return log_test("Group Access - Find GA Platform", False, "Google Analytics platform not found")
-    
-    agency_platform_id = ga_platform['id']
-    
-    # Test 3a: Create GROUP_ACCESS item with service account fields
-    group_access_item = {
-        "itemType": "GROUP_ACCESS", 
-        "label": "GA4 Service Account Access",
-        "role": "Analyst",
-        "agencyData": {
-            "serviceAccountEmail": "analytics-sa@agency.iam.gserviceaccount.com",
-            "ssoGroupName": "analytics-team@agency.com"
-        }
-    }
-    
-    resp = api_request("POST", f"agency/platforms/{agency_platform_id}/items", group_access_item)
-    
-    if not resp or resp.status_code != 200:
-        return log_test("Group Access - Create Item", False, f"Status: {resp.status_code if resp else 'N/A'}")
-    
-    item_data = resp.json()['data']
-    test_3a = log_test("Group Access - Create Item", True, "GROUP_ACCESS item created")
-    
-    # Test 3b: Verify agencyData fields are stored correctly  
-    created_item = None
-    for item in item_data['accessItems']:
-        if item.get('itemType') == 'GROUP_ACCESS':
-            created_item = item
-            break
-    
-    agency_data_valid = (created_item and
-                        created_item.get('agencyData', {}).get('serviceAccountEmail') == 'analytics-sa@agency.iam.gserviceaccount.com' and
-                        created_item.get('agencyData', {}).get('ssoGroupName') == 'analytics-team@agency.com')
-    
-    test_3b = log_test(
-        "Group Access - Verify agencyData Storage",
-        agency_data_valid,
-        f"agencyData: {json.dumps(created_item.get('agencyData') if created_item else None, indent=2)}"
-    )
-    
-    # Test 3c: Retrieve item and confirm fields persist
-    platform_resp = api_request("GET", f"agency/platforms/{agency_platform_id}")
-    
-    if not platform_resp or platform_resp.status_code != 200:
-        return log_test("Group Access - Retrieve Item", False, "Could not retrieve platform") and test_3a and test_3b
-    
-    platform_data = platform_resp.json()['data']
-    retrieved_item = None
-    
-    for item in platform_data['accessItems']:
-        if item.get('itemType') == 'GROUP_ACCESS':
-            retrieved_item = item
-            break
-    
-    fields_persist = (retrieved_item and
-                     retrieved_item.get('agencyData', {}).get('serviceAccountEmail') == 'analytics-sa@agency.iam.gserviceaccount.com' and 
-                     retrieved_item.get('agencyData', {}).get('ssoGroupName') == 'analytics-team@agency.com')
-    
-    test_3c = log_test(
-        "Group Access - Verify Field Persistence", 
-        fields_persist,
-        f"Retrieved agencyData: {json.dumps(retrieved_item.get('agencyData') if retrieved_item else None)}"
-    )
-    
-    return test_3a and test_3b and test_3c
-
-def test_pattern_derivation():
-    """Test 4: Pattern derivation from itemType"""
-    print(f"\n{Colors.BLUE}=== Test 4: Access Pattern Derivation ==={Colors.END}")
-    
-    # Get agency platform
-    platforms_resp = api_request("GET", "agency/platforms") 
-    if not platforms_resp or platforms_resp.status_code != 200:
-        return log_test("Pattern Derivation - Get Platforms", False, "Could not get agency platforms")
-    
-    platforms = platforms_resp.json().get('data', [])
-    ga_platform = next((p for p in platforms if p['platformId'] == GOOGLE_ANALYTICS_PLATFORM_ID), None)
-    
-    if not ga_platform:
-        return log_test("Pattern Derivation - Find GA Platform", False, "Google Analytics platform not found")
-    
-    agency_platform_id = ga_platform['id']
-    
-    # Test different item types and their expected patterns
-    test_cases = [
-        ("NAMED_INVITE", "NAMED_INVITE"),
-        ("GROUP_ACCESS", "GROUP_BASED"), 
-        ("SHARED_ACCOUNT_PAM", "PAM")
-    ]
-    
-    all_tests_passed = True
-    
-    for item_type, expected_pattern in test_cases:
-        # Create item without specifying accessPattern
-        if item_type == "NAMED_INVITE":
-            item_data = {
-                "itemType": item_type,
-                "label": f"Test {item_type} Item",
-                "role": "Analyst",
-                "humanIdentityStrategy": "AGENCY_GROUP",
-                "agencyGroupEmail": "test@agency.com"
+    async def test_clients_crud(self):
+        """Test full CRUD operations for clients"""
+        try:
+            # CREATE - POST /api/clients
+            client_data = {
+                'name': 'Test Corporation',
+                'email': 'test@testcorp.com'
             }
-        elif item_type == "GROUP_ACCESS":
-            item_data = {
-                "itemType": item_type,
-                "label": f"Test {item_type} Item", 
-                "role": "Analyst"
+            
+            resp = await self.make_request('POST', 'clients', client_data)
+            if resp['status'] != 200:
+                self.log_result("Clients CRUD - Create", False,
+                              f"Expected status 200, got {resp['status']}", resp['data'])
+                return False
+            
+            client = resp['data']['data']
+            client_id = client['id']
+            self.created_resources['clients'].append(client_id)
+            
+            # READ - GET /api/clients (list)
+            resp = await self.make_request('GET', 'clients')
+            if resp['status'] != 200:
+                self.log_result("Clients CRUD - List", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            clients = resp['data']['data']
+            if not any(c['id'] == client_id for c in clients):
+                self.log_result("Clients CRUD - List", False,
+                              "Created client not found in list")
+                return False
+            
+            # READ - GET /api/clients/:id (single)
+            resp = await self.make_request('GET', f'clients/{client_id}')
+            if resp['status'] != 200:
+                self.log_result("Clients CRUD - Get Single", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            retrieved_client = resp['data']['data']
+            if retrieved_client['id'] != client_id:
+                self.log_result("Clients CRUD - Get Single", False,
+                              "Retrieved client ID doesn't match")
+                return False
+            
+            # UPDATE - PUT /api/clients/:id
+            update_data = {
+                'name': 'Updated Test Corporation',
+                'email': 'updated@testcorp.com'
             }
-        elif item_type == "SHARED_ACCOUNT_PAM":
+            
+            resp = await self.make_request('PUT', f'clients/{client_id}', update_data)
+            if resp['status'] != 200:
+                self.log_result("Clients CRUD - Update", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # DELETE - DELETE /api/clients/:id  
+            resp = await self.make_request('DELETE', f'clients/{client_id}')
+            if resp['status'] != 200:
+                self.log_result("Clients CRUD - Delete", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # Verify deletion
+            resp = await self.make_request('GET', f'clients/{client_id}')
+            if resp['status'] != 404:
+                self.log_result("Clients CRUD - Verify Delete", False,
+                              f"Expected 404 after deletion, got {resp['status']}")
+                return False
+            
+            self.log_result("Clients CRUD", True, "All CRUD operations completed successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result("Clients CRUD", False, f"Exception: {str(e)}")
+            return False
+
+    async def test_client_validation(self):
+        """Test client creation validation"""
+        try:
+            # Test missing name
+            resp = await self.make_request('POST', 'clients', {'email': 'test@test.com'})
+            if resp['status'] != 400:
+                self.log_result("Client Validation - Missing Name", False,
+                              f"Expected 400, got {resp['status']}")
+                return False
+            
+            # Test missing email
+            resp = await self.make_request('POST', 'clients', {'name': 'Test Client'})
+            if resp['status'] != 400:
+                self.log_result("Client Validation - Missing Email", False,
+                              f"Expected 400, got {resp['status']}")
+                return False
+            
+            self.log_result("Client Validation", True, "Validation working correctly")
+            return True
+            
+        except Exception as e:
+            self.log_result("Client Validation", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # AGENCY PLATFORM TESTS
+    # ========================================================================
+    
+    async def test_agency_platforms_crud(self):
+        """Test Agency Platform CRUD operations"""
+        try:
+            # First get a valid platform ID
+            resp = await self.make_request('GET', 'platforms?clientFacing=true')
+            if resp['status'] != 200 or not resp['data']['data']:
+                self.log_result("Agency Platforms - Setup", False,
+                              "Could not get platforms for test")
+                return False
+            
+            platform_id = resp['data']['data'][0]['id']
+            
+            # CREATE - POST /api/agency/platforms
+            agency_platform_data = {'platformId': platform_id}
+            
+            resp = await self.make_request('POST', 'agency/platforms', agency_platform_data)
+            if resp['status'] != 200:
+                self.log_result("Agency Platforms - Create", False,
+                              f"Expected status 200, got {resp['status']}", resp['data'])
+                return False
+            
+            agency_platform = resp['data']['data']
+            ap_id = agency_platform['id']
+            self.created_resources['agency_platforms'].append(ap_id)
+            
+            # READ - GET /api/agency/platforms
+            resp = await self.make_request('GET', 'agency/platforms')
+            if resp['status'] != 200:
+                self.log_result("Agency Platforms - List", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # READ - GET /api/agency/platforms/:id
+            resp = await self.make_request('GET', f'agency/platforms/{ap_id}')
+            if resp['status'] != 200:
+                self.log_result("Agency Platforms - Get Single", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # Toggle enabled status - PATCH /api/agency/platforms/:id/toggle
+            resp = await self.make_request('PATCH', f'agency/platforms/{ap_id}/toggle')
+            if resp['status'] != 200:
+                self.log_result("Agency Platforms - Toggle", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            self.log_result("Agency Platforms CRUD", True, "All operations completed successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result("Agency Platforms CRUD", False, f"Exception: {str(e)}")
+            return False
+
+    async def test_access_items_crud(self):
+        """Test Access Items CRUD operations"""
+        try:
+            # Create agency platform first
+            resp = await self.make_request('GET', 'platforms?clientFacing=true')
+            if resp['status'] != 200 or not resp['data']['data']:
+                return False
+            
+            platform_id = resp['data']['data'][0]['id']
+            
+            resp = await self.make_request('POST', 'agency/platforms', {'platformId': platform_id})
+            if resp['status'] != 200:
+                return False
+            
+            ap_id = resp['data']['data']['id']
+            
+            # CREATE ACCESS ITEM - POST /api/agency/platforms/:id/items
             item_data = {
-                "itemType": item_type,
-                "label": f"Test {item_type} Item",
-                "role": "Administrator",
-                "pamConfig": {
-                    "ownership": "CLIENT_OWNED"
+                'itemType': 'NAMED_INVITE',
+                'accessPattern': 'HUMAN_INVITE',
+                'label': 'Test Access Item',
+                'role': 'Admin',
+                'notes': 'Test access item for PostgreSQL testing'
+            }
+            
+            resp = await self.make_request('POST', f'agency/platforms/{ap_id}/items', item_data)
+            if resp['status'] != 200:
+                self.log_result("Access Items - Create", False,
+                              f"Expected status 200, got {resp['status']}", resp['data'])
+                return False
+            
+            updated_ap = resp['data']['data']
+            if not updated_ap.get('accessItems') or len(updated_ap['accessItems']) == 0:
+                self.log_result("Access Items - Create", False,
+                              "Access item not found in response")
+                return False
+            
+            item_id = updated_ap['accessItems'][0]['id']
+            
+            # UPDATE ACCESS ITEM - PUT /api/agency/platforms/:id/items/:itemId
+            update_data = {
+                'label': 'Updated Test Access Item',
+                'role': 'Editor'
+            }
+            
+            resp = await self.make_request('PUT', f'agency/platforms/{ap_id}/items/{item_id}', update_data)
+            if resp['status'] != 200:
+                self.log_result("Access Items - Update", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # DELETE ACCESS ITEM - DELETE /api/agency/platforms/:id/items/:itemId
+            resp = await self.make_request('DELETE', f'agency/platforms/{ap_id}/items/{item_id}')
+            if resp['status'] != 200:
+                self.log_result("Access Items - Delete", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            self.log_result("Access Items CRUD", True, "All operations completed successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result("Access Items CRUD", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # ACCESS REQUEST TESTS
+    # ========================================================================
+    
+    async def test_access_requests_lifecycle(self):
+        """Test complete access request lifecycle"""
+        try:
+            # Create client first
+            client_data = {
+                'name': 'Test Client for AR',
+                'email': 'test-ar@testcorp.com'
+            }
+            
+            resp = await self.make_request('POST', 'clients', client_data)
+            if resp['status'] != 200:
+                return False
+            
+            client_id = resp['data']['data']['id']
+            
+            # Create agency platform with access item
+            resp = await self.make_request('GET', 'platforms?clientFacing=true')
+            platform_id = resp['data']['data'][0]['id']
+            
+            resp = await self.make_request('POST', 'agency/platforms', {'platformId': platform_id})
+            ap_id = resp['data']['data']['id']
+            
+            item_data = {
+                'itemType': 'NAMED_INVITE',
+                'accessPattern': 'HUMAN_INVITE',
+                'label': 'Test Access',
+                'role': 'Admin'
+            }
+            resp = await self.make_request('POST', f'agency/platforms/{ap_id}/items', item_data)
+            
+            # CREATE ACCESS REQUEST - POST /api/access-requests
+            ar_data = {
+                'clientId': client_id,
+                'items': [{
+                    'platformId': platform_id,
+                    'itemType': 'NAMED_INVITE',
+                    'accessPattern': 'HUMAN_INVITE',
+                    'role': 'Admin',
+                    'assetName': 'Test Asset'
+                }],
+                'notes': 'Test access request'
+            }
+            
+            resp = await self.make_request('POST', 'access-requests', ar_data)
+            if resp['status'] != 200:
+                self.log_result("Access Requests - Create", False,
+                              f"Expected status 200, got {resp['status']}", resp['data'])
+                return False
+            
+            access_request = resp['data']['data']
+            ar_id = access_request['id']
+            token = access_request['token']
+            self.created_resources['access_requests'].append(ar_id)
+            
+            # READ - GET /api/access-requests
+            resp = await self.make_request('GET', 'access-requests')
+            if resp['status'] != 200:
+                self.log_result("Access Requests - List", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # READ - GET /api/access-requests/:id
+            resp = await self.make_request('GET', f'access-requests/{ar_id}')
+            if resp['status'] != 200:
+                self.log_result("Access Requests - Get Single", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # READ - GET /api/clients/:id/requests
+            resp = await self.make_request('GET', f'clients/{client_id}/requests')
+            if resp['status'] != 200:
+                self.log_result("Access Requests - Client Requests", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            self.log_result("Access Requests Lifecycle", True, "All operations completed successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result("Access Requests Lifecycle", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # ONBOARDING TESTS
+    # ========================================================================
+    
+    async def test_onboarding_flow(self):
+        """Test onboarding API endpoints"""
+        try:
+            # Create access request with token first
+            client_data = {'name': 'Onboarding Test Client', 'email': 'onboarding@test.com'}
+            resp = await self.make_request('POST', 'clients', client_data)
+            client_id = resp['data']['data']['id']
+            
+            # Get platform and create AR
+            resp = await self.make_request('GET', 'platforms?clientFacing=true')
+            platform_id = resp['data']['data'][0]['id']
+            
+            ar_data = {
+                'clientId': client_id,
+                'items': [{
+                    'platformId': platform_id,
+                    'itemType': 'NAMED_INVITE',
+                    'accessPattern': 'HUMAN_INVITE',
+                    'role': 'Admin'
+                }]
+            }
+            
+            resp = await self.make_request('POST', 'access-requests', ar_data)
+            token = resp['data']['data']['token']
+            
+            # TEST ONBOARDING - GET /api/onboarding/:token
+            resp = await self.make_request('GET', f'onboarding/{token}')
+            if resp['status'] != 200:
+                self.log_result("Onboarding Flow - Get Token", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            onboarding_data = resp['data']['data']
+            if not onboarding_data.get('client') or not onboarding_data.get('items'):
+                self.log_result("Onboarding Flow - Data Structure", False,
+                              "Missing client or items in onboarding data")
+                return False
+            
+            # Test invalid token
+            resp = await self.make_request('GET', 'onboarding/invalid-token')
+            if resp['status'] != 404:
+                self.log_result("Onboarding Flow - Invalid Token", False,
+                              f"Expected 404 for invalid token, got {resp['status']}")
+                return False
+            
+            # Test attestation endpoint
+            if onboarding_data['items']:
+                item_id = onboarding_data['items'][0]['id']
+                attest_data = {
+                    'attestationText': 'I have granted access as requested',
+                    'clientProvidedTarget': {
+                        'assetType': 'Ad Account',
+                        'assetId': '123456789',
+                        'assetName': 'Test Ad Account'
+                    }
+                }
+                
+                resp = await self.make_request('POST', f'onboarding/{token}/items/{item_id}/attest', attest_data)
+                if resp['status'] != 200:
+                    self.log_result("Onboarding Flow - Attestation", False,
+                                  f"Expected status 200, got {resp['status']}")
+                    return False
+            
+            self.log_result("Onboarding Flow", True, "All onboarding endpoints working correctly")
+            return True
+            
+        except Exception as e:
+            self.log_result("Onboarding Flow", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # INTEGRATION IDENTITY TESTS
+    # ========================================================================
+    
+    async def test_integration_identities_crud(self):
+        """Test Integration Identities CRUD operations"""
+        try:
+            # CREATE - POST /api/integration-identities
+            identity_data = {
+                'name': 'Test Service Account',
+                'type': 'SERVICE_ACCOUNT',
+                'identifier': 'test-sa@project.iam.gserviceaccount.com',
+                'description': 'Test service account for PostgreSQL testing'
+            }
+            
+            resp = await self.make_request('POST', 'integration-identities', identity_data)
+            if resp['status'] != 200:
+                self.log_result("Integration Identities - Create", False,
+                              f"Expected status 200, got {resp['status']}", resp['data'])
+                return False
+            
+            identity = resp['data']['data']
+            identity_id = identity['id']
+            self.created_resources['integration_identities'].append(identity_id)
+            
+            # READ - GET /api/integration-identities
+            resp = await self.make_request('GET', 'integration-identities')
+            if resp['status'] != 200:
+                self.log_result("Integration Identities - List", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            identities = resp['data']['data']
+            if not any(i['id'] == identity_id for i in identities):
+                self.log_result("Integration Identities - List", False,
+                              "Created identity not found in list")
+                return False
+            
+            # UPDATE - PUT /api/integration-identities/:id
+            update_data = {
+                'name': 'Updated Test Service Account',
+                'description': 'Updated description'
+            }
+            
+            resp = await self.make_request('PUT', f'integration-identities/{identity_id}', update_data)
+            if resp['status'] != 200:
+                self.log_result("Integration Identities - Update", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # TOGGLE - PATCH /api/integration-identities/:id/toggle
+            resp = await self.make_request('PATCH', f'integration-identities/{identity_id}/toggle')
+            if resp['status'] != 200:
+                self.log_result("Integration Identities - Toggle", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # DELETE - DELETE /api/integration-identities/:id
+            resp = await self.make_request('DELETE', f'integration-identities/{identity_id}')
+            if resp['status'] != 200:
+                self.log_result("Integration Identities - Delete", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            self.log_result("Integration Identities CRUD", True, "All CRUD operations completed successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result("Integration Identities CRUD", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # PAM TESTS
+    # ========================================================================
+    
+    async def test_pam_functionality(self):
+        """Test PAM (Privileged Access Management) functionality"""
+        try:
+            # Create access request with PAM item
+            client_data = {'name': 'PAM Test Client', 'email': 'pam@test.com'}
+            resp = await self.make_request('POST', 'clients', client_data)
+            client_id = resp['data']['data']['id']
+            
+            # Get platform for PAM
+            resp = await self.make_request('GET', 'platforms?clientFacing=true')
+            platform_id = resp['data']['data'][0]['id']
+            
+            # Create agency platform with PAM access item
+            resp = await self.make_request('POST', 'agency/platforms', {'platformId': platform_id})
+            ap_id = resp['data']['data']['id']
+            
+            pam_item_data = {
+                'itemType': 'SHARED_ACCOUNT_PAM',
+                'accessPattern': 'PAM',
+                'label': 'PAM Access Item',
+                'role': 'Admin',
+                'pamConfig': {
+                    'ownership': 'CLIENT_OWNED',
+                    'grantMethod': 'CREDENTIAL_HANDOFF'
                 }
             }
-        
-        resp = api_request("POST", f"agency/platforms/{agency_platform_id}/items", item_data)
-        
-        if not resp or resp.status_code != 200:
-            test_passed = log_test(f"Pattern Derivation - {item_type}", False, f"Could not create {item_type} item")
-            all_tests_passed = False
-            continue
-        
-        # Check if pattern was derived correctly
-        created_data = resp.json()['data']
-        created_item = None
-        
-        for item in created_data['accessItems']:
-            if item.get('itemType') == item_type and item.get('label') == f"Test {item_type} Item":
-                created_item = item
-                break
-        
-        pattern_correct = created_item and created_item.get('accessPattern') == expected_pattern
-        
-        test_passed = log_test(
-            f"Pattern Derivation - {item_type} → {expected_pattern}",
-            pattern_correct,
-            f"Got: {created_item.get('accessPattern') if created_item else 'N/A'}"
-        )
-        
-        all_tests_passed = all_tests_passed and test_passed
-    
-    return all_tests_passed
-
-def test_platform_compatibility():
-    """Test platform compatibility with supported item types"""
-    print(f"\n{Colors.BLUE}=== Test 5: Platform Compatibility Validation ==={Colors.END}")
-    
-    # Test that Google Analytics supports required item types
-    platform_resp = api_request("GET", f"platforms/{GOOGLE_ANALYTICS_PLATFORM_ID}")
-    
-    if not platform_resp or platform_resp.status_code != 200:
-        return log_test("Platform Compatibility - Get GA Platform", False, "Could not get Google Analytics platform")
-    
-    platform = platform_resp.json()['data']
-    supported_types = platform.get('supportedItemTypes', [])
-    
-    required_types = ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT_PAM']
-    supports_required = all(item_type in supported_types for item_type in required_types)
-    
-    test_5a = log_test(
-        "Platform Compatibility - Required Item Types",
-        supports_required, 
-        f"Supported: {supported_types}, Required: {required_types}"
-    )
-    
-    # Test that unsupported item type is rejected (PARTNER_DELEGATION not supported by GA)
-    platforms_resp = api_request("GET", "agency/platforms")
-    if not platforms_resp or platforms_resp.status_code != 200:
-        return test_5a and log_test("Platform Compatibility - Get Agency Platforms", False, "Could not get agency platforms")
-    
-    platforms = platforms_resp.json().get('data', [])
-    ga_platform = next((p for p in platforms if p['platformId'] == GOOGLE_ANALYTICS_PLATFORM_ID), None)
-    
-    if not ga_platform:
-        return test_5a and log_test("Platform Compatibility - Find Agency GA Platform", False, "GA platform not in agency")
-    
-    # Try to create unsupported item type
-    unsupported_item = {
-        "itemType": "PARTNER_DELEGATION",
-        "label": "Test Unsupported Item",
-        "role": "Admin"
-    }
-    
-    resp = api_request("POST", f"agency/platforms/{ga_platform['id']}/items", unsupported_item, expected_status=400)
-    
-    test_5b = log_test(
-        "Platform Compatibility - Reject Unsupported Type",
-        resp is not None and resp.status_code == 400 and "not supported" in resp.text.lower(),
-        f"Status: {resp.status_code if resp else 'N/A'}"
-    )
-    
-    return test_5a and test_5b
-
-def main():
-    print(f"{Colors.BOLD}{Colors.BLUE}Marketing Identity Platform - Bug Fix Testing{Colors.END}")
-    print(f"{Colors.BLUE}Testing specific bug fixes for CLIENT_DEDICATED restrictions, PAM identity, Group Access fields, and Pattern Derivation{Colors.END}")
-    print(f"Base URL: {BASE_URL}")
-    print(f"Google Analytics Platform ID: {GOOGLE_ANALYTICS_PLATFORM_ID}")
-    
-    # Run all tests
-    tests = [
-        ("Named Invite CLIENT_DEDICATED Restriction", test_named_invite_client_dedicated_restriction),
-        ("PAM Client-Dedicated Identity", test_pam_client_dedicated_identity), 
-        ("Group Access Service Account Fields", test_group_access_service_account_fields),
-        ("Pattern Derivation", test_pattern_derivation),
-        ("Platform Compatibility", test_platform_compatibility)
-    ]
-    
-    results = []
-    for test_name, test_func in tests:
-        try:
-            result = test_func()
-            results.append((test_name, result))
+            
+            resp = await self.make_request('POST', f'agency/platforms/{ap_id}/items', pam_item_data)
+            if resp['status'] != 200:
+                self.log_result("PAM - Create PAM Item", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # Create access request with PAM
+            ar_data = {
+                'clientId': client_id,
+                'items': [{
+                    'platformId': platform_id,
+                    'itemType': 'SHARED_ACCOUNT_PAM',
+                    'accessPattern': 'PAM',
+                    'role': 'Admin',
+                    'pamOwnership': 'CLIENT_OWNED'
+                }]
+            }
+            
+            resp = await self.make_request('POST', 'access-requests', ar_data)
+            if resp['status'] != 200:
+                self.log_result("PAM - Create Access Request", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            access_request = resp['data']['data']
+            token = access_request['token']
+            item_id = access_request['items'][0]['id']
+            
+            # Test credential submission
+            cred_data = {
+                'username': 'testuser@example.com',
+                'password': 'securepassword123'
+            }
+            
+            resp = await self.make_request('POST', f'onboarding/{token}/items/{item_id}/submit-credentials', cred_data)
+            if resp['status'] != 200:
+                self.log_result("PAM - Credential Submission", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            # Test PAM sessions endpoint
+            resp = await self.make_request('GET', 'pam/sessions')
+            if resp['status'] != 200:
+                self.log_result("PAM - Sessions List", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            self.log_result("PAM Functionality", True, "All PAM operations completed successfully")
+            return True
+            
         except Exception as e:
-            print(f"{Colors.RED}Test '{test_name}' failed with exception: {e}{Colors.END}")
-            results.append((test_name, False))
+            self.log_result("PAM Functionality", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # AUDIT LOG TESTS
+    # ========================================================================
     
-    # Summary
-    print(f"\n{Colors.BOLD}{Colors.BLUE}=== TEST SUMMARY ==={Colors.END}")
-    passed = sum(1 for _, result in results if result)
-    total = len(results)
+    async def test_audit_logs(self):
+        """Test audit log functionality"""
+        try:
+            resp = await self.make_request('GET', 'audit-logs')
+            if resp['status'] != 200:
+                self.log_result("Audit Logs", False,
+                              f"Expected status 200, got {resp['status']}")
+                return False
+            
+            logs = resp['data']['data']
+            if not isinstance(logs, list):
+                self.log_result("Audit Logs", False,
+                              "Expected list of audit logs")
+                return False
+            
+            self.log_result("Audit Logs", True, f"Retrieved {len(logs)} audit log entries")
+            return True
+            
+        except Exception as e:
+            self.log_result("Audit Logs", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # END-TO-END WORKFLOW TESTS
+    # ========================================================================
     
-    for test_name, result in results:
-        status = f"{Colors.GREEN}✅ PASS{Colors.END}" if result else f"{Colors.RED}❌ FAIL{Colors.END}"
-        print(f"{status} {test_name}")
+    async def test_end_to_end_workflow(self):
+        """Test complete end-to-end workflow"""
+        try:
+            print("\n🔄 Starting End-to-End Workflow Test...")
+            
+            # 1. Create a client
+            client_data = {
+                'name': 'E2E Test Corporation',
+                'email': 'e2e@testcorp.com'
+            }
+            
+            resp = await self.make_request('POST', 'clients', client_data)
+            if resp['status'] != 200:
+                self.log_result("E2E Workflow - Step 1 (Create Client)", False,
+                              f"Failed to create client: {resp['status']}")
+                return False
+            
+            client_id = resp['data']['data']['id']
+            print(f"   ✅ Step 1: Created client {client_id}")
+            
+            # 2. Add a platform to agency
+            resp = await self.make_request('GET', 'platforms?clientFacing=true')
+            platform_id = resp['data']['data'][0]['id']
+            platform_name = resp['data']['data'][0]['name']
+            
+            resp = await self.make_request('POST', 'agency/platforms', {'platformId': platform_id})
+            if resp['status'] != 200:
+                self.log_result("E2E Workflow - Step 2 (Add Platform)", False,
+                              f"Failed to add platform: {resp['status']}")
+                return False
+            
+            ap_id = resp['data']['data']['id']
+            print(f"   ✅ Step 2: Added platform {platform_name} to agency")
+            
+            # 3. Add access item to agency platform
+            item_data = {
+                'itemType': 'NAMED_INVITE',
+                'accessPattern': 'HUMAN_INVITE',
+                'label': 'E2E Test Access',
+                'role': 'Admin',
+                'notes': 'End-to-end test access item'
+            }
+            
+            resp = await self.make_request('POST', f'agency/platforms/{ap_id}/items', item_data)
+            if resp['status'] != 200:
+                self.log_result("E2E Workflow - Step 3 (Add Access Item)", False,
+                              f"Failed to add access item: {resp['status']}")
+                return False
+            
+            print("   ✅ Step 3: Added access item to agency platform")
+            
+            # 4. Create access request with items
+            ar_data = {
+                'clientId': client_id,
+                'items': [{
+                    'platformId': platform_id,
+                    'itemType': 'NAMED_INVITE',
+                    'accessPattern': 'HUMAN_INVITE',
+                    'role': 'Admin',
+                    'assetName': 'E2E Test Asset'
+                }],
+                'notes': 'End-to-end test access request'
+            }
+            
+            resp = await self.make_request('POST', 'access-requests', ar_data)
+            if resp['status'] != 200:
+                self.log_result("E2E Workflow - Step 4 (Create Access Request)", False,
+                              f"Failed to create access request: {resp['status']}")
+                return False
+            
+            access_request = resp['data']['data']
+            token = access_request['token']
+            print("   ✅ Step 4: Created access request with onboarding token")
+            
+            # 5. Use onboarding token to attest
+            resp = await self.make_request('GET', f'onboarding/{token}')
+            if resp['status'] != 200:
+                self.log_result("E2E Workflow - Step 5 (Get Onboarding Data)", False,
+                              f"Failed to get onboarding data: {resp['status']}")
+                return False
+            
+            onboarding_data = resp['data']['data']
+            item_id = onboarding_data['items'][0]['id']
+            
+            attest_data = {
+                'attestationText': 'I have granted the requested access',
+                'clientProvidedTarget': {
+                    'assetType': 'Ad Account',
+                    'assetId': '987654321',
+                    'assetName': 'E2E Test Ad Account'
+                }
+            }
+            
+            resp = await self.make_request('POST', f'onboarding/{token}/items/{item_id}/attest', attest_data)
+            if resp['status'] != 200:
+                self.log_result("E2E Workflow - Step 5 (Attest)", False,
+                              f"Failed to attest: {resp['status']}")
+                return False
+            
+            print("   ✅ Step 5: Client attestation completed")
+            
+            # 6. Verify audit logs created
+            resp = await self.make_request('GET', 'audit-logs')
+            if resp['status'] != 200:
+                self.log_result("E2E Workflow - Step 6 (Verify Audit)", False,
+                              f"Failed to get audit logs: {resp['status']}")
+                return False
+            
+            print("   ✅ Step 6: Verified audit logs created")
+            
+            self.log_result("End-to-End Workflow", True, 
+                          "Complete workflow from client creation to attestation successful")
+            return True
+            
+        except Exception as e:
+            self.log_result("End-to-End Workflow", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # DATA PERSISTENCE AND INTEGRITY TESTS
+    # ========================================================================
     
-    print(f"\n{Colors.BOLD}Results: {passed}/{total} tests passed{Colors.END}")
+    async def test_data_persistence(self):
+        """Test data persistence across multiple requests"""
+        try:
+            # Create test data
+            client_data = {'name': 'Persistence Test Client', 'email': 'persist@test.com'}
+            resp = await self.make_request('POST', 'clients', client_data)
+            client_id = resp['data']['data']['id']
+            
+            # Wait a moment to simulate time passing
+            await asyncio.sleep(1)
+            
+            # Retrieve data and verify it persists
+            resp = await self.make_request('GET', f'clients/{client_id}')
+            if resp['status'] != 200:
+                self.log_result("Data Persistence", False,
+                              "Created client not found after time delay")
+                return False
+            
+            retrieved_client = resp['data']['data']
+            if (retrieved_client['name'] != client_data['name'] or 
+                retrieved_client['email'] != client_data['email']):
+                self.log_result("Data Persistence", False,
+                              "Client data modified between creation and retrieval")
+                return False
+            
+            # Test relationship integrity
+            ar_data = {
+                'clientId': client_id,
+                'items': []  # Empty items for simple test
+            }
+            
+            resp = await self.make_request('POST', 'access-requests', ar_data)
+            if resp['status'] != 200:
+                self.log_result("Data Persistence", False,
+                              "Failed to create access request for persistence test")
+                return False
+            
+            # Verify client-request relationship
+            resp = await self.make_request('GET', f'clients/{client_id}/requests')
+            if resp['status'] != 200:
+                self.log_result("Data Persistence", False,
+                              "Failed to retrieve client requests")
+                return False
+            
+            requests = resp['data']['data']
+            if len(requests) == 0:
+                self.log_result("Data Persistence", False,
+                              "Access request not linked to client")
+                return False
+            
+            self.log_result("Data Persistence", True,
+                          "Data persists correctly across requests and relationships maintained")
+            return True
+            
+        except Exception as e:
+            self.log_result("Data Persistence", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # ERROR HANDLING TESTS
+    # ========================================================================
     
-    if passed == total:
-        print(f"{Colors.GREEN}{Colors.BOLD}🎉 All bug fix tests PASSED!{Colors.END}")
-        return 0
-    else:
-        print(f"{Colors.RED}{Colors.BOLD}❌ Some tests FAILED. Review implementation.{Colors.END}")
-        return 1
+    async def test_error_handling(self):
+        """Test proper error handling for various scenarios"""
+        try:
+            error_tests = [
+                # Test 404 for non-existent resources
+                ('GET', 'clients/non-existent-id', None, 404, "Non-existent client"),
+                ('GET', 'platforms/non-existent-id', None, 404, "Non-existent platform"),
+                ('GET', 'access-requests/non-existent-id', None, 404, "Non-existent access request"),
+                ('GET', 'onboarding/invalid-token', None, 404, "Invalid onboarding token"),
+                
+                # Test 400 for invalid data
+                ('POST', 'clients', {'name': 'Test'}, 400, "Missing email in client creation"),
+                ('POST', 'clients', {'email': 'test@test.com'}, 400, "Missing name in client creation"),
+                ('POST', 'agency/platforms', {}, 400, "Missing platformId"),
+                ('POST', 'access-requests', {'clientId': str(uuid.uuid4())}, 400, "Invalid access request data"),
+            ]
+            
+            failed_tests = []
+            
+            for method, endpoint, data, expected_status, description in error_tests:
+                resp = await self.make_request(method, endpoint, data)
+                if resp['status'] != expected_status:
+                    failed_tests.append(f"{description}: expected {expected_status}, got {resp['status']}")
+            
+            if failed_tests:
+                self.log_result("Error Handling", False,
+                              f"Failed tests: {'; '.join(failed_tests)}")
+                return False
+            
+            self.log_result("Error Handling", True,
+                          f"All {len(error_tests)} error handling tests passed")
+            return True
+            
+        except Exception as e:
+            self.log_result("Error Handling", False, f"Exception: {str(e)}")
+            return False
+
+    # ========================================================================
+    # MAIN TEST RUNNER
+    # ========================================================================
+    
+    async def run_all_tests(self):
+        """Run all PostgreSQL database migration tests"""
+        print("🚀 Starting PostgreSQL Database Migration Tests for Marketing Identity Platform")
+        print(f"🌐 Testing backend API at: {self.base_url}")
+        print("=" * 80)
+        
+        # Test categories and their corresponding test methods
+        test_categories = [
+            ("Platform Catalog APIs", [
+                self.test_platform_catalog_list_all,
+                self.test_platform_catalog_filtering,
+                self.test_platform_catalog_single
+            ]),
+            ("Client APIs", [
+                self.test_clients_crud,
+                self.test_client_validation
+            ]),
+            ("Agency Platform APIs", [
+                self.test_agency_platforms_crud,
+                self.test_access_items_crud
+            ]),
+            ("Access Request APIs", [
+                self.test_access_requests_lifecycle
+            ]),
+            ("Onboarding APIs", [
+                self.test_onboarding_flow
+            ]),
+            ("Integration Identity APIs", [
+                self.test_integration_identities_crud
+            ]),
+            ("PAM APIs", [
+                self.test_pam_functionality
+            ]),
+            ("Audit Log APIs", [
+                self.test_audit_logs
+            ]),
+            ("End-to-End Flow", [
+                self.test_end_to_end_workflow
+            ]),
+            ("Data Persistence & Integrity", [
+                self.test_data_persistence
+            ]),
+            ("Error Handling", [
+                self.test_error_handling
+            ])
+        ]
+        
+        total_tests = 0
+        passed_tests = 0
+        
+        for category_name, test_methods in test_categories:
+            print(f"\n📂 {category_name}")
+            print("-" * 60)
+            
+            category_passed = 0
+            category_total = len(test_methods)
+            
+            for test_method in test_methods:
+                total_tests += 1
+                try:
+                    result = await test_method()
+                    if result:
+                        passed_tests += 1
+                        category_passed += 1
+                except Exception as e:
+                    self.log_result(test_method.__name__, False, f"Test method exception: {str(e)}")
+            
+            print(f"   📊 Category Summary: {category_passed}/{category_total} tests passed")
+        
+        # Final summary
+        print("\n" + "=" * 80)
+        print("🏁 POSTGRESQL DATABASE MIGRATION TEST SUMMARY")
+        print("=" * 80)
+        
+        success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+        status_emoji = "✅" if success_rate >= 90 else "⚠️" if success_rate >= 70 else "❌"
+        
+        print(f"{status_emoji} Overall Result: {passed_tests}/{total_tests} tests passed ({success_rate:.1f}%)")
+        
+        if success_rate >= 90:
+            print("🎉 PostgreSQL database integration is working excellently!")
+        elif success_rate >= 70:
+            print("⚠️  PostgreSQL database integration is mostly working with some issues.")
+        else:
+            print("❌ PostgreSQL database integration has significant issues that need attention.")
+        
+        # Show detailed failures if any
+        failed_tests = [r for r in self.test_results if not r['success']]
+        if failed_tests:
+            print(f"\n❌ Failed Tests ({len(failed_tests)}):")
+            for test in failed_tests:
+                print(f"   • {test['test']}: {test['message']}")
+        
+        print(f"\n📊 Database Connection: PostgreSQL via Neon Cloud")
+        print(f"🔗 Backend URL: {self.base_url}")
+        print(f"⏰ Test completed at: {datetime.now().isoformat()}")
+        
+        return success_rate >= 90
+
+async def main():
+    """Main test execution function"""
+    tester = PostgreSQLDatabaseMigrationTester()
+    
+    try:
+        await tester.setup()
+        success = await tester.run_all_tests()
+        return success
+    except Exception as e:
+        print(f"❌ Test execution failed: {str(e)}")
+        return False
+    finally:
+        await tester.teardown()
 
 if __name__ == "__main__":
-    exit_code = main()
-    sys.exit(exit_code)
+    asyncio.run(main())
