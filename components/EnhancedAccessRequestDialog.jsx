@@ -5,11 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import {
+  IDENTITY_PURPOSE,
+  HUMAN_IDENTITY_STRATEGY,
+  generateClientDedicatedIdentity
+} from '@/lib/data/field-policy';
 
-export default function EnhancedAccessRequestDialog({ open, onOpenChange, clientId, onSuccess }) {
+export default function EnhancedAccessRequestDialog({ open, onOpenChange, clientId, clientData, onSuccess }) {
   const { toast } = useToast();
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -17,12 +24,15 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
   const [selectedKeys, setSelectedKeys] = useState([]); // "agencyPlatformId|itemId"
   const [loading, setLoading] = useState(false);
   const [loadingPlatforms, setLoadingPlatforms] = useState(false);
+  // For INDIVIDUAL_USERS strategy - store invitee emails per item
+  const [itemInvitees, setItemInvitees] = useState({}); // { "apId|itemId": "email1, email2" }
 
   useEffect(() => {
     if (open) {
       loadAgencyPlatforms();
       setStep(1);
       setSelectedKeys([]);
+      setItemInvitees({});
     }
   }, [open]);
 
@@ -69,30 +79,78 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
       const itemId = key.substring(sep + 1);
       const ap = agencyPlatforms.find(a => a.id === apId);
       const item = ap?.accessItems.find(i => i.id === itemId);
-      return { ap, item };
+      return { ap, item, key };
     }).filter(x => x.ap && x.item);
   };
 
+  const updateInvitees = (key, value) => {
+    setItemInvitees(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Check if any selected items need invitee input
+  const needsInviteeInput = () => {
+    return getSelectedData().some(({ item }) => 
+      item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS
+    );
+  };
+
+  // Validate invitees for INDIVIDUAL_USERS items
+  const validateInvitees = () => {
+    const selectedData = getSelectedData();
+    for (const { item, key } of selectedData) {
+      if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS) {
+        const invitees = itemInvitees[key]?.trim();
+        if (!invitees) {
+          return { valid: false, error: `Please enter invitee email(s) for "${item.label}"` };
+        }
+      }
+    }
+    return { valid: true };
+  };
+
   const handleCreateRequest = async () => {
+    // Validate invitees
+    const validation = validateInvitees();
+    if (!validation.valid) {
+      toast({ title: 'Validation Error', description: validation.error, variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     try {
       const selectedData = getSelectedData();
-      const items = selectedData.map(({ ap, item }) => ({
-        platformId: ap.platformId,
-        accessPattern: item.accessPattern,
-        role: item.role,
-        assetName: item.label,
-        // Pass item type and PAM fields so they're stored in the AccessRequestItem
-        itemType: item.itemType || 'NAMED_INVITE',
-        pamOwnership: item.pamConfig?.ownership || undefined,
-        pamGrantMethod: item.pamConfig?.grantMethod || undefined,
-        pamUsername: item.pamConfig?.username || undefined,
-        pamAgencyIdentityEmail: item.pamConfig?.agencyIdentityEmail || undefined,
-        pamRoleTemplate: item.pamConfig?.roleTemplate || undefined,
-        // NEW: Pass agency data and client instructions from Excel
-        agencyData: item.agencyData || undefined,
-        clientInstructions: item.clientInstructions || undefined
-      }));
+      const items = selectedData.map(({ ap, item, key }) => {
+        // Parse invitee emails for INDIVIDUAL_USERS
+        let inviteeEmails = undefined;
+        if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS) {
+          inviteeEmails = (itemInvitees[key] || '').split(/[,;\s]+/).map(e => e.trim()).filter(e => e);
+        }
+
+        return {
+          platformId: ap.platformId,
+          accessPattern: item.accessPattern,
+          role: item.role,
+          assetName: item.label,
+          // Item type and PAM fields
+          itemType: item.itemType || 'NAMED_INVITE',
+          pamOwnership: item.pamConfig?.ownership || undefined,
+          pamGrantMethod: item.pamConfig?.grantMethod || undefined,
+          pamUsername: item.pamConfig?.username || undefined,
+          pamAgencyIdentityEmail: item.pamConfig?.agencyIdentityEmail || undefined,
+          pamRoleTemplate: item.pamConfig?.roleTemplate || undefined,
+          // Identity Taxonomy fields
+          identityPurpose: item.identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
+          humanIdentityStrategy: item.humanIdentityStrategy || undefined,
+          namingTemplate: item.namingTemplate || undefined,
+          agencyGroupEmail: item.agencyGroupEmail || undefined,
+          integrationIdentityId: item.integrationIdentityId || undefined,
+          validationMethod: item.validationMethod || 'ATTESTATION',
+          inviteeEmails: inviteeEmails,
+          // Agency data and client instructions from Excel
+          agencyData: item.agencyData || undefined,
+          clientInstructions: item.clientInstructions || undefined
+        };
+      });
 
       const res = await fetch('/api/access-requests', {
         method: 'POST',
@@ -116,6 +174,38 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
   };
 
   const selectedData = getSelectedData();
+
+  // Helper to get identity preview for an item
+  const getIdentityPreview = (item, ap) => {
+    const strategy = item.humanIdentityStrategy;
+    const platform = ap.platform;
+    
+    if (strategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && item.namingTemplate) {
+      return generateClientDedicatedIdentity(item.namingTemplate, clientData || { name: 'Client' }, platform);
+    } else if (strategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP && item.agencyGroupEmail) {
+      return item.agencyGroupEmail;
+    } else if (item.agencyData?.agencyEmail) {
+      return item.agencyData.agencyEmail;
+    } else if (item.pamConfig?.agencyIdentityEmail) {
+      return item.pamConfig.agencyIdentityEmail;
+    }
+    return null;
+  };
+
+  // Helper to get strategy badge
+  const getStrategyBadge = (item) => {
+    const strategy = item.humanIdentityStrategy;
+    if (strategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED) {
+      return <Badge variant="outline" className="text-xs text-green-600 border-green-300"><i className="fas fa-user-tag mr-1"></i>Client-Dedicated</Badge>;
+    } else if (strategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
+      return <Badge variant="outline" className="text-xs text-blue-600 border-blue-300"><i className="fas fa-users mr-1"></i>Agency Group</Badge>;
+    } else if (strategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS) {
+      return <Badge variant="outline" className="text-xs text-purple-600 border-purple-300"><i className="fas fa-user-friends mr-1"></i>Individual Users</Badge>;
+    } else if (item.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE) {
+      return <Badge variant="outline" className="text-xs text-purple-600 border-purple-300"><i className="fas fa-robot mr-1"></i>Integration</Badge>;
+    }
+    return null;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -204,42 +294,59 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
                           const isSelected = selectedKeys.includes(key);
                           const isPam = item.itemType === 'SHARED_ACCOUNT_PAM';
                           const pamOwnership = item.pamConfig?.ownership;
+                          const identityPreview = getIdentityPreview(item, ap);
+                          const isIndividualUsers = item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS;
+                          
                           return (
-                            <div
-                              key={item.id}
-                              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'border-primary bg-primary/5' : isPam ? 'border-amber-200 hover:border-amber-400' : 'border-border hover:border-primary/50'}`}
-                              onClick={() => toggleKey(ap.id, item.id)}
-                            >
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={() => toggleKey(ap.id, item.id)}
-                                onClick={e => e.stopPropagation()}
-                                className="mt-0.5"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                  <p className="font-medium text-sm">{item.label}</p>
-                                  {isPam && (
-                                    <Badge className={`text-xs ${pamOwnership === 'CLIENT_OWNED' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
-                                      <i className="fas fa-shield-halved mr-1"></i>
-                                      {pamOwnership === 'CLIENT_OWNED' ? 'Shared Account (Client-owned)' : 'Shared Account (Agency-owned)'}
-                                    </Badge>
+                            <div key={item.id}>
+                              <div
+                                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'border-primary bg-primary/5' : isPam ? 'border-amber-200 hover:border-amber-400' : 'border-border hover:border-primary/50'}`}
+                                onClick={() => toggleKey(ap.id, item.id)}
+                              >
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => toggleKey(ap.id, item.id)}
+                                  onClick={e => e.stopPropagation()}
+                                  className="mt-0.5"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                    <p className="font-medium text-sm">{item.label}</p>
+                                    {getStrategyBadge(item)}
+                                    {isPam && (
+                                      <Badge className={`text-xs ${pamOwnership === 'CLIENT_OWNED' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
+                                        <i className="fas fa-shield-halved mr-1"></i>
+                                        {pamOwnership === 'CLIENT_OWNED' ? 'Client-Owned' : 'Agency-Owned'}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.patternLabel || item.accessPattern} &bull; {item.role}
+                                  </p>
+                                  {identityPreview && !isIndividualUsers && (
+                                    <p className="text-xs text-green-600 mt-0.5">
+                                      <i className="fas fa-envelope mr-1"></i>{identityPreview}
+                                    </p>
                                   )}
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {item.patternLabel || item.accessPattern} &bull; {item.role}
-                                </p>
-                                {isPam && pamOwnership === 'AGENCY_OWNED' && item.pamConfig?.agencyIdentityEmail && (
-                                  <p className="text-xs text-blue-600 mt-0.5">
-                                    <i className="fas fa-envelope mr-1"></i>Invite: {item.pamConfig.agencyIdentityEmail}
-                                  </p>
-                                )}
-                                {item.assetType && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {item.assetType}{item.assetId && ` #${item.assetId}`}
-                                  </p>
-                                )}
                               </div>
+                              
+                              {/* INDIVIDUAL_USERS - Show email input when selected */}
+                              {isSelected && isIndividualUsers && (
+                                <div className="ml-8 mt-2 p-3 rounded-lg bg-purple-50 border border-purple-200">
+                                  <Label className="text-sm text-purple-900 mb-1 block">
+                                    <i className="fas fa-user-friends mr-1"></i>Invitee Email(s) <span className="text-destructive">*</span>
+                                  </Label>
+                                  <Input
+                                    placeholder="Enter email addresses (comma-separated)"
+                                    value={itemInvitees[key] || ''}
+                                    onChange={e => { e.stopPropagation(); updateInvitees(key, e.target.value); }}
+                                    onClick={e => e.stopPropagation()}
+                                    className="mt-1 bg-white"
+                                  />
+                                  <p className="text-xs text-purple-700 mt-1">These users will be invited to this client's account</p>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -269,37 +376,49 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
               </Card>
 
               <div className="space-y-3">
-                {selectedData.map(({ ap, item }, idx) => (
-                  <Card key={idx}>
-                    <CardContent className="pt-4 pb-4">
-                      <div className="flex items-start gap-3">
-                        {ap.platform?.iconName && (
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
-                            <i className={`${ap.platform.iconName} text-primary`}></i>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <p className="font-semibold text-sm">{ap.platform?.name}</p>
-                            <Badge variant={ap.platform?.tier === 1 ? 'default' : 'secondary'} className="text-xs">
-                              Tier {ap.platform?.tier}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-1">{item.label}</p>
-                          <div className="flex gap-4 text-xs text-muted-foreground">
-                            <span>Pattern: <strong className="text-foreground">{item.patternLabel || item.accessPattern}</strong></span>
-                            <span>Role: <strong className="text-foreground">{item.role}</strong></span>
-                          </div>
-                          {item.assetType && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {item.assetType}{item.assetId && ` #${item.assetId}`}
-                            </p>
+                {selectedData.map(({ ap, item, key }, idx) => {
+                  const identityPreview = getIdentityPreview(item, ap);
+                  const isIndividualUsers = item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS;
+                  const invitees = isIndividualUsers ? itemInvitees[key] : null;
+                  
+                  return (
+                    <Card key={idx}>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="flex items-start gap-3">
+                          {ap.platform?.iconName && (
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                              <i className={`${ap.platform.iconName} text-primary`}></i>
+                            </div>
                           )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <p className="font-semibold text-sm">{ap.platform?.name}</p>
+                              <Badge variant={ap.platform?.tier === 1 ? 'default' : 'secondary'} className="text-xs">
+                                Tier {ap.platform?.tier}
+                              </Badge>
+                              {getStrategyBadge(item)}
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-1">{item.label}</p>
+                            <div className="flex gap-4 text-xs text-muted-foreground">
+                              <span>Pattern: <strong className="text-foreground">{item.patternLabel || item.accessPattern}</strong></span>
+                              <span>Role: <strong className="text-foreground">{item.role}</strong></span>
+                            </div>
+                            {identityPreview && !isIndividualUsers && (
+                              <p className="text-xs text-green-600 mt-1">
+                                <i className="fas fa-envelope mr-1"></i>Identity: {identityPreview}
+                              </p>
+                            )}
+                            {isIndividualUsers && invitees && (
+                              <p className="text-xs text-purple-600 mt-1">
+                                <i className="fas fa-user-friends mr-1"></i>Invitees: {invitees}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
