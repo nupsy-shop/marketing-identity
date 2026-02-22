@@ -977,7 +977,7 @@ agent_communication:
 backend:
   - task: "Bug Fix Testing - Named Invite Identity Strategy Restrictions"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
@@ -986,6 +986,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "❌ CRITICAL BUG: Named Invite Identity Strategy restriction NOT implemented. CLIENT_DEDICATED is still being allowed for NAMED_INVITE items when validation should reject it. The Field Policy Engine needs to add validation rule to prevent CLIENT_DEDICATED strategy for itemType: NAMED_INVITE. Only AGENCY_GROUP and INDIVIDUAL_USERS should be valid for Named Invite."
+      - working: true
+        agent: "testing"
+        comment: "✅ Named Invite Identity Strategy Restrictions FIXED! Successfully tested: (1) CLIENT_DEDICATED strategy properly rejected for NAMED_INVITE items with 400 error and correct error message 'CLIENT_DEDICATED identity strategy is not allowed for Named Invite items', (2) AGENCY_GROUP strategy successfully created for NAMED_INVITE items, (3) INDIVIDUAL_USERS strategy successfully created for NAMED_INVITE items. Validation rules working correctly."
 
   - task: "Bug Fix Testing - PAM Client-Dedicated Identity"
     implemented: true
