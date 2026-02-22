@@ -3,35 +3,78 @@
 
 import { Client, User } from '@/types';
 
-// Enhanced AccessRequest structure for enterprise features
+// ── PAM Checkout Session ───────────────────────────────────────────────────────
+export interface PamCheckoutSession {
+  id: string;
+  requestId: string;
+  itemId: string;
+  checkedOutBy: string;
+  checkedOutAt: Date;
+  expiresAt: Date;
+  checkedInAt?: Date;
+  reason?: string;
+  active: boolean;
+}
+
+// ── Audit Log ──────────────────────────────────────────────────────────────────
+export interface AuditLog {
+  id: string;
+  event: string;
+  timestamp: Date;
+  actor: string;
+  requestId?: string;
+  itemId?: string;
+  platformId?: string;
+  details?: Record<string, unknown>;
+}
+
+// ── AccessRequestItem ──────────────────────────────────────────────────────────
 export interface AccessRequestItem {
   id: string;
   platformId: string;
-  accessPattern: string; // e.g., '1 (Partner Hub)', '2 (Named Invites)'
-  role: string; // e.g., 'Admin', 'Standard', 'Viewer'
-  assetType?: string; // For Tier 1: 'Ad Account', 'Business Manager', 'Page', 'Pixel'
-  assetId?: string; // Client-provided or auto-discovered asset ID
-  assetName?: string; // Human-readable asset name
-  status: string; // 'pending', 'validated', 'failed'
+  accessPattern: string;
+  role: string;
+  assetType?: string;
+  assetId?: string;
+  assetName?: string;
+  status: 'pending' | 'validated' | 'failed' | 'needs_evidence';
   validatedAt?: Date;
   validatedBy?: string;
   notes?: string;
+  itemType?: string;
+  pamOwnership?: 'CLIENT_OWNED' | 'AGENCY_OWNED';
+  pamGrantMethod?: 'CREDENTIAL_HANDOFF' | 'INVITE_AGENCY_IDENTITY';
+  pamUsername?: string;
+  pamSecretRef?: string;
+  pamAgencyIdentityEmail?: string;
+  pamRoleTemplate?: string;
+  validationMode?: 'AUTO' | 'ATTESTATION' | 'EVIDENCE';
+  validationResult?: {
+    timestamp: Date;
+    actor: string;
+    mode: string;
+    details?: string;
+    evidenceRef?: string;
+    attestationText?: string;
+  };
 }
 
 export interface EnhancedAccessRequest {
   id: string;
   clientId: string;
   token: string;
-  items: AccessRequestItem[]; // Changed from platformStatuses to items
+  items: AccessRequestItem[];
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
 }
 
-// Storage arrays
+// ── Storage ────────────────────────────────────────────────────────────────────
 export const clients: Client[] = [];
 export const accessRequests: EnhancedAccessRequest[] = [];
+export const auditLogs: AuditLog[] = [];
+export const pamSessions: PamCheckoutSession[] = [];
 export const users: User[] = [
   {
     id: 'admin-1',
@@ -42,9 +85,7 @@ export const users: User[] = [
   }
 ];
 
-// Helper functions for data access
-
-// Clients
+// ── Client helpers ────────────────────────────────────────────────────────────
 export function addClient(client: Client): Client {
   clients.push(client);
   return client;
@@ -66,7 +107,7 @@ export function updateClient(id: string, updates: Partial<Client>): Client | und
   return client;
 }
 
-// Access Requests
+// ── AccessRequest helpers ──────────────────────────────────────────────────────
 export function addAccessRequest(request: EnhancedAccessRequest): EnhancedAccessRequest {
   accessRequests.push(request);
   return request;
@@ -84,7 +125,10 @@ export function getAccessRequestsByClientId(clientId: string): EnhancedAccessReq
   return accessRequests.filter(r => r.clientId === clientId);
 }
 
-export function updateAccessRequest(id: string, updates: Partial<EnhancedAccessRequest>): EnhancedAccessRequest | undefined {
+export function updateAccessRequest(
+  id: string,
+  updates: Partial<EnhancedAccessRequest>
+): EnhancedAccessRequest | undefined {
   const request = getAccessRequestById(id);
   if (request) {
     Object.assign(request, updates, { updatedAt: new Date() });
@@ -92,7 +136,49 @@ export function updateAccessRequest(id: string, updates: Partial<EnhancedAccessR
   return request;
 }
 
-// Users
+// ── Audit log helpers ──────────────────────────────────────────────────────────
+export function addAuditLog(log: Omit<AuditLog, 'id' | 'timestamp'>): AuditLog {
+  const entry: AuditLog = { ...log, id: Math.random().toString(36).slice(2), timestamp: new Date() };
+  auditLogs.push(entry);
+  if (auditLogs.length > 1000) auditLogs.shift();
+  return entry;
+}
+
+export function getAuditLogs(filter?: { requestId?: string; itemId?: string }): AuditLog[] {
+  if (!filter) return [...auditLogs].reverse();
+  return auditLogs
+    .filter(l => {
+      if (filter.requestId && l.requestId !== filter.requestId) return false;
+      if (filter.itemId && l.itemId !== filter.itemId) return false;
+      return true;
+    })
+    .reverse();
+}
+
+// ── PAM Session helpers ────────────────────────────────────────────────────────
+export function addPamSession(session: PamCheckoutSession): PamCheckoutSession {
+  pamSessions.push(session);
+  return session;
+}
+
+export function getPamSessionById(id: string): PamCheckoutSession | undefined {
+  return pamSessions.find(s => s.id === id);
+}
+
+export function getActivePamSessions(): PamCheckoutSession[] {
+  return pamSessions.filter(s => s.active);
+}
+
+export function updatePamSession(
+  id: string,
+  updates: Partial<PamCheckoutSession>
+): PamCheckoutSession | undefined {
+  const session = getPamSessionById(id);
+  if (session) Object.assign(session, updates);
+  return session;
+}
+
+// ── User helpers ───────────────────────────────────────────────────────────────
 export function getUserById(id: string): User | undefined {
   return users.find(u => u.id === id);
 }

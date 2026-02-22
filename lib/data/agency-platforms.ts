@@ -1,10 +1,51 @@
-// Agency Platforms store
-// Tracks which platforms the agency has added and configured at the agency level.
-// AccessItems live here and can be selected for any client's access request.
+// Agency Platforms store — agency-scoped, with full PAM (SharedAccount) support
 import { v4 as uuidv4 } from 'uuid';
+
+// ── PAM Configuration ─────────────────────────────────────────────────────────
+export interface CheckoutPolicy {
+  durationMinutes?: number;    // default 60
+  requiresApproval?: boolean;  // default false
+  reasonRequired?: boolean;    // default false
+}
+
+export interface RotationPolicy {
+  trigger: 'onCheckin' | 'scheduled' | 'offboard' | 'manual';
+  scheduleIntervalDays?: number;
+}
+
+export interface PamConfig {
+  ownership: 'CLIENT_OWNED' | 'AGENCY_OWNED';
+  grantMethod: 'CREDENTIAL_HANDOFF' | 'INVITE_AGENCY_IDENTITY';
+
+  // Common
+  username?: string;
+  secretRef?: string;
+
+  // CLIENT_OWNED specific
+  requiresDedicatedAgencyLogin?: boolean;
+
+  // AGENCY_OWNED specific
+  agencyIdentityEmail?: string;
+  roleTemplate?: string;
+  provisioningSource?: 'INTERNAL_DIRECTORY' | 'OKTA' | 'MANUAL';
+
+  // Shared policies
+  checkoutPolicy?: CheckoutPolicy;
+  rotationPolicy?: RotationPolicy;
+  sessionMode?: 'REVEAL';
+}
+
+// ── AccessItem ────────────────────────────────────────────────────────────────
+export type AccessItemType =
+  | 'NAMED_INVITE'
+  | 'PARTNER_DELEGATION'
+  | 'GROUP_ACCESS'
+  | 'PROXY_TOKEN'
+  | 'SHARED_ACCOUNT_PAM';
 
 export interface AccessItem {
   id: string;
+  itemType: AccessItemType;
   accessPattern: string;
   patternLabel: string;
   label: string;
@@ -12,9 +53,11 @@ export interface AccessItem {
   assetType?: string;
   assetId?: string;
   notes?: string;
+  pamConfig?: PamConfig;
   createdAt: Date;
 }
 
+// ── AgencyPlatform ────────────────────────────────────────────────────────────
 export interface AgencyPlatform {
   id: string;
   platformId: string;
@@ -24,6 +67,7 @@ export interface AgencyPlatform {
   updatedAt: Date;
 }
 
+// ── In-memory store ───────────────────────────────────────────────────────────
 const agencyPlatforms: AgencyPlatform[] = [];
 
 export function getAllAgencyPlatforms(): AgencyPlatform[] {
@@ -69,7 +113,11 @@ export function removeAccessItem(platformId: string, itemId: string): AgencyPlat
   return platform;
 }
 
-export function updateAccessItem(platformId: string, itemId: string, updates: Partial<AccessItem>): AgencyPlatform | undefined {
+export function updateAccessItem(
+  platformId: string,
+  itemId: string,
+  updates: Partial<AccessItem>
+): AgencyPlatform | undefined {
   const platform = agencyPlatforms.find(p => p.id === platformId);
   if (platform) {
     const item = platform.accessItems.find(i => i.id === itemId);
