@@ -647,7 +647,7 @@ class IdentityTaxonomyTester:
             self.log_result("E2E Flow - Create client", True, "TechCorp Solutions created")
 
             # Step 2: Create agency platform with Google Analytics
-            platform_data = {"platformId": "google-analytics-ga4"}
+            platform_data = {"platformId": "0f75633f-0f75-40f7-80f7-0f75633f0000"}  # Google Analytics / GA4
             result = self.make_request("POST", "agency/platforms", platform_data)
             if not (result and result.get("success")):
                 self.log_result("E2E Flow - Create agency platform", False, "Failed to create agency platform")
