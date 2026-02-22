@@ -5,7 +5,8 @@
         "@/*": ["./*"],
         "@/components/*": ["./components/*"],
         "@/lib/*": ["./lib/*"],
-        "@/app/*": ["./app/*"]
+        "@/app/*": ["./app/*"],
+        "@/plugins/*": ["./plugins/*"]
       }
     },
     "exclude": ["node_modules", ".next"]
