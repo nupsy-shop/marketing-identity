@@ -319,6 +319,12 @@ export default function PlatformConfigPage() {
   const accessItems = agencyPlatform.accessItems || [];
   // Get available roles from platform's accessPatterns for the Role Template dropdown
   const availableRoles = [...new Set((platform?.accessPatterns || []).flatMap(p => p.roles || []))];
+  
+  // Filter item types based on platform's supportedItemTypes
+  const supportedItemTypes = platform?.supportedItemTypes || [];
+  const filteredItemTypes = ITEM_TYPES.filter(it => 
+    supportedItemTypes.length === 0 || supportedItemTypes.includes(it.value)
+  );
 
   // Separate items by type
   const humanItems = accessItems.filter(i => i.identityPurpose !== IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE && i.itemType !== 'SHARED_ACCOUNT_PAM');
