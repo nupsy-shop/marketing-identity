@@ -134,28 +134,38 @@ export default function AdminDashboard() {
               </DialogHeader>
               <form onSubmit={createClient} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Client Name</Label>
+                  <Label htmlFor="name">Client Name <span className="text-destructive">*</span></Label>
                   <Input
                     id="name"
                     value={newClientName}
                     onChange={(e) => setNewClientName(e.target.value)}
                     placeholder="Acme Corporation"
-                    required
+                    className={!newClientName.trim() && newClientName !== '' ? 'border-destructive' : ''}
                   />
+                  {!newClientName.trim() && newClientName !== '' && (
+                    <p className="text-xs text-destructive mt-1">Client name is required</p>
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">Email Address <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"
                     value={newClientEmail}
                     onChange={(e) => setNewClientEmail(e.target.value)}
                     placeholder="contact@acme.com"
-                    required
+                    className={newClientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClientEmail) ? 'border-destructive' : ''}
                   />
+                  {newClientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClientEmail) && (
+                    <p className="text-xs text-destructive mt-1">Please enter a valid email address</p>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={creating} className="flex-1">
+                  <Button 
+                    type="submit" 
+                    disabled={creating || !newClientName.trim() || !newClientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClientEmail)} 
+                    className="flex-1"
+                  >
                     {creating ? 'Creating...' : 'Create Client'}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setNewClientOpen(false)}>
