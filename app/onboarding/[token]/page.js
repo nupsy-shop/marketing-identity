@@ -464,9 +464,8 @@ export default function OnboardingPage() {
         {/* Step list */}
         <div className="space-y-4">
           {items.map((item, idx) => {
-            const platform = Array.isArray(platformMap)
-              ? platformMap.find(p => p.id === item.platformId)
-              : null;
+            // Platform is already embedded in each item from the API
+            const platform = item.platform;
             const isActive = idx === activeStep;
             const isDone = item.status === 'validated';
             const isPam = item.itemType === 'SHARED_ACCOUNT_PAM';
