@@ -87,18 +87,18 @@ export default function AppCatalogPage() {
         </div>
       </header>
 
-      <div className=\"container mx-auto px-4 py-8\">
+      <div className="container mx-auto px-4 py-8">
         {/* Stats Cards */}
-        <div className=\"grid grid-cols-1 md:grid-cols-4 gap-4 mb-8\">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
-            <CardContent className=\"pt-6\">
-              <div className=\"flex items-center justify-between\">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className=\"text-sm text-muted-foreground\">Total Platforms</p>
-                  <p className=\"text-3xl font-bold\">{platforms.length}</p>
+                  <p className="text-sm text-muted-foreground">Total Platforms</p>
+                  <p className="text-3xl font-bold">{platforms.length}</p>
                 </div>
-                <div className=\"w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center\">
-                  <i className=\"fas fa-layer-group text-2xl text-blue-600\"></i>
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <i className="fas fa-layer-group text-2xl text-blue-600"></i>
                 </div>
               </div>
             </CardContent>
