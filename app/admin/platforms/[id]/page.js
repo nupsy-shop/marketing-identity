@@ -283,6 +283,26 @@ export default function PlatformConfigPage() {
       return false;
     }
 
+    // Partner Delegation - requires agency identifier based on platform
+    if (formData.itemType === 'PARTNER_DELEGATION') {
+      if (needsMccId && !formData.managerAccountId) {
+        toast({ title: 'Validation Error', description: 'Google Ads Manager (MCC) ID is required for Partner Delegation', variant: 'destructive' });
+        return false;
+      }
+      if (needsBmId && !formData.businessManagerId) {
+        toast({ title: 'Validation Error', description: 'Business Manager ID is required for Partner Delegation', variant: 'destructive' });
+        return false;
+      }
+      if (needsBcId && !formData.businessCenterId) {
+        toast({ title: 'Validation Error', description: 'Business Center ID is required for Partner Delegation', variant: 'destructive' });
+        return false;
+      }
+      if (needsSeatId && !formData.seatId) {
+        toast({ title: 'Validation Error', description: 'Seat / Partner ID is required for Partner Delegation', variant: 'destructive' });
+        return false;
+      }
+    }
+
     // Validate based on identity strategy - Named Invite
     if (formData.itemType === 'NAMED_INVITE' && formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE) {
       if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP && !formData.agencyGroupEmail) {
