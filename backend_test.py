@@ -442,7 +442,7 @@ class IdentityTaxonomyTester:
                         access_request_data = {
                             "clientId": self.client_id,
                             "items": [{
-                                "platformId": "google-analytics-ga4",
+                                "platformId": "0f75633f-0f75-40f7-80f7-0f75633f0000",
                                 "accessPattern": individual_users_item.get("accessPattern"),
                                 "role": individual_users_item.get("role"),
                                 "identityPurpose": individual_users_item.get("identityPurpose"),
