@@ -255,8 +255,8 @@ class PAMIdentityStrategyTester:
         # Test 1.4: Verify supportedItemTypes validation
         try:
             # Try to add SHARED_ACCOUNT_PAM to a platform that doesn't support it
-            # First, create an agency platform with a platform that doesn't support PAM
-            unsupported_platform_data = {"platformId": "apple-search-ads"}  # Apple Search Ads doesn't support PAM
+            # Google Ads doesn't support SHARED_ACCOUNT_PAM (only PARTNER_DELEGATION, NAMED_INVITE)
+            unsupported_platform_data = {"platformId": "5b9278e4-5b92-45b9-85b9-5b9278e40000"}  # Google Ads doesn't support PAM
             
             url = f"{API_BASE}/agency/platforms"
             response = requests.post(url, json=unsupported_platform_data, timeout=10)
