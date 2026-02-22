@@ -7,32 +7,51 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PlatformConfigurationDialog from '@/components/PlatformConfigurationDialog';
 
 export default function AppCatalogPage() {
   const router = useRouter();
   const [platforms, setPlatforms] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedTier, setSelectedTier] = useState('');
   const [selectedAutomation, setSelectedAutomation] = useState('');
+  const [selectedClient, setSelectedClient] = useState('');
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState(null);
 
   useEffect(() => {
-    loadPlatforms();
+    loadData();
   }, []);
 
-  const loadPlatforms = async () => {
+  const loadData = async () => {
     try {
-      const response = await fetch('/api/platforms?clientFacing=true');
-      const result = await response.json();
-      if (result.success) {
-        setPlatforms(result.data);
-      }
+      const [platformsRes, clientsRes] = await Promise.all([
+        fetch('/api/platforms?clientFacing=true'),
+        fetch('/api/clients')
+      ]);
+      
+      const platformsData = await platformsRes.json();
+      const clientsData = await clientsRes.json();
+      
+      if (platformsData.success) setPlatforms(platformsData.data);
+      if (clientsData.success) setClients(clientsData.data);
     } catch (error) {
-      console.error('Failed to load platforms:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddToClient = (platform) => {
+    if (!selectedClient) {
+      alert('Please select a client first');
+      return;
+    }
+    setSelectedPlatform(platform);
+    setConfigDialogOpen(true);
   };
 
   // Filter platforms
