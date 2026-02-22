@@ -692,7 +692,57 @@ test_plan:
         agent: "testing"
         comment: "✅ Old client-scoped routes properly removed. GET /api/clients/:id/configured-apps returns 404, POST /api/clients/:id/configured-apps returns 404. Architecture migration completed successfully."
 
+  - task: "PAM Onboarding Flow - CLIENT_OWNED Credential Submission"
+    implemented: true
+    working: "NA"
+    file: "/app/app/onboarding/[token]/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed platform mapping bug in onboarding page. Changed from using non-existent platformMap to using item.platform which is embedded in each item from the API. Also removed orphaned code fragment in route.js. Needs testing for CLIENT_OWNED PAM flow where client submits credentials."
+
+  - task: "PAM Onboarding Flow - AGENCY_OWNED Attestation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/onboarding/[token]/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed platform mapping bug in onboarding page. Needs testing for AGENCY_OWNED PAM flow where client attests they added the agency identity."
+
+  - task: "PAM API - Credential Submission Endpoint"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/onboarding/:token/items/:itemId/submit-credentials endpoint implemented. Stores credentials securely (mocked vault), updates item status to validated, logs audit event."
+
+  - task: "PAM API - Attestation Endpoint"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/onboarding/:token/items/:itemId/attest endpoint implemented. Supports attestation text and optional evidence upload, updates item status to validated, logs audit event."
+
 agent_communication:
+  - agent: "main"
+    message: "Fixed critical bug in onboarding page: was trying to use platformMap which didn't exist in the API response. Changed to use item.platform which is embedded in each item. Also removed orphaned code fragment in route.js POST handler. Need to test complete PAM onboarding flow including: (1) Create access request with SHARED_ACCOUNT_PAM items (both CLIENT_OWNED and AGENCY_OWNED), (2) Test credential submission endpoint for CLIENT_OWNED, (3) Test attestation endpoint for AGENCY_OWNED, (4) Verify onboarding UI renders correctly for both PAM types."
   - agent: "testing"
     message: "Comprehensive backend API testing completed successfully. All 23 test cases passed with 100% success rate. Tested: Platforms API (listing, filtering, individual retrieval), Clients API (CRUD with validation), Access Requests API (full lifecycle including validation/revoke), Onboarding API (token-based enriched data), End-to-End flow verification. The Marketing Identity Platform backend is fully functional with 61 platforms seeded, proper data persistence, validation, error handling, and complete user workflows working correctly."
   - agent: "testing"
