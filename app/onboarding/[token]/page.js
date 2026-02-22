@@ -405,7 +405,7 @@ export default function OnboardingPage() {
     );
   }
 
-  const { client, items = [], platforms: platformMap = {} } = data || {};
+  const { client, items = [] } = data || {};
   const validatedCount = items.filter(i => i.status === 'validated').length;
   const allDone = validatedCount === items.length && items.length > 0;
 
