@@ -1085,7 +1085,7 @@ export default function PlatformConfigPage() {
                       onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))}
                     >
                       <option value="">Select a role...</option>
-                      {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                      {platformRoles.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                     <p className="text-xs text-muted-foreground mt-1">The permission level to request from the client</p>
                   </div>
