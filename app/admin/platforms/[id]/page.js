@@ -58,8 +58,7 @@ export default function PlatformConfigPage() {
       label: '',
       role: '',
       notes: '',
-      accessPattern: '',
-      patternLabel: '',
+      // Pattern is now derived from itemType (no accessPattern field)
       // Identity taxonomy
       identityPurpose: IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
       humanIdentityStrategy: HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED,
