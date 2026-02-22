@@ -357,8 +357,8 @@ export async function POST(request) {
       }
 
       const results = [];
-      for (const platformStatus of accessRequest.platformStatuses) {
-        const platform = getPlatformById(platformStatus.platformId);
+      for (const item of accessRequest.items) {
+        const platform = getPlatformById(item.platformId);
         if (!platform) continue;
 
         const connector = getConnectorForPlatform(platform);
@@ -371,18 +371,21 @@ export async function POST(request) {
           });
 
           if (result.success && result.data === true) {
-            platformStatus.status = 'validated';
-            platformStatus.validatedAt = new Date();
+            item.status = 'validated';
+            item.validatedAt = new Date();
+            item.validatedBy = 'connector';
           }
           
           results.push({
-            platformId: platformStatus.platformId,
+            itemId: item.id,
+            platformId: item.platformId,
             verified: result.data,
             error: result.error
           });
         } catch (error) {
           results.push({
-            platformId: platformStatus.platformId,
+            itemId: item.id,
+            platformId: item.platformId,
             verified: false,
             error: error.message
           });
