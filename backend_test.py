@@ -436,7 +436,7 @@ def test_platform_compatibility():
     
     test_5b = log_test(
         "Platform Compatibility - Reject Unsupported Type",
-        resp and resp.status_code == 400 and "not supported" in resp.text.lower(),
+        resp is not None and resp.status_code == 400 and "not supported" in resp.text.lower(),
         f"Status: {resp.status_code if resp else 'N/A'}"
     )
     
