@@ -340,6 +340,7 @@ function AppCatalogContent() {
                       platform={platform}
                       onAddToClient={handleAddToClient}
                       hasClientSelected={!!selectedClient}
+                      isAdded={successPlatforms.has(platform.id)}
                     />
                   ))}
                 </div>
@@ -355,9 +356,17 @@ function AppCatalogContent() {
         onOpenChange={setConfigDialogOpen}
         platform={selectedPlatform}
         clientId={selectedClient}
-        onSuccess={loadData}
+        onSuccess={handleConfigSuccess}
       />
     </div>
+  );
+}
+
+export default function AppCatalogPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+      <AppCatalogContent />
+    </Suspense>
   );
 }
 
