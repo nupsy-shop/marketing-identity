@@ -119,24 +119,28 @@ export async function GET(request) {
       });
     }
 
-    // GET /api/clients/:id/configured-apps - Get configured apps for a client
-    if (path.match(/^clients\/[^/]+\/configured-apps$/)) {
-      const id = path.split('/')[1];
-      const apps = getConfiguredAppsByClientId(id);
-      
-      // Enrich with platform details
-      const enrichedApps = apps.map(app => ({
-        ...app,
-        platform: getPlatformById(app.platformId)
+    // GET /api/agency/platforms - List all agency platforms with enrichment
+    if (path === 'agency/platforms') {
+      const allAP = getAllAgencyPlatforms();
+      const enriched = allAP.map(ap => ({
+        ...ap,
+        platform: getPlatformById(ap.platformId)
       }));
-      
-      return NextResponse.json({
-        success: true,
-        data: enrichedApps
-      });
+      return NextResponse.json({ success: true, data: enriched });
     }
 
-    // GET /api/clients/:id/access-requests - Get all access requests for a client
+    // GET /api/agency/platforms/:id - Get single agency platform
+    if (path.match(/^agency\/platforms\/[^/]+$/) && !path.endsWith('/toggle')) {
+      const id = path.split('/')[2];
+      const ap = getAgencyPlatformById(id);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
+      }
+      return NextResponse.json({
+        success: true,
+        data: { ...ap, platform: getPlatformById(ap.platformId) }
+      });
+    }
     if (path.match(/^clients\/[^/]+\/access-requests$/)) {
       const id = path.split('/')[1];
       const requests = getAccessRequestsByClientId(id);
