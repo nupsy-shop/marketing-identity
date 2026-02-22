@@ -26,16 +26,9 @@ def log_test(test_name, success, details=""):
         print(f"    {details}")
     return success
 
-def calculate_google_analytics_id():
-    """Calculate the stable ID for Google Analytics platform"""
-    slug = "google-analytics-ga4"
-    hash_val = 0
-    for char in slug:
-        hash_val = ((hash_val << 5) - hash_val) + ord(char)
-        hash_val = hash_val & hash_val
-    hex_str = format(abs(hash_val), '08x')
-    platform_id = f"{hex_str}-{hex_str[:4]}-4{hex_str[:3]}-8{hex_str[:3]}-{hex_str.ljust(12, '0')}"
-    return platform_id
+def get_google_analytics_id():
+    """Get the correct Google Analytics platform ID"""
+    return "0f75633f-0f75-40f7-80f7-0f75633f0000"
 
 def test_client_asset_fields():
     """Test 1: /api/client-asset-fields endpoint with different platforms"""
