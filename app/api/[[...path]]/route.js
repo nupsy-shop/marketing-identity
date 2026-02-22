@@ -148,11 +148,11 @@ export async function GET(request) {
         );
       }
 
-      // Include client and platform details
+      // Include client and platform details for each item
       const client = getClientById(request.clientId);
-      const platformDetails = request.platformStatuses.map(ps => ({
-        ...ps,
-        platform: getPlatformById(ps.platformId)
+      const enrichedItems = request.items.map(item => ({
+        ...item,
+        platform: getPlatformById(item.platformId)
       }));
       
       return NextResponse.json({
@@ -160,7 +160,7 @@ export async function GET(request) {
         data: {
           ...request,
           client,
-          platformStatuses: platformDetails
+          items: enrichedItems
         }
       });
     }
