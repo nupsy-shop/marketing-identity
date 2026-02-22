@@ -935,6 +935,7 @@ export async function PUT(request) {
         return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
       const { 
+        itemType,
         accessPattern, 
         patternLabel, 
         label, 
@@ -952,9 +953,22 @@ export async function PUT(request) {
         integrationIdentityId,
         validationMethod
       } = body || {};
+
+      // Item Type → Pattern mapping (pattern is derived from itemType)
+      const ITEM_TYPE_TO_PATTERN = {
+        'NAMED_INVITE': 'NAMED_INVITE',
+        'PARTNER_DELEGATION': 'PARTNER_DELEGATION',
+        'GROUP_ACCESS': 'GROUP_BASED',
+        'PROXY_TOKEN': 'PROXY',
+        'SHARED_ACCOUNT_PAM': 'PAM'
+      };
+
+      // Derive pattern from itemType if provided
+      const derivedPattern = itemType ? (ITEM_TYPE_TO_PATTERN[itemType] || itemType) : accessPattern;
+      const finalPattern = derivedPattern || accessPattern;
       
-      if (!accessPattern || !label || !role) {
-        return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
+      if (!label || !role) {
+        return NextResponse.json({ success: false, error: 'label and role are required' }, { status: 400 });
       }
 
       // Validate using Field Policy Engine
