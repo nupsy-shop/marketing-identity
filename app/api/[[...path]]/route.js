@@ -524,6 +524,113 @@ export async function POST(request) {
   }
 }
 
+// PUT handler (for updates)
+export async function PUT(request) {
+  const { pathname } = new URL(request.url);
+  const path = pathname.replace('/api/', '');
+  const body = await getBody(request);
+
+  try {
+    // PUT /api/configured-apps/:id - Update configured app
+    if (path.startsWith('configured-apps/') && path.split('/').length === 2) {
+      const id = path.split('/')[1];
+      const { items } = body || {};
+      
+      if (!items || !Array.isArray(items)) {
+        return NextResponse.json(
+          { success: false, error: 'items array is required' },
+          { status: 400 }
+        );
+      }
+
+      const configuredApp = getConfiguredAppById(id);
+      if (!configuredApp) {
+        return NextResponse.json(
+          { success: false, error: 'Configured app not found' },
+          { status: 404 }
+        );
+      }
+
+      // Update items
+      const updatedItems = items.map(item => ({
+        id: item.id || uuidv4(),
+        accessPattern: item.accessPattern,
+        label: item.label,
+        role: item.role,
+        assetType: item.assetType,
+        assetId: item.assetId,
+        credentials: item.credentials,
+        notes: item.notes
+      }));
+
+      updateConfiguredApp(id, { items: updatedItems });
+      
+      const platform = getPlatformById(configuredApp.platformId);
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...configuredApp,
+          platform
+        }
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Not found' },
+      { status: 404 }
+    );
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH handler (for partial updates)
+export async function PATCH(request) {
+  const { pathname } = new URL(request.url);
+  const path = pathname.replace('/api/', '');
+
+  try {
+    // PATCH /api/configured-apps/:id/toggle - Toggle active status
+    if (path.match(/^configured-apps\/[^/]+\/toggle$/)) {
+      const id = path.split('/')[1];
+      
+      const configuredApp = toggleConfiguredAppStatus(id);
+      if (!configuredApp) {
+        return NextResponse.json(
+          { success: false, error: 'Configured app not found' },
+          { status: 404 }
+        );
+      }
+
+      const platform = getPlatformById(configuredApp.platformId);
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...configuredApp,
+          platform
+        }
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Not found' },
+      { status: 404 }
+    );
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE handler
 export async function DELETE(request) {
   const { pathname } = new URL(request.url);
