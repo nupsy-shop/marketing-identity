@@ -477,6 +477,30 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+  - task: "Configured Apps API - POST /api/clients/:id/configured-apps"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed critical bug: POST handler condition was `path === 'clients' && path.match(...)` which could never match. Changed to just `path.match(/^clients\\/[^/]+\\/configured-apps$/)`. This is required for the 'Add to Client' flow to work."
+
+  - task: "Configured Apps API - GET /api/clients/:id/configured-apps"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Also fixed getConfiguredAppsByClientId to return ALL apps (not just active ones) so the admin can see and toggle inactive apps on the Configured Platforms tab."
+
 agent_communication:
   - agent: "testing"
     message: "Comprehensive backend API testing completed successfully. All 23 test cases passed with 100% success rate. Tested: Platforms API (listing, filtering, individual retrieval), Clients API (CRUD with validation), Access Requests API (full lifecycle including validation/revoke), Onboarding API (token-based enriched data), End-to-End flow verification. The Marketing Identity Platform backend is fully functional with 61 platforms seeded, proper data persistence, validation, error handling, and complete user workflows working correctly."
@@ -488,3 +512,5 @@ agent_communication:
     message: "ENHANCED ACCESS REQUEST API TESTING COMPLETED SUCCESSFULLY! 🎉 100% SUCCESS RATE (19/19 tests passed). Fixed minor validation bug and conducted comprehensive testing of new items[] structure. ALL FEATURES VERIFIED: ✅ New items[] format with enhanced metadata (platformId, accessPattern, role, assetType, assetId, assetName), ✅ Backward compatibility with old platformIds format, ✅ Platform filtering by clientFacing and tier (26 client-facing, 10 Tier 1, 16 Tier 2), ✅ Validation with both itemId and platformId, ✅ Enriched onboarding data with platform details, ✅ Complex scenarios with mixed platform types, ✅ Comprehensive data validation and error handling. The Enhanced Access Request API is production-ready and fully functional!"
   - agent: "testing"
     message: "🔥 ENHANCED ACCESS REQUEST BUILDER FRONTEND TESTING COMPLETED SUCCESSFULLY! 🔥 Conducted comprehensive end-to-end testing of the Enhanced Access Request Builder flow. ALL SUCCESS CRITERIA ACHIEVED: ✅ Enhanced Dialog Interface - 3-step workflow (Platforms → Configure → Review) fully operational with progress indicator, ✅ Step 1: Platform Selection - Search functionality, 26 platform cards with Tier/OAuth badges, checkbox selection working perfectly, ✅ Step 2: Configuration - Access patterns, roles, and Tier 1 asset configuration (Asset Type, ID, Name) fully functional, ✅ Step 3: Review - Comprehensive enhanced metadata display with Pattern/Role/Asset information, ✅ API Integration - POST /api/access-requests with enhanced items[] format successful (200 status), ✅ Enhanced Data Display - Pattern/Role/Asset information preserved and displayed throughout system, ✅ Copy Link Function - Onboarding link generation working, ✅ Onboarding Compatibility - Enhanced metadata support confirmed with proper token validation. The Enhanced Access Request Builder is PRODUCTION-READY and represents a significant upgrade with full backward compatibility!"
+  - agent: "main"
+    message: "Fixed two critical bugs: (1) POST /api/clients/:id/configured-apps had wrong condition (path === 'clients' AND regex - could never match). Fixed to use only regex. (2) Rewrote EnhancedAccessRequestDialog.jsx from scratch with proper 2-step wizard that loads configured apps, allows item selection with checkboxes, and creates access request. Also fixed UUID key parsing bug (using | separator instead of - to avoid UUID dash conflicts). Also updated getConfiguredAppsByClientId to return all apps (active+inactive) for proper admin management. Needs backend testing for configured-apps CRUD."
