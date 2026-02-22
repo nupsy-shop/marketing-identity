@@ -573,39 +573,23 @@ export async function PATCH(request) {
   const path = pathname.replace('/api/', '');
 
   try {
-    // PATCH /api/configured-apps/:id/toggle - Toggle active status
-    if (path.match(/^configured-apps\/[^/]+\/toggle$/)) {
-      const id = path.split('/')[1];
-      
-      const configuredApp = toggleConfiguredAppStatus(id);
-      if (!configuredApp) {
-        return NextResponse.json(
-          { success: false, error: 'Configured app not found' },
-          { status: 404 }
-        );
+    // PATCH /api/agency/platforms/:id/toggle - Toggle isEnabled
+    if (path.match(/^agency\/platforms\/[^/]+\/toggle$/)) {
+      const id = path.split('/')[2];
+      const ap = toggleAgencyPlatformStatus(id);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-
-      const platform = getPlatformById(configuredApp.platformId);
-      
       return NextResponse.json({
         success: true,
-        data: {
-          ...configuredApp,
-          platform
-        }
+        data: { ...ap, platform: getPlatformById(ap.platformId) }
       });
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Not found' },
-      { status: 404 }
-    );
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
