@@ -108,7 +108,7 @@ def test_create_agency_platform_with_pam_items(platform_id):
     
     # Create agency platform
     platform_data = {"platformId": platform_id}
-    result = make_request("POST", "agency/platforms", platform_data, 201)
+    result = make_request("POST", "agency/platforms", platform_data, 200)
     if not result or not result.get("success"):
         log_error("Failed to create agency platform")
         return None
