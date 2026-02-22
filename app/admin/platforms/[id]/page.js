@@ -207,9 +207,14 @@ export default function PlatformConfigPage() {
       // INDIVIDUAL_USERS - no email fields needed here (collected at request time)
     }
 
-    // Integration identity reference
+    // Integration identity reference + service account fields
     if (formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE || formData.itemType === 'PROXY_TOKEN') {
       base.integrationIdentityId = formData.integrationIdentityId || undefined;
+      // Add service account fields
+      base.agencyData = base.agencyData || {};
+      if (formData.serviceAccountEmail) base.agencyData.serviceAccountEmail = formData.serviceAccountEmail;
+      if (formData.ssoGroupName) base.agencyData.ssoGroupName = formData.ssoGroupName;
+      if (Object.keys(base.agencyData).length === 0) delete base.agencyData;
     }
 
     // Partner Delegation - agency identifiers
@@ -222,11 +227,18 @@ export default function PlatformConfigPage() {
       if (Object.keys(base.agencyData).length === 0) delete base.agencyData;
     }
 
-    // Group Access - check purpose
+    // Group Access - human or integration based
     if (formData.itemType === 'GROUP_ACCESS') {
-      if (formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE) {
+      base.agencyData = base.agencyData || {};
+      if (formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE) {
+        if (formData.agencyGroupEmail) base.agencyGroupEmail = formData.agencyGroupEmail;
+        if (formData.ssoGroupName) base.agencyData.ssoGroupName = formData.ssoGroupName;
+      } else if (formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE) {
         base.integrationIdentityId = formData.integrationIdentityId || undefined;
+        if (formData.serviceAccountEmail) base.agencyData.serviceAccountEmail = formData.serviceAccountEmail;
+        if (formData.ssoGroupName) base.agencyData.ssoGroupName = formData.ssoGroupName;
       }
+      if (Object.keys(base.agencyData).length === 0) delete base.agencyData;
     }
 
     // Shared Account PAM
