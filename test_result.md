@@ -904,51 +904,63 @@ agent_communication:
     message: "🎉 PLATFORM ACCESS INSTRUCTIONS INTEGRATION TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (20/20 tests passed). Comprehensive testing of new Excel-based Platform Access Instructions integration: ✅ Dynamic Form Fields - Agency data fields (managerAccountId, businessManagerId, agencyEmail, seatId, serviceAccountEmail, ssoGroupName) properly stored and retrieved, ✅ Client Instructions - Multi-step instructions from Excel stored and displayed during onboarding with exact preservation, ✅ Agency Data Storage - All platform-specific agency data fields working (Google Ads MCC, Meta Business Manager, TikTok Business Center, Snowflake service accounts, DV360 seats), ✅ Asset Selection - selectedAssetType and selectedAssetId properly captured during attestation and stored in validation results, ✅ End-to-End Flow - Complete workflow from agency platform creation with agency data → access request → onboarding with instructions → attestation with asset selection. The Platform Access Instructions integration is PRODUCTION-READY and fully operational with Excel data integration!"
   - task: "Identity Taxonomy - Integration Identities API CRUD"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented new Integration Identities API with full CRUD operations: GET /api/integration-identities (list all), POST /api/integration-identities (create), GET /api/integration-identities/:id (get by ID), PUT /api/integration-identities/:id (update), DELETE /api/integration-identities/:id (delete), PATCH /api/integration-identities/:id/toggle (toggle active status). Seeded with sample data (GA4 Service Account, GTM Service Account, Fivetran API Key). Needs testing."
+      - working: true
+        agent: "testing"
+        comment: "✅ Integration Identities API CRUD operations working perfectly. Successfully tested: (1) GET /api/integration-identities returns 3 seeded identities (GA4, GTM, Fivetran), (2) POST creates new identity with type SERVICE_ACCOUNT, name, email, scopes, rotationPolicy, (3) GET by ID retrieves specific identity, (4) PUT updates identity details, (5) PATCH /toggle toggles active status, (6) DELETE removes identity. All CRUD operations functional with proper validation."
 
   - task: "Identity Taxonomy - Access Items with Identity Purpose/Strategy"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Updated POST /api/agency/platforms/:id/items and PUT endpoints to accept and store new Identity Taxonomy fields: identityPurpose (HUMAN_INTERACTIVE, INTEGRATION_NON_INTERACTIVE), humanIdentityStrategy (CLIENT_DEDICATED, AGENCY_GROUP, INDIVIDUAL_USERS), clientDedicatedIdentityType, namingTemplate, agencyGroupEmail, integrationIdentityId, validationMethod. Integrated with Field Policy Engine for validation. Needs testing."
+      - working: true
+        agent: "testing"
+        comment: "✅ Access Items with Identity Taxonomy fields working perfectly. Successfully tested: (1) POST access item with CLIENT_DEDICATED strategy stores identityPurpose, humanIdentityStrategy, namingTemplate correctly, (2) AGENCY_GROUP strategy stores agencyGroupEmail properly, (3) INDIVIDUAL_USERS strategy created successfully, (4) Field Policy Engine validation correctly rejects invalid payload (missing namingTemplate for CLIENT_DEDICATED). All Identity Taxonomy fields stored and validated correctly."
 
   - task: "Identity Taxonomy - Access Request with Identity Generation"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Updated POST /api/access-requests to support new Identity Taxonomy fields and automatically generate resolvedIdentity for CLIENT_DEDICATED strategy using generateClientDedicatedIdentity from field-policy.js. Access request items now include identityPurpose, humanIdentityStrategy, namingTemplate, agencyGroupEmail, integrationIdentityId, inviteeEmails, resolvedIdentity, validationMethod. Needs testing."
+      - working: true
+        agent: "testing"
+        comment: "✅ Access Request with Identity Generation working perfectly. Successfully tested: (1) CLIENT_DEDICATED strategy auto-generates resolvedIdentity 'acme-corporation-ga4-admin@youragency.com' from namingTemplate '{clientSlug}-ga4-admin@youragency.com', (2) AGENCY_GROUP resolves to agencyGroupEmail 'analytics-team@youragency.com', (3) INDIVIDUAL_USERS accepts inviteeEmails array and includes them in resolvedIdentity. Identity generation logic fully functional."
 
   - task: "Identity Taxonomy - Onboarding with clientProvidedTarget"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Updated POST /api/onboarding/:token/items/:itemId/attest to accept and store clientProvidedTarget object with platform-specific asset details. Onboarding page now displays resolvedIdentity prominently and collects client-specific asset fields (GA4 Property ID, GTM Container ID, etc). Backward compatible with assetType/assetId fields. Needs testing."
+      - working: true
+        agent: "testing"
+        comment: "✅ Onboarding with clientProvidedTarget working perfectly. Successfully tested: (1) GET /api/onboarding/:token includes resolvedIdentity in items, (2) POST /api/onboarding/:token/items/:itemId/attest accepts clientProvidedTarget object with propertyId, propertyName, assetType, (3) clientProvidedTarget stored correctly on access request item, (4) Backward compatibility: assetType/assetId automatically converted to clientProvidedTarget format. Complete onboarding flow with asset collection operational."
 
   - task: "Identity Taxonomy - EnhancedAccessRequestDialog with INDIVIDUAL_USERS Support"
     implemented: true
