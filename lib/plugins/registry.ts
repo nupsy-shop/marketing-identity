@@ -62,10 +62,13 @@ class PluginRegistryClass {
     if (!zodSchema) return null;
     
     try {
-      return zodToJsonSchema(zodSchema as z.ZodType, {
+      const jsonSchema = zodToJsonSchema(zodSchema as z.ZodType, {
         name: 'AgencyConfig',
         $refStrategy: 'none'
       }) as Record<string, unknown>;
+      
+      // Inline the definitions (dereference $ref)
+      return this.inlineDefinitions(jsonSchema);
     } catch (e) {
       console.error(`Error converting agency config schema for ${platformKey}:`, e);
       return null;
@@ -83,10 +86,13 @@ class PluginRegistryClass {
     if (!zodSchema) return null;
     
     try {
-      return zodToJsonSchema(zodSchema as z.ZodType, {
+      const jsonSchema = zodToJsonSchema(zodSchema as z.ZodType, {
         name: 'ClientTarget',
         $refStrategy: 'none'
       }) as Record<string, unknown>;
+      
+      // Inline the definitions (dereference $ref)
+      return this.inlineDefinitions(jsonSchema);
     } catch (e) {
       console.error(`Error converting client target schema for ${platformKey}:`, e);
       return null;
@@ -104,14 +110,62 @@ class PluginRegistryClass {
     if (!zodSchema) return null;
     
     try {
-      return zodToJsonSchema(zodSchema as z.ZodType, {
+      const jsonSchema = zodToJsonSchema(zodSchema as z.ZodType, {
         name: 'RequestOptions',
         $refStrategy: 'none'
       }) as Record<string, unknown>;
+      
+      // Inline the definitions (dereference $ref)
+      return this.inlineDefinitions(jsonSchema);
     } catch (e) {
       console.error(`Error converting request options schema for ${platformKey}:`, e);
       return null;
     }
+  }
+
+  /**
+   * Helper to inline JSON Schema definitions (dereference $ref)
+   */
+  private inlineDefinitions(schema: Record<string, unknown>): Record<string, unknown> {
+    const definitions = (schema.definitions || {}) as Record<string, unknown>;
+    const $ref = schema.$ref as string | undefined;
+    
+    if ($ref && $ref.startsWith('#/definitions/')) {
+      const defName = $ref.replace('#/definitions/', '');
+      const inlined = { ...definitions[defName] } as Record<string, unknown>;
+      
+      // Copy over $schema if needed
+      if (schema.$schema) {
+        inlined.$schema = schema.$schema;
+      }
+      
+      return inlined;
+    }
+    
+    // Handle anyOf/oneOf with $refs
+    if (schema.anyOf) {
+      const anyOf = (schema.anyOf as Array<Record<string, unknown>>).map(item => {
+        if (item.$ref) {
+          const defName = (item.$ref as string).replace('#/definitions/', '');
+          return definitions[defName] || item;
+        }
+        return item;
+      });
+      return { ...schema, anyOf, definitions: undefined };
+    }
+    
+    if (schema.oneOf) {
+      const oneOf = (schema.oneOf as Array<Record<string, unknown>>).map(item => {
+        if (item.$ref) {
+          const defName = (item.$ref as string).replace('#/definitions/', '');
+          return definitions[defName] || item;
+        }
+        return item;
+      });
+      return { ...schema, oneOf, definitions: undefined };
+    }
+    
+    return schema;
   }
 
   /**
