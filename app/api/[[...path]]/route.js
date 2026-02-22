@@ -291,11 +291,14 @@ export async function POST(request) {
     // POST /api/access-requests/:id/validate - Validate a platform in an access request
     if (path.match(/^access-requests\/[^/]+\/validate$/)) {
       const id = path.split('/')[1];
-      const { platformId, notes } = body || {};
+      const { itemId, platformId, notes } = body || {};
       
-      if (!platformId) {
+      // Support both itemId (new) and platformId (old) for backward compatibility
+      const targetId = itemId || platformId;
+      
+      if (!targetId) {
         return NextResponse.json(
-          { success: false, error: 'platformId is required' },
+          { success: false, error: 'itemId or platformId is required' },
           { status: 400 }
         );
       }
@@ -308,26 +311,26 @@ export async function POST(request) {
         );
       }
 
-      const platformStatus = accessRequest.platformStatuses.find(
-        ps => ps.platformId === platformId
+      // Find item by ID or platformId
+      const item = accessRequest.items.find(
+        i => i.id === targetId || i.platformId === targetId
       );
 
-      if (!platformStatus) {
+      if (!item) {
         return NextResponse.json(
-          { success: false, error: 'Platform not found in this access request' },
+          { success: false, error: 'Item not found in this access request' },
           { status: 404 }
         );
       }
 
-      platformStatus.status = 'validated';
-      platformStatus.validatedAt = new Date();
+      item.status = 'validated';
+      item.validatedAt = new Date();
+      item.validatedBy = 'manual';
       if (notes) {
-        platformStatus.notes = notes;
+        item.notes = notes;
       }
 
-      const allValidated = accessRequest.platformStatuses.every(
-        ps => ps.status === 'validated'
-      );
+      const allValidated = accessRequest.items.every(i => i.status === 'validated');
 
       if (allValidated && !accessRequest.completedAt) {
         accessRequest.completedAt = new Date();
