@@ -208,7 +208,7 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
                       </CardHeader>
                       <CardContent className="pt-0 space-y-2">
                         {app.items.map(item => {
-                          const key = `${app.id}-${item.id}`;
+                          const key = makeKey(app.id, item.id);
                           const isSelected = selectedKeys.includes(key);
                           return (
                             <div
