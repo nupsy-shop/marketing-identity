@@ -23,11 +23,11 @@ class PAMIdentityHubTester:
         self.base_url = "https://access-mgmt-postgres.preview.emergentagent.com/api"
         self.results = []
         
-        # Platform IDs from review request
+        # Platform IDs from actual API
         self.platform_ids = {
-            'google_ads': '92417db3-7c40-4da2-8f5b-33be4cd335cd',
-            'ga4': 'd5ff07b3-df5e-4f5e-be22-5b2dbf29a89a', 
-            'meta': 'a2f7d86c-1dd2-46ef-b1ff-579cb212dfa0'
+            'google_ads': '5b9278e4-5b92-45b9-85b9-5b9278e40000',
+            'ga4': '0f75633f-0f75-40f7-80f7-0f75633f0000', 
+            'meta': '7c3d89f5-7c3d-47c3-97c3-97c3-7c3d89f50000'
         }
         
         # Store created resources for cleanup
