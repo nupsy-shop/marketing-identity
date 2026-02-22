@@ -363,11 +363,10 @@ export default function PlatformConfigPage() {
   const needsBmId = platformName.includes('meta') || platformName.includes('facebook') || platformName.includes('pinterest') || platformName.includes('linkedin');
   const needsBcId = platformName.includes('tiktok') || platformName.includes('snapchat');
   const needsSeatId = platformName.includes('dv360') || platformName.includes('trade desk') || platformName.includes('stackadapt');
-
-  // Sample identity preview for CLIENT_DEDICATED
-  const sampleIdentity = formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED
-    ? generateClientDedicatedIdentity(formData.namingTemplate, { name: 'Acme Corp' }, platform)
-    : null;
+  
+  // Check if platform needs service account/SSO fields for Group Access
+  const needsServiceAccount = platformName.includes('analytics') || platformName.includes('ga4') || platformName.includes('fivetran');
+  const needsSsoGroup = platformName.includes('snowflake') || platformName.includes('hubspot') || platformName.includes('salesforce');
 
   return (
     <div className="min-h-screen bg-background">
