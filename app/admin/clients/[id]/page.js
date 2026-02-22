@@ -27,19 +27,22 @@ export default function ClientDetailPage() {
 
   const loadData = async () => {
     try {
-      const [clientRes, requestsRes, platformsRes] = await Promise.all([
+      const [clientRes, requestsRes, platformsRes, configuredAppsRes] = await Promise.all([
         fetch(`/api/clients/${params.id}`),
         fetch(`/api/clients/${params.id}/access-requests`),
-        fetch('/api/platforms')
+        fetch('/api/platforms'),
+        fetch(`/api/clients/${params.id}/configured-apps`)
       ]);
 
       const clientData = await clientRes.json();
       const requestsData = await requestsRes.json();
       const platformsData = await platformsRes.json();
+      const configuredAppsData = await configuredAppsRes.json();
 
       if (clientData.success) setClient(clientData.data);
       if (requestsData.success) setAccessRequests(requestsData.data);
       if (platformsData.success) setPlatforms(platformsData.data);
+      if (configuredAppsData.success) setConfiguredApps(configuredAppsData.data);
     } catch (error) {
       console.error('Failed to load data:', error);
       toast({
