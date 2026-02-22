@@ -1,17 +1,12 @@
 'use client';
 
-import EnhancedAccessRequestDialog from '@/components/EnhancedAccessRequestDialog';
-
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
+import EnhancedAccessRequestDialog from '@/components/EnhancedAccessRequestDialog';
 
 export default function ClientDetailPage() {
   const router = useRouter();
@@ -22,10 +17,6 @@ export default function ClientDetailPage() {
   const [platforms, setPlatforms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [selectedPlatforms, setSelectedPlatforms] = useState([]);
-  const [creating, setCreating] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterDomain, setFilterDomain] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -60,55 +51,6 @@ export default function ClientDetailPage() {
     }
   };
 
-  const createAccessRequest = async () => {
-    if (selectedPlatforms.length === 0) {
-      toast({
-        title: 'Error',
-        description: 'Please select at least one platform',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const response = await fetch('/api/access-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId: params.id,
-          platformIds: selectedPlatforms
-        })
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        toast({
-          title: 'Success',
-          description: 'Access request created successfully'
-        });
-        setCreateDialogOpen(false);
-        setSelectedPlatforms([]);
-        loadData();
-      } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to create access request',
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      console.error('Failed to create access request:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create access request',
-        variant: 'destructive'
-      });
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const copyOnboardingLink = (token) => {
     const link = `${window.location.origin}/onboarding/${token}`;
     navigator.clipboard.writeText(link);
@@ -140,22 +82,6 @@ export default function ClientDetailPage() {
       });
     }
   };
-
-  const togglePlatform = (platformId) => {
-    setSelectedPlatforms(prev => 
-      prev.includes(platformId)
-        ? prev.filter(id => id !== platformId)
-        : [...prev, platformId]
-    );
-  };
-
-  const filteredPlatforms = platforms.filter(p => {
-    if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    if (filterDomain && p.domain !== filterDomain) return false;
-    return true;
-  });
-
-  const domains = Array.from(new Set(platforms.map(p => p.domain)));
 
   if (loading) {
     return (
@@ -239,69 +165,13 @@ export default function ClientDetailPage() {
         )}
       </div>
 
-      {/* Create Access Request Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Create Access Request</DialogTitle>
-            <DialogDescription>
-              Select the platforms the client needs to grant access to
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 flex-1 overflow-y-auto">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input 
-                  placeholder="Search platforms..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <select 
-                className="border border-input rounded-md px-3 py-2 bg-background"
-                value={filterDomain}
-                onChange={(e) => setFilterDomain(e.target.value)}
-              >
-                <option value="">All Domains</option>
-                {domains.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-
-            <div className="text-sm text-muted-foreground">
-              {selectedPlatforms.length} platform{selectedPlatforms.length !== 1 ? 's' : ''} selected
-            </div>
-
-            <div className="space-y-2">
-              {filteredPlatforms.map((platform) => (
-                <div key={platform.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent">
-                  <Checkbox 
-                    id={platform.id}
-                    checked={selectedPlatforms.includes(platform.id)}
-                    onCheckedChange={() => togglePlatform(platform.id)}
-                  />
-                  <div className="flex-1">
-                    <Label htmlFor={platform.id} className="font-medium cursor-pointer">
-                      {platform.name}
-                    </Label>
-                    <p className="text-sm text-muted-foreground">{platform.domain}</p>
-                  </div>
-                  <Badge variant={platform.automationFeasibility.includes('High') ? 'default' : 'secondary'}>
-                    {platform.automationFeasibility}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-4 border-t">
-            <Button onClick={createAccessRequest} disabled={creating || selectedPlatforms.length === 0} className="flex-1">
-              {creating ? 'Creating...' : `Create Request (${selectedPlatforms.length} platforms)`}
-            </Button>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Enhanced Access Request Dialog */}
+      <EnhancedAccessRequestDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        clientId={params.id}
+        onSuccess={loadData}
+      />
     </div>
   );
 }
@@ -313,9 +183,11 @@ function AccessRequestCard({ request, platforms, onCopyLink, onRefresh }) {
     return 'bg-yellow-500';
   };
 
-  const validatedCount = request.platformStatuses.filter(ps => ps.status === 'validated').length;
-  const totalCount = request.platformStatuses.length;
-  const progress = (validatedCount / totalCount) * 100;
+  // Support both old (platformStatuses) and new (items) structure
+  const items = request.items || request.platformStatuses || [];
+  const validatedCount = items.filter(item => item.status === 'validated').length;
+  const totalCount = items.length;
+  const progress = totalCount > 0 ? (validatedCount / totalCount) * 100 : 0;
 
   return (
     <Card>
@@ -361,21 +233,40 @@ function AccessRequestCard({ request, platforms, onCopyLink, onRefresh }) {
         </div>
 
         <div className="space-y-2">
-          {request.platformStatuses.map((ps) => {
-            const platform = platforms.find(p => p.id === ps.platformId);
+          {items.map((item) => {
+            // Support both new (item.platformId) and old (item.platformId from platformStatuses)
+            const platformId = item.platformId;
+            const platform = platforms.find(p => p.id === platformId);
+            
             return (
-              <div key={ps.platformId} className="flex items-center gap-3 p-2 border rounded">
-                <div className={`w-2 h-2 rounded-full ${getStatusColor(ps.status)}`} />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{platform?.name || 'Unknown'}</p>
-                  {ps.validatedAt && (
+              <div key={item.id || platformId} className="flex items-center gap-3 p-3 border rounded-lg">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusColor(item.status)}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {platform?.iconName && (
+                      <i className={`${platform.iconName} text-sm`}></i>
+                    )}
+                    <p className="font-medium text-sm">{platform?.name || 'Unknown Platform'}</p>
+                  </div>
+                  {/* Show enhanced metadata if available */}
+                  {item.accessPattern && (
                     <p className="text-xs text-muted-foreground">
-                      Validated {new Date(ps.validatedAt).toLocaleDateString()}
+                      Pattern: {item.accessPattern} • Role: {item.role}
+                    </p>
+                  )}
+                  {item.assetType && (
+                    <p className="text-xs text-muted-foreground">
+                      Asset: {item.assetType} {item.assetName && `- ${item.assetName}`}
+                    </p>
+                  )}
+                  {item.validatedAt && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Validated {new Date(item.validatedAt).toLocaleDateString()}
                     </p>
                   )}
                 </div>
-                <Badge variant={ps.status === 'validated' ? 'default' : 'secondary'}>
-                  {ps.status}
+                <Badge variant={item.status === 'validated' ? 'default' : 'secondary'}>
+                  {item.status}
                 </Badge>
               </div>
             );
