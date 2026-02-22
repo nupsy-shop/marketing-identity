@@ -317,16 +317,17 @@ export default function PlatformConfigPage() {
 
   const platform = agencyPlatform.platform;
   const accessItems = agencyPlatform.accessItems || [];
-  const availablePatterns = platform?.accessPatterns || [];
-  const selectedPatternRoles = availablePatterns.find(p => p.pattern === formData.accessPattern)?.roles || [];
+  // Get available roles from platform's accessPatterns for the Role Template dropdown
+  const availableRoles = [...new Set((platform?.accessPatterns || []).flatMap(p => p.roles || []))];
 
   // Separate items by type
   const humanItems = accessItems.filter(i => i.identityPurpose !== IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE && i.itemType !== 'SHARED_ACCOUNT_PAM');
   const integrationItems = accessItems.filter(i => i.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE || i.itemType === 'PROXY_TOKEN');
   const pamItems = accessItems.filter(i => i.itemType === 'SHARED_ACCOUNT_PAM');
 
-  // Instructions preview
-  const instructionsPreview = getInstructionsPreview(formData, platform);
+  // Instructions preview using the derived pattern label
+  const derivedPatternLabel = ITEM_TYPES.find(t => t.value === formData.itemType)?.label || formData.itemType;
+  const instructionsPreview = getInstructionsPreview({ ...formData, patternLabel: derivedPatternLabel }, platform);
 
   // Check what agency identifiers are needed for Partner Delegation
   const platformName = platform?.name?.toLowerCase() || '';
