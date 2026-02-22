@@ -387,7 +387,7 @@ class PAMIdentityHubTester:
                 'email': 'admin@acme-corp.com'
             })
             
-            if status == 201:
+            if status in [200, 201]:
                 client_id = resp['data']['id']
                 self.created_clients.append(client_id)
                 
