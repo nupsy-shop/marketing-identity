@@ -1,122 +1,91 @@
 <analysis>
+
 <original_problem_statement>
-The user wants to build an enterprise-grade Marketing Identity Platform. The goal is to automate onboarding, provisioning, and offboarding of client accounts across multiple marketing SaaS platforms, using Okta as an Identity Provider (to be stubbed for now).
+The user is building an enterprise-grade Marketing Identity Platform. The goal is to create a central dashboard for an agency to manage client access to various marketing SaaS platforms.
 
-**Initial MVP Requirements:**
-- An admin dashboard for agency staff to manage clients and generate unique onboarding links for them.
-- A self-serve client onboarding flow where clients grant access to the requested platforms.
-- Use Next.js, TypeScript, and Tailwind CSS with an in-memory database for the prototype.
-- Seed the application with platform data from a provided Excel file.
+The project has evolved through several phases:
+1.  **MVP:** An admin dashboard to create clients and generate onboarding links.
+2.  **Phase 2 (Client-Configured Apps):** An App Catalog where platforms could be added and configured for *each specific client*. This involved a complex access request wizard.
+3.  **Phase 3 (Agency-Wide Platforms - Current Architecture):** A major architectural pivot. Platforms are no longer tied to clients. Instead, an admin adds a platform from the catalog to the *agency's* central repository. They configure Access Items (e.g., 'Named Invite', 'Shared Account') for that platform at the agency level. These reusable Access Items can then be included in access requests for any client.
+4.  **Current Feature Request (Shared Account Enhancement):** Enhance the 'Shared Account' Access Item type to support two distinct ownership models:  (the client provides credentials for their existing account) and  (the client is instructed to grant access to a pre-defined agency identity/email).
 
-**Enterprise Enhancement Requirements (Phase 2):**
-- **App Catalog:** A browsable catalog of all platforms, grouped by domain, with icons and descriptions. Admins should add platforms from this catalog to a specific client.
-- **Platform Configuration:** When adding a platform to a client, an admin must configure it by selecting access patterns (e.g., Partner Hub, Named Invite) and defining specific items to request (e.g., Google Ads Account #123).
-- **Client-Specific Platforms:** The client detail page should only show platforms that have been explicitly configured for that client.
-- **Updated Access Request Wizard:** The wizard for creating an onboarding link must only show the pre-configured platform items for the selected client, not the entire global platform list.
-- **Database:** Migrate from the in-memory store to PostgreSQL (This was attempted and abandoned, see below).
-- **Future Goals:** Implement real OAuth for Google, add agency branding options, and create a stub for an encrypted credentials vault.
+PRODUCT REQUIREMENTS:
+- An admin must be able to add platforms to their agency from a global catalog.
+- An admin must be able to configure multiple Access Items for each agency-level platform.
+- For Shared Account Access Items, the admin must define whether it is  or .
+- The access request wizard must allow the admin to select from the agency's pre-configured Access Items to send to a client.
+- The client onboarding flow must present a different UI depending on the Access Item type and ownership model (e.g., collect credentials for , provide instructions for ).
+- Implement new dashboards for managing Shared Accounts () and viewing audit logs ().
 </original_problem_statement>
 
 **User's preferred language**: English
 
 **what currently exists?**
-The project is a Next.js application using an in-memory data store.
+The application is a Next.js project with a monolithic backend API route () that uses an in-memory data store. The architecture is based on the Agency-Wide Platforms model.
 
-**Completed Features:**
-- A basic admin dashboard for creating clients and viewing access requests.
-- An extensive in-memory data model for platforms, including metadata like icons, descriptions, and access patterns, stored in .
-- A fully-built, visually appealing App Catalog page () that allows admins to browse all available marketing platforms, grouped by domain.
-- The core data model for  has been updated to support a new, more detailed  structure, replacing the older  array.
-- The client-facing onboarding page () has been updated to render the new  structure.
-
-**In-Progress Features:**
-- A Configured Apps system is partially implemented. This allows an admin to add a platform from the catalog to a specific client with custom configuration.
-  - The backend API endpoints (GET, POST, PUT, DELETE) for managing these configured apps are complete within .
-  - A  component has been created to handle the configuration UI.
-  - A Platforms tab has been added to the client detail page to display these apps.
-- The Enhanced Access Request Wizard is broken and mid-refactor. It is being converted to a 2-step process that should use the Configured Apps of a client.
+- **Backend:** The API and in-memory database have been updated to support agency-level platforms and the new detailed data model for  access items (including , , , etc.). New endpoints for PAM and auditing have been added.
+- **Admin UI:**
+    - A global  to add platforms to the agency.
+    - A  page to list all agency-configured platforms.
+    - A  page with a complex form to configure Access Items, including the new  vs  logic for Shared Accounts.
+- **Data Model:**  has been updated with the new detailed structure for .
+- **New Pages (Stubs):** Stub files have been created for the PAM dashboard () and Audit Log page ().
 
 **Last working item**:
-- Last item agent was working: The agent was refactoring the  component. The goal was to replace the old 3-step wizard (which showed all platforms) with a new 2-step wizard that exclusively uses the pre-configured platforms and items for a specific client. The agent started removing the old UI code but did not finish implementing the new UI.
+- Last item agent was working: Implementing the Shared Account Enhancement feature. The agent had finished updating the backend API, the data types, and the admin-facing platform configuration UI. The agent's last action was to start rewriting the client-facing onboarding page () to handle the two distinct flows for  and  shared accounts. This file is currently incomplete and has broken the client onboarding experience.
 - Status: IN PROGRESS
 - Agent Testing Done: N
 - Which testing method agent to use? both
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-- Issue 1: Complete the Access Request Wizard Refactor (P0)
-- Issue 2: The Add to Client flow is incomplete (P1)
-- Issue 3: Abandoned PostgreSQL Migration (P2)
+- Issue 1: Onboarding flow is broken due to incomplete PAM feature implementation (P0)
 
 Issues Detail:
 - Issue 1:
-  - Description: The  component is currently in a broken, half-refactored state. The core workflow for admins to create onboarding links for clients is non-functional.
+  - Description: The primary client onboarding page at  is in a half-finished state. The agent was rewriting it to support the new  and  shared account flows but did not complete the implementation. This makes the entire client onboarding journey non-functional.
   - Next debug checklist:
     1.  Open .
-    2.  Complete the implementation of the new 2-step UI.
-    3.  Step 1: Fetch and display the  for the selected client as a list of selectable items (with checkboxes).
-    4.  Step 2: Show a review of the selected items.
-    5.  Ensure the  function is updated to correctly create an  payload based on the items selected in the new wizard.
-  - Why fix this issue and what will be achieved with the fix? This is the most critical workflow for the application's admin user. Fixing it will restore the ability to generate client onboarding links using the new, more powerful Configured Apps system.
+    2.  Complete the React component logic to conditionally render different UI based on the  and .
+    3.  For  shared accounts, implement the form to securely collect  and  from the client. Ensure it calls the  endpoint.
+    4.  For  shared accounts, implement the UI to display instructions for the client (i.e., show  and ). Implement the attestation checkbox and ensure it calls the  endpoint.
+    5.  Ensure loading and success/error states are handled for both flows.
+  - Why fix this issue and what will be achieved with the fix? This is the most critical user-facing workflow in the application. Fixing it will complete the core logic of the Shared Account Enhancement feature and restore the ability for clients to complete their onboarding tasks.
   - Status: IN PROGRESS
   - Is recurring issue? N
   - Should Test frontend/backend/both after fix? both
   - Blocked on other issue: None
-
-- Issue 2:
-  - Description: In the App Catalog (), the Add to Client button is not fully functional. It needs to open the , allow the admin to configure and save the platform for the selected client, and then have that new configuration appear on the client detail page.
-  - Next debug checklist:
-    1.  In , ensure the  function correctly opens the  and passes the selected platform's data.
-    2.  Verify the  callback in the dialog correctly calls the  API endpoint.
-    3.  Confirm that after a successful save, the UI provides feedback and the new configured app is visible on the client detail page's Platforms tab.
-  - Why fix this issue and what will be achieved with this? This functionality is the entry point for an admin to customize which platforms a client needs to grant access to. It's a prerequisite for the Access Request Wizard to work as intended.
-  - Status: IN PROGRESS
-  - Is recurring issue? N
-  - Should Test frontend/backend/both after fix? both
-  - Blocked on other issue: None
-
-- Issue 3:
-  - Description: An earlier attempt to migrate the data store from in-memory arrays to PostgreSQL failed due to configuration issues with Prisma v7. The  file still exists, but the application is running entirely on an in-memory store defined in . This creates technical debt and confusion.
-  - Attempted fixes: The agent tried several ways to initialize the Prisma client with a Postgres adapter, but failed.
-  - Next debug checklist:
-    1.  Discuss with the user whether to re-attempt the PostgreSQL migration now or to postpone it.
-    2.  If postponing, remove the  directory to clean up the codebase.
-    3.  If re-attempting, research the correct way to configure Prisma v7 with Next.js and the provided  environment variable, avoiding the problematic data proxy/adapter if possible for local development.
-  - Why fix this issue and what will be achieved with this? To provide data persistence, which is a key requirement for an enterprise-grade application and will be necessary for features like audit logs.
-  - Status: BLOCKED
-  - Is recurring issue? Y
-  - Should Test frontend/backend/both after fix? backend
-  - Blocked on other issue: User decision.
 
 **In progress Task List**:
-- Task 1: Complete Phase 2: Configured Apps Functionality (P0)
-  - Where to resume: The task is broken down into  and  above. Start with  by finishing the  component.
-  - What will be achieved with this? A complete, end-to-end admin flow: an admin can select a client, add a platform from the catalog, configure it, and then create an access request containing that specific configuration.
-  - Status: IN PROGRESS
-  - Should Test frontend/backend/both after fix? both
-  - Blocked on something: No.
+- Task 1: Complete Shared Account Enhancement Feature (P0)
+
+ Task Detail:
+  - Task 1:
+     - Where to resume: Resume work in  to complete the client-facing UI for the PAM feature, as detailed in Issue 1 above.
+     - What will be achieved with this? A fully functional end-to-end flow for configuring and onboarding both  and  shared accounts.
+     - Status: IN PROGRESS
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on something: No.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-  - P0: Full end-to-end testing of the Configured Apps and Access Request flow once the in-progress tasks are complete.
-  - P1: Implement real OAuth for the Google ecosystem (Ads, GA4, GTM, etc.) as a proof-of-concept for automated connectors.
+  - P0: Implement the PAM Dashboard UI (): Fetch and display all shared account access items, showing their status and enabling checkout/check-in workflows (revealing credentials).
+  - P1: Implement the Audit Log UI (): Fetch and display all events from the  in-memory array, with filtering and sorting capabilities.
 - **Future Tasks:**
-  - P2: Implement agency branding customizations (logo, colors).
-  - P2: Implement the full encrypted vault for credentials (currently, the data model has placeholders).
-  - P2: Create and display an audit log of all access grant/revoke actions.
-  - P3: Re-attempt the PostgreSQL migration.
+  - P2: Implement real OAuth for Google ecosystem platforms.
+  - P2: Implement an encrypted vault for credentials (currently stored in-memory).
+  - P3: Re-attempt the migration from the in-memory store to PostgreSQL using Prisma.
 
 **Completed work in this session**
-- Data model for platforms created in .
-- UI for the App Catalog created at .
--  data model was refactored to use a detailed  array.
-- Client onboarding page () was updated for the new  structure.
-- API endpoints for CRUD operations on  were added to .
-- UI component  was created.
-- A Platforms tab was added to the client detail page.
+- Major architectural refactor from a client-centric to an agency-centric platform configuration model.
+- Created new UI pages for managing agency-wide platforms () and configuring their access items ().
+- Rewrote the backend API () to support the new agency-centric architecture.
+- Updated the data model in  for the  feature, adding  and other related fields.
+- Updated the backend API in  with new endpoints and logic for configuring and onboarding PAM items.
+- Rewrote the admin platform configuration page () to include the form for  and  shared accounts.
 
 **Earlier issues found/mentioned but not fixed**
-- Issue 1: Prisma v7 configuration for PostgreSQL. The agent was unable to correctly initialize the Prisma client with the Postgres adapter, leading to the abandonment of the database migration. This remains unresolved.
+- The initial goal of migrating to PostgreSQL remains unaddressed. The  file is still present but unused. The application continues to run on a volatile in-memory database.
 
 **Code Architecture**
 
@@ -124,51 +93,59 @@ Issues Detail:
 **Key Technical Concepts**
 - **Framework:** Next.js 14 (App Router)
 - **Styling:** Tailwind CSS with shadcn/ui
-- **Database:** In-memory arrays serving as a mock database.
-- **Architecture:** A monolithic backend API route () handles all data manipulation, simulating a database. The frontend is component-based React.
+- **Database:** In-memory arrays within the main API route () acting as a mock database.
+- **Architecture:** A monolithic backend API route handles all data persistence and business logic. The architecture has been refactored to support agency-wide platform configurations instead of client-specific ones.
 
 **key DB schema**
-The application currently uses in-memory arrays, not a real database. The intended Prisma schema exists in  but is not in use. The key in-memory data structures in  are: , , and the new .
+The application uses in-memory arrays. The key data structures in  are:
+- : 
+- : 
+- : 
+- : 
+
+The  and  types now have a detailed  field for shared accounts.
 
 **All files of reference**
-- : The most critical backend file. It contains all API logic and the in-memory data store.
-- : **The immediate focus for the next agent.** This file is broken and needs the wizard UI to be completed.
-- : The client detail page, which orchestrates the tabs and the access request dialog.
-- : The app catalog, where the Add to Client flow needs to be finalized.
-- : The UI for configuring a platform for a client.
-- : The source of truth for all marketing platform metadata.
-- : Contains all TypeScript interfaces for the data models.
+- : **HIGHEST PRIORITY.** This file is broken and must be completed to fix the client onboarding flow.
+- : The backend for the entire application. It has been heavily modified to support agency-platforms and the new PAM feature.
+- : The admin UI for configuring access items, including the new PAM ownership models. This is a key reference for how PAM items are created.
+- : The source of truth for all data structures, especially the  interface.
+- : A stub file that needs to be implemented for the PAM dashboard.
+- : A stub file that needs to be implemented for the Audit Log dashboard.
 
 **Critical Info for New Agent**
-The previous agent attempted a migration to PostgreSQL as requested but failed due to Prisma v7 configuration issues. Following user direction, the agent pivoted to implementing the advanced Configured Apps features on top of the **existing in-memory architecture**. Your immediate priority is to fix the broken Access Request Wizard () to make it work with this new in-memory system. Do not attempt the PostgreSQL migration until the current feature set is fully functional and tested, or unless the user explicitly re-prioritizes it.
+- **Do not revert the architecture.** The application was deliberately refactored to an agency-centric model. All new work must align with this.
+- **Your immediate task is to fix the broken onboarding flow.** Focus on completing the UI implementation in . The backend logic for this feature is largely in place. Refer to  and  to understand the data structure of a PAM item.
+- **The database is in-memory.** All data will be lost on server restart. Do not attempt the PostgreSQL migration until the current PAM feature is complete and verified by the user.
+
+**documents created in this job**
+- 
+- 
+- 
+- 
 
 **Last 10 User Messages and any pending HUMAN messages**
-- The user has been consistently pushing to complete Phase 2 (Configured Apps functionality).
-- **Message 222:** User selected Option A: Complete Phase 2 Now.
-- **Message 223-238:** The agent worked on adding the Platforms tab and starting the update to the Access Request Wizard.
-- **Message 239-240:** The agent recognized the complexity and proposed to create a summary.
-- **Message 241:** The user responded with A, indicating the agent should proceed with completing the wizard UI instead of summarizing.
-- **Message 242-243:** The agent acknowledged and started replacing the old UI code in the wizard, which was its last action before the session ended.
-- **Pending:** The user is waiting for the wizard to be completed and functional.
+1.  **User (msg 187):** Requested a major new feature: enhancing Shared Accounts (PAM) with  vs.  models, defining new data fields, and specifying two distinct onboarding flows.
+2.  **Agent (msg 188-195):** Acknowledged the request, read the codebase, and created stub files for the new PAM and Audit dashboards (, ) and updated the  file.
+3.  **Agent (msg 196-215):** Performed a large-scale update of the backend API in , adding new endpoints and logic to support the PAM feature. This involved fixing some merge/copy-paste errors along the way.
+4.  **Agent (msg 216-217):** Rewrote the platform configuration page () to include the complex new form for creating and editing PAM items.
+5.  **Agent (msg 218-221):** Updated the access request dialog () to handle the new PAM item structure.
+6.  **Agent (msg 222-223):** Began rewriting the client onboarding page () to implement the two distinct user flows. This work is incomplete.
+- **Pending:** The user is waiting for the complete implementation of the Shared Account Enhancement feature.
 
 **Project Health Check:**
-- **Broken:** The primary admin workflow of creating an access request is currently broken due to the half-refactored .
-- **Mocked:** All external platform integrations are stubs. The entire database is an in-memory mock.
+- **Broken:** The client onboarding flow () is non-functional due to the incomplete implementation of the PAM feature. This is a critical workflow.
+- **Mocked:** The entire database is an in-memory mock. All external integrations are stubs.
 
 **3rd Party Integrations**
 - **Font Awesome:** Used for icons in the UI.
-- **Okta:** Intended as the identity provider, but currently stubbed out (no integration code exists).
 
 **Testing status**
-- Testing agent used after significant changes: NO (The latest changes to the wizard have not been tested at all).
-- Troubleshoot agent used after agent stuck in loop: YES (Used during the failed PostgreSQL migration attempt).
+- Testing agent used after significant changes: YES (After the agency-level refactor, backend tests passed).
+- Troubleshoot agent used after agent stuck in loop: NO
 - Test files created: []
-- Known regressions: The ability to create access requests, which worked in the initial MVP, is now broken.
+- Known regressions: The entire client onboarding workflow is broken.
 
 **What agent forgot to execute**
-The agent did not complete the refactoring of the  component. It started removing the old code but did not implement the new 2-step UI, leaving the core admin feature in a broken state.
+The agent did not finish the implementation of the  feature. It started rewriting the  component but left it in an incomplete state, breaking a critical part of the application. The new  and  pages also exist only as stubs and need to be implemented.
 </analysis>
-<SYS_PROMPT_SEPARATOR>
-<workspace_dir>
-/app
-</workspace_dir>
