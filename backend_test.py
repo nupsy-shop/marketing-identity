@@ -7,7 +7,7 @@ import time
 from typing import Dict, Any, Optional, List
 
 # Base URL from environment
-BASE_URL = "https://agency-pam.preview.emergentagent.com"
+BASE_URL = "https://pam-identity-hub.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 class IdentityTaxonomyTester:
