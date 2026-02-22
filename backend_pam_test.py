@@ -199,7 +199,7 @@ def test_create_access_request_with_pam(client_id, platform_id, pam_items):
         return None
     
     access_request_id = result["data"]["id"]
-    access_request_token = result["data"]["onboardingToken"]
+    access_request_token = result["data"]["token"]
     items = result["data"]["items"]
     
     log_test(f"Created access request: {access_request_id}")
