@@ -59,7 +59,7 @@ export default function PlatformConfigPage() {
       role: '',
       notes: '',
       // Pattern is now derived from itemType (no accessPattern field)
-      // Identity taxonomy
+      // Identity taxonomy for Named Invite
       identityPurpose: IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
       humanIdentityStrategy: HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED,
       clientDedicatedIdentityType: CLIENT_DEDICATED_IDENTITY_TYPE.GROUP,
@@ -76,6 +76,9 @@ export default function PlatformConfigPage() {
       validationMethod: 'ATTESTATION',
       // PAM fields
       pamOwnership: 'CLIENT_OWNED',
+      pamIdentityStrategy: 'STATIC', // STATIC or CLIENT_DEDICATED
+      pamIdentityType: 'GROUP', // GROUP or MAILBOX
+      pamNamingTemplate: '{clientSlug}-{platformKey}@youragency.com',
       pamAgencyIdentityEmail: '',
       pamRoleTemplate: '',
       pamCheckoutDuration: 60,
