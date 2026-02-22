@@ -424,7 +424,10 @@ class PAMIdentityHubTester:
                                     'platformId': self.platform_ids['ga4'],
                                     'accessPattern': 'PAM',
                                     'role': 'Admin',
-                                    'itemType': 'SHARED_ACCOUNT_PAM'
+                                    'itemType': 'SHARED_ACCOUNT_PAM',
+                                    'pamOwnership': 'AGENCY_OWNED',
+                                    'pamIdentityStrategy': 'CLIENT_DEDICATED',
+                                    'pamNamingTemplate': '{clientSlug}-ga4@youragency.com'
                                 }
                             ]
                         })
