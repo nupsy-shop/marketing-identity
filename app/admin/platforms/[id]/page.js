@@ -158,7 +158,11 @@ export default function PlatformConfigPage() {
       businessCenterId: item.agencyData?.businessCenterId || '',
       seatId: item.agencyData?.seatId || '',
       validationMethod: item.validationMethod || 'ATTESTATION',
+      // PAM fields
       pamOwnership: item.pamConfig?.ownership || 'CLIENT_OWNED',
+      pamIdentityStrategy: item.pamConfig?.identityStrategy || 'STATIC',
+      pamIdentityType: item.pamConfig?.identityType || 'GROUP',
+      pamNamingTemplate: item.pamConfig?.namingTemplate || '{clientSlug}-{platformKey}@youragency.com',
       pamAgencyIdentityEmail: item.pamConfig?.agencyIdentityEmail || '',
       pamRoleTemplate: item.pamConfig?.roleTemplate || '',
       pamCheckoutDuration: item.pamConfig?.checkoutPolicy?.durationMinutes || 60,
