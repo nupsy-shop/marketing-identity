@@ -85,22 +85,41 @@ class IdentityPlatformTester:
             print(f"❌ Failed to create client: HTTP {response.status_code if response else 'No response'}")
             return False
 
-        # Create agency platform for Google Analytics
-        platform_data = {
-            "platformId": self.google_analytics_platform_id
-        }
-        
-        response = self.make_request('POST', 'agency/platforms', platform_data)
+        # Get or create agency platform for Google Analytics
+        response = self.make_request('GET', 'agency/platforms')
         if response and response.status_code == 200:
             result = response.json()
             if result.get('success'):
-                self.agency_platform_id = result['data']['id']
-                print(f"✅ Created agency platform: {self.agency_platform_id}")
+                # Find existing platform
+                existing_platform = None
+                for ap in result['data']:
+                    if ap.get('platformId') == self.google_analytics_platform_id:
+                        existing_platform = ap
+                        break
+                
+                if existing_platform:
+                    self.agency_platform_id = existing_platform['id']
+                    print(f"✅ Using existing agency platform: {self.agency_platform_id}")
+                else:
+                    # Create new platform
+                    platform_data = {"platformId": self.google_analytics_platform_id}
+                    response = self.make_request('POST', 'agency/platforms', platform_data)
+                    if response and response.status_code == 200:
+                        result = response.json()
+                        if result.get('success'):
+                            self.agency_platform_id = result['data']['id']
+                            print(f"✅ Created new agency platform: {self.agency_platform_id}")
+                        else:
+                            print(f"❌ Failed to create agency platform: {result}")
+                            return False
+                    else:
+                        print(f"❌ Failed to create agency platform: HTTP {response.status_code if response else 'No response'}")
+                        return False
             else:
-                print(f"❌ Failed to create agency platform: {result}")
+                print(f"❌ Failed to get agency platforms: {result}")
                 return False
         else:
-            print(f"❌ Failed to create agency platform: HTTP {response.status_code if response else 'No response'}")
+            print(f"❌ Failed to get agency platforms: HTTP {response.status_code if response else 'No response'}")
             return False
 
         return True
