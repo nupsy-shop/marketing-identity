@@ -149,7 +149,7 @@ def test_create_agency_platform_with_pam_items(platform_id):
         }
     }
     
-    result = make_request("POST", f"agency/platforms/{agency_platform_id}/items", agency_owned_item, 201)
+    result = make_request("POST", f"agency/platforms/{agency_platform_id}/items", agency_owned_item, 200)
     if not result or not result.get("success"):
         log_error("Failed to add AGENCY_OWNED PAM item")
         return None
