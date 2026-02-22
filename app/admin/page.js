@@ -97,7 +97,18 @@ export default function AdminDashboard() {
               <h1 className="text-2xl font-bold">Marketing Identity Platform</h1>
               <p className="text-sm text-muted-foreground">Admin Dashboard</p>
             </div>
-            <Badge variant="secondary">Admin</Badge>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => router.push('/admin/catalog')}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                  <rect width="7" height="7" x="3" y="3" rx="1"/>
+                  <rect width="7" height="7" x="14" y="3" rx="1"/>
+                  <rect width="7" height="7" x="14" y="14" rx="1"/>
+                  <rect width="7" height="7" x="3" y="14" rx="1"/>
+                </svg>
+                App Catalog
+              </Button>
+              <Badge variant="secondary">Admin</Badge>
+            </div>
           </div>
         </div>
       </header>
