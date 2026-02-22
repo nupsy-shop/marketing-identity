@@ -197,17 +197,14 @@ export default function PlatformConfigPage() {
       validationMethod: formData.validationMethod
     };
 
-    // Human interactive settings
+    // Human interactive settings - Named Invite (CLIENT_DEDICATED is now only in PAM)
     if (formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE && formData.itemType === 'NAMED_INVITE') {
       base.humanIdentityStrategy = formData.humanIdentityStrategy;
       
-      if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED) {
-        base.clientDedicatedIdentityType = formData.clientDedicatedIdentityType;
-        base.namingTemplate = formData.namingTemplate;
-      } else if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
+      if (formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
         base.agencyGroupEmail = formData.agencyGroupEmail;
       }
-      // INDIVIDUAL_USERS - no email fields needed here
+      // INDIVIDUAL_USERS - no email fields needed here (collected at request time)
     }
 
     // Integration identity reference
