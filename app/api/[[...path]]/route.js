@@ -513,55 +513,6 @@ export async function POST(request) {
       if (!platform) {
         return NextResponse.json({ success: false, error: 'Platform not found' }, { status: 404 });
       }
-      const existing = getAgencyPlatformByPlatformId(platformId);
-      if (existing) {
-        return NextResponse.json({
-          success: false,
-          error: 'Platform already added to agency',
-          data: { ...existing, platform }
-        }, { status: 409 });
-      }
-      const ap = {
-        id: uuidv4(),
-        platformId,
-        isEnabled: true,
-        accessItems: [],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      addAgencyPlatform(ap);
-      return NextResponse.json({ success: true, data: { ...ap, platform } });
-    }
-
-    // POST /api/agency/platforms/:id/items - Add access item
-    if (path.match(/^agency\/platforms\/[^/]+\/items$/)) {
-      const apId = path.split('/')[2];
-      const ap = getAgencyPlatformById(apId);
-      if (!ap) {
-        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
-      }
-      const { accessPattern, patternLabel, label, role, assetType, assetId, notes } = body || {};
-      if (!accessPattern || !label || !role) {
-        return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
-      }
-      const item = {
-        id: uuidv4(),
-        accessPattern,
-        patternLabel: patternLabel || accessPattern,
-        label,
-        role,
-        assetType: assetType || undefined,
-        assetId: assetId || undefined,
-        notes: notes || undefined,
-        createdAt: new Date()
-      };
-      const updated = addAccessItem(apId, item);
-      return NextResponse.json({
-        success: true,
-        data: { ...updated, platform: getPlatformById(updated.platformId) }
-      });
-    }
-
     // POST /api/access-requests - Create new access request
     if (path === 'access-requests') {
       const { clientId, items } = body || {};
