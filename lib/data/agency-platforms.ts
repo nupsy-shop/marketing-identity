@@ -35,6 +35,36 @@ export interface PamConfig {
   sessionMode?: 'REVEAL';
 }
 
+// ── Dynamic Agency Data Fields (from Excel "Data to collect") ────────────────
+export interface AgencyDataFields {
+  // Manager/MCC IDs
+  managerAccountId?: string;        // Google Ads MCC, Microsoft Ads Manager
+  businessManagerId?: string;       // Meta BM ID, Pinterest BM ID, LinkedIn BM ID
+  businessCenterId?: string;        // TikTok BC ID, Snapchat BC ID
+  seatId?: string;                  // DV360, TTD, StackAdapt seats
+  
+  // User/Group identities
+  agencyEmail?: string;             // Named invite email
+  serviceAccountEmail?: string;     // Service account for automated access
+  ssoGroupName?: string;            // SSO/SCIM group name
+  
+  // API credentials
+  apiKey?: string;
+  apiSecret?: string;
+  oauthClientId?: string;
+  oauthClientSecret?: string;
+  
+  // Platform-specific
+  verificationToken?: string;       // Site verification
+  shopifyPartnerId?: string;        // Shopify partner ID
+  
+  // Generic fallback
+  agencyIdentity?: string;          // Catch-all for unmapped platforms
+  
+  // Shared Account (PAM) specific
+  sharedAccountLabel?: string;
+}
+
 // ── AccessItem ────────────────────────────────────────────────────────────────
 export type AccessItemType =
   | 'NAMED_INVITE'
@@ -50,10 +80,15 @@ export interface AccessItem {
   patternLabel: string;
   label: string;
   role: string;
-  assetType?: string;
-  assetId?: string;
   notes?: string;
   pamConfig?: PamConfig;
+  
+  // Dynamic agency data fields (from Excel)
+  agencyData?: AgencyDataFields;
+  
+  // Instructions from Excel (stored for reference)
+  clientInstructions?: string;
+  
   createdAt: Date;
 }
 
