@@ -523,7 +523,7 @@ class PAMIdentityHubTester:
                         'platformId': snowflake_platform['id']
                     })
                     
-                    if status == 201:
+                    if status in [200, 201]:
                         agency_platform_id = resp['data']['id']
                         self.created_agency_platforms.append(agency_platform_id)
                         
