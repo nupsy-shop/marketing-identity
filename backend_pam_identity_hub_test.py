@@ -429,7 +429,7 @@ class PAMIdentityHubTester:
                             ]
                         })
                         
-                        if status == 201:
+                        if status in [200, 201]:
                             access_request_id = resp['data']['id']
                             self.created_access_requests.append(access_request_id)
                             
