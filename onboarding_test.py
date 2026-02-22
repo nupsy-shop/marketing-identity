@@ -308,7 +308,7 @@ def test_end_to_end_flow():
     ga_platform_id = get_google_analytics_id()
     all_passed &= log_test("Step 1: Client creation", True, f"Client ID: {client_id}")
     
-    # Step 2: Create agency platform with GA4
+    # Step 2: Create or get existing agency platform with GA4
     agency_platform_data = {
         "platformId": ga_platform_id
     }
@@ -319,8 +319,14 @@ def test_end_to_end_flow():
         agency_platform = response.json()['data']
         agency_platform_id = agency_platform['id']
         all_passed &= log_test("Step 2: Agency platform creation", True, f"Agency platform ID: {agency_platform_id}")
-        
-        # Step 3: Add NAMED_INVITE item to agency platform
+    elif response.status_code == 409:
+        # Platform already exists, get existing one
+        existing_data = response.json()['data']
+        agency_platform_id = existing_data['id']
+        all_passed &= log_test("Step 2: Agency platform (existing)", True, f"Using existing agency platform ID: {agency_platform_id}")
+    else:
+        all_passed &= log_test("Step 2: Agency platform creation", False, f"Status: {response.status_code}")
+        return all_passed
         item_data = {
             "accessPattern": "Named User Access",
             "label": "GA4 Analytics Access",
