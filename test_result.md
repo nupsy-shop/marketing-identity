@@ -438,19 +438,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Landing Page and Navigation"
-    - "Admin Dashboard - Initial State and Tabs"
-    - "Platform Browser Tab and Filtering"
-    - "Create Client Flow and Dialog"
-    - "Client Detail Page and Access Requests"
-    - "Access Request Creation and Management"
-    - "Client Onboarding Flow"
-    - "Platform Access Cards and Instructions"
-    - "Onboarding Completion and Progress Tracking"
-    - "Error Handling and Invalid States"
-    - "App Catalog UI Page"
+    - "Enhanced Access Request API - New Items Structure"
+    - "Backward Compatibility - Old PlatformIds Format"
+    - "Platform API - Enhanced Filtering"
+    - "Validation API - ItemId and PlatformId Support"
+    - "Onboarding API - Enriched Platform Data"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
@@ -460,3 +454,5 @@ agent_communication:
     message: "Starting comprehensive frontend UI testing using Playwright. Will test complete admin flow (client creation, access request management) and client onboarding flow (platform access granting). Testing all 10 frontend components with focus on UI interactions, state management, navigation, and error handling."
   - agent: "testing"
     message: "APP CATALOG UI TESTING COMPLETED SUCCESSFULLY! Fixed syntax errors in catalog page and conducted comprehensive testing. All 9 test parts PASSED: ✅ Navigation (admin ↔ catalog), ✅ Statistics (26 total, 10 T1, 16 T2, 6 OAuth), ✅ Filtering (search, domain, tier, automation), ✅ Domain grouping (16 groups with proper icons), ✅ Platform cards (badges, descriptions, access patterns), ✅ Results handling (count updates, no results state), ✅ Back navigation (state reset), ✅ Visual polish (gradients, 132 FA icons, responsive), ✅ Data accuracy (Tier 1/2 correct). The App Catalog is production-ready with beautiful UI and full functionality."
+  - agent: "testing"
+    message: "ENHANCED ACCESS REQUEST API TESTING COMPLETED SUCCESSFULLY! 🎉 100% SUCCESS RATE (19/19 tests passed). Fixed minor validation bug and conducted comprehensive testing of new items[] structure. ALL FEATURES VERIFIED: ✅ New items[] format with enhanced metadata (platformId, accessPattern, role, assetType, assetId, assetName), ✅ Backward compatibility with old platformIds format, ✅ Platform filtering by clientFacing and tier (26 client-facing, 10 Tier 1, 16 Tier 2), ✅ Validation with both itemId and platformId, ✅ Enriched onboarding data with platform details, ✅ Complex scenarios with mixed platform types, ✅ Comprehensive data validation and error handling. The Enhanced Access Request API is production-ready and fully functional!"
