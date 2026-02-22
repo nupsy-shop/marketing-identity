@@ -529,61 +529,41 @@ export async function PUT(request) {
   const body = await getBody(request);
 
   try {
-    // PUT /api/configured-apps/:id - Update configured app
-    if (path.startsWith('configured-apps/') && path.split('/').length === 2) {
-      const id = path.split('/')[1];
-      const { items } = body || {};
-      
-      if (!items || !Array.isArray(items)) {
-        return NextResponse.json(
-          { success: false, error: 'items array is required' },
-          { status: 400 }
-        );
+    // PUT /api/agency/platforms/:id/items/:itemId - Update an access item
+    if (path.match(/^agency\/platforms\/[^/]+\/items\/[^/]+$/)) {
+      const parts = path.split('/');
+      const apId = parts[2];
+      const itemId = parts[4];
+      const ap = getAgencyPlatformById(apId);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-
-      const configuredApp = getConfiguredAppById(id);
-      if (!configuredApp) {
-        return NextResponse.json(
-          { success: false, error: 'Configured app not found' },
-          { status: 404 }
-        );
+      const { accessPattern, patternLabel, label, role, assetType, assetId, notes } = body || {};
+      if (!accessPattern || !label || !role) {
+        return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
       }
-
-      // Update items
-      const updatedItems = items.map(item => ({
-        id: item.id || uuidv4(),
-        accessPattern: item.accessPattern,
-        label: item.label,
-        role: item.role,
-        assetType: item.assetType,
-        assetId: item.assetId,
-        credentials: item.credentials,
-        notes: item.notes
-      }));
-
-      updateConfiguredApp(id, { items: updatedItems });
-      
-      const platform = getPlatformById(configuredApp.platformId);
-      
+      const updated = updateAccessItem(apId, itemId, {
+        accessPattern,
+        patternLabel: patternLabel || accessPattern,
+        label,
+        role,
+        assetType: assetType || undefined,
+        assetId: assetId || undefined,
+        notes: notes || undefined
+      });
+      if (!updated) {
+        return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
+      }
       return NextResponse.json({
         success: true,
-        data: {
-          ...configuredApp,
-          platform
-        }
+        data: { ...updated, platform: getPlatformById(updated.platformId) }
       });
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Not found' },
-      { status: 404 }
-    );
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
