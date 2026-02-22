@@ -352,6 +352,7 @@ test_plan:
     - "Platform Access Cards and Instructions"
     - "Onboarding Completion and Progress Tracking"
     - "Error Handling and Invalid States"
+    - "App Catalog UI Page"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
