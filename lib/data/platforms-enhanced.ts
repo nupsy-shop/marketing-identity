@@ -29,6 +29,7 @@ export interface EnhancedPlatform {
 
 // Curated agency-client platform data
 // These are platforms relevant to a marketing agency requesting access from clients
+// supportedItemTypes derived from accessPattern field in Excel
 const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
 
   // ─────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -75,6 +77,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -103,6 +106,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
+    supportedItemTypes: ['NAMED_INVITE', 'GROUP_ACCESS'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -131,6 +135,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
+    supportedItemTypes: ['NAMED_INVITE', 'GROUP_ACCESS'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -153,6 +158,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
+    supportedItemTypes: ['NAMED_INVITE', 'PROXY_TOKEN'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -181,6 +187,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
