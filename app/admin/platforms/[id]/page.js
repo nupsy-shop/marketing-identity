@@ -744,31 +744,31 @@ export default function PlatformConfigPage() {
                       onChange={e => setFormData(prev => ({ ...prev, label: e.target.value }))}
                       className="mt-1"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">A descriptive name for this access configuration</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm">Access Pattern <span className="text-destructive">*</span></Label>
-                      <select
-                        className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
-                        value={formData.accessPattern}
-                        onChange={e => handlePatternChange(e.target.value)}
-                      >
-                        {availablePatterns.map(p => (
-                          <option key={p.pattern} value={p.pattern}>{p.label}</option>
-                        ))}
-                      </select>
+                  {/* Derived Pattern Display (read-only info) */}
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <i className="fas fa-info-circle text-slate-500"></i>
+                      <span className="text-sm text-slate-600">
+                        Access Pattern: <strong className="text-slate-800">{ITEM_TYPES.find(t => t.value === formData.itemType)?.label || formData.itemType}</strong>
+                      </span>
                     </div>
-                    <div>
-                      <Label className="text-sm">Role <span className="text-destructive">*</span></Label>
-                      <select
-                        className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
-                        value={formData.role}
-                        onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                      >
-                        {selectedPatternRoles.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
+                    <p className="text-xs text-slate-500 mt-1">Pattern is automatically determined by the Item Type selected above</p>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm">Role Template <span className="text-destructive">*</span></Label>
+                    <select
+                      className="w-full mt-1 border border-input rounded-md px-3 py-2 bg-background text-sm"
+                      value={formData.role}
+                      onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                    >
+                      <option value="">Select a role...</option>
+                      {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">The permission level to request from the client</p>
                   </div>
 
                   <div>
