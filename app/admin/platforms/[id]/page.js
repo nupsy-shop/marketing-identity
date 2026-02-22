@@ -59,11 +59,9 @@ export default function PlatformConfigPage() {
       role: '',
       notes: '',
       // Pattern is now derived from itemType (no accessPattern field)
-      // Identity taxonomy for Named Invite
+      // Identity taxonomy for Named Invite (CLIENT_DEDICATED moved to PAM only)
       identityPurpose: IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
-      humanIdentityStrategy: HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED,
-      clientDedicatedIdentityType: CLIENT_DEDICATED_IDENTITY_TYPE.GROUP,
-      namingTemplate: '{clientSlug}-{platformKey}@youragency.com',
+      humanIdentityStrategy: HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP,
       agencyGroupEmail: '',
       // Integration reference
       integrationIdentityId: '',
@@ -72,6 +70,9 @@ export default function PlatformConfigPage() {
       businessManagerId: '',
       businessCenterId: '',
       seatId: '',
+      // Group-based service account
+      serviceAccountEmail: '',
+      ssoGroupName: '',
       // Validation
       validationMethod: 'ATTESTATION',
       // PAM fields
