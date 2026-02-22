@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 
 function ItemTypeBadge({ item }) {
   if (item.itemType === 'SHARED_ACCOUNT_PAM') {
-    const isClientOwned = item.pamOwnership === 'CLIENT_OWNED';
+    const isClientOwned = item.pamOwnership === 'CLIENT_OWNED' || item.pamConfig?.ownership === 'CLIENT_OWNED';
     return (
       <Badge className={`text-xs ${isClientOwned ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
         <i className="fas fa-shield-halved mr-1"></i>
@@ -50,14 +50,146 @@ function formatAgencyDataKey(key) {
   return labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 }
 
+// ── Dynamic Field Renderer ────────────────────────────────────────────────────
+
+function DynamicField({ field, value, onChange, error }) {
+  const handleChange = (newValue) => {
+    onChange(field.name, newValue);
+  };
+
+  // Text input
+  if (field.type === 'text') {
+    return (
+      <div className="space-y-1">
+        <Label className="text-sm">
+          {field.label}
+          {field.required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+        <Input
+          value={value || ''}
+          onChange={(e) => handleChange(e.target.value)}
+          placeholder={field.placeholder}
+          className={error ? 'border-destructive' : ''}
+        />
+        {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  // Multi-text input (for arrays like multiple ad accounts)
+  if (field.type === 'multi-text') {
+    const values = Array.isArray(value) ? value : (value ? [value] : ['']);
+    
+    const addValue = () => handleChange([...values, '']);
+    const removeValue = (idx) => handleChange(values.filter((_, i) => i !== idx));
+    const updateValue = (idx, newVal) => {
+      const updated = [...values];
+      updated[idx] = newVal;
+      handleChange(updated);
+    };
+
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm">
+          {field.label}
+          {field.required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+        {values.map((v, idx) => (
+          <div key={idx} className="flex gap-2">
+            <Input
+              value={v}
+              onChange={(e) => updateValue(idx, e.target.value)}
+              placeholder={field.placeholder}
+              className={error ? 'border-destructive' : ''}
+            />
+            {values.length > 1 && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeValue(idx)}>
+                <i className="fas fa-times text-muted-foreground"></i>
+              </Button>
+            )}
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" onClick={addValue}>
+          <i className="fas fa-plus mr-1"></i>Add Another
+        </Button>
+        {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  // Select dropdown
+  if (field.type === 'select') {
+    return (
+      <div className="space-y-1">
+        <Label className="text-sm">
+          {field.label}
+          {field.required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+        <select
+          value={value || field.defaultValue || ''}
+          onChange={(e) => handleChange(e.target.value)}
+          className={`w-full border rounded-md px-3 py-2 text-sm bg-background ${error ? 'border-destructive' : 'border-input'}`}
+        >
+          <option value="">Select...</option>
+          {field.options?.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  // Checkbox group (multi-select)
+  if (field.type === 'checkbox-group') {
+    const selected = Array.isArray(value) ? value : [];
+
+    const toggleOption = (optValue) => {
+      if (selected.includes(optValue)) {
+        handleChange(selected.filter(v => v !== optValue));
+      } else {
+        handleChange([...selected, optValue]);
+      }
+    };
+
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm">
+          {field.label}
+          {field.required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
+          {field.options?.map(opt => (
+            <label key={opt.value} className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-muted/50">
+              <Checkbox
+                checked={selected.includes(opt.value)}
+                onCheckedChange={() => toggleOption(opt.value)}
+              />
+              <span className="text-sm">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+        {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ── Onboarding Step Components ────────────────────────────────────────────────
 
-// Standard step with Excel instructions + asset selection
-function StandardStep({ item, platform, token, onComplete }) {
+// Standard step with dynamic asset fields + instructions
+function StandardStep({ item, platform, token, onComplete, assetFields }) {
   const { toast } = useToast();
   const [done, setDone] = useState(item.status === 'validated');
-  const [clientProvidedTarget, setClientProvidedTarget] = useState({});
+  const [clientProvidedTarget, setClientProvidedTarget] = useState(item.clientProvidedTarget || {});
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   // Get agency data to display
   const agencyData = item.agencyData || {};
@@ -66,49 +198,13 @@ function StandardStep({ item, platform, token, onComplete }) {
   // Resolved identity to show (computed server-side)
   const resolvedIdentity = item.resolvedIdentity || item.agencyData?.agencyEmail || item.agencyGroupEmail;
 
-  // Check if asset selection is needed based on instructions
-  const instructions = item.clientInstructions || '';
-  const needsAssetSelection = instructions.toLowerCase().includes('select') || 
-    instructions.toLowerCase().includes('choose') ||
-    instructions.toLowerCase().includes('property id') ||
-    instructions.toLowerCase().includes('container');
-
-  // Determine what asset fields to show based on platform
-  const platformName = platform?.name?.toLowerCase() || '';
-  const getAssetFields = () => {
-    const fields = [];
-    
-    if (platformName.includes('analytics') || platformName.includes('ga4')) {
-      fields.push({ name: 'propertyId', label: 'GA4 Property ID', placeholder: 'e.g., 123456789', required: true, helpText: 'Find this in GA4 Admin → Property Settings' });
+  const handleFieldChange = (name, value) => {
+    setClientProvidedTarget(prev => ({ ...prev, [name]: value }));
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
     }
-    if (platformName.includes('search console')) {
-      fields.push({ name: 'propertyUrl', label: 'Search Console Property URL', placeholder: 'e.g., https://example.com', required: true, helpText: 'Enter the exact property URL' });
-    }
-    if (platformName.includes('tag manager') || platformName.includes('gtm')) {
-      fields.push({ name: 'containerId', label: 'GTM Container ID', placeholder: 'e.g., GTM-XXXXXX', required: true, helpText: 'Find this in GTM Admin' });
-    }
-    if (platformName.includes('meta') || platformName.includes('facebook')) {
-      fields.push({ name: 'assetsShared', label: 'Assets Shared', placeholder: 'e.g., Ad Account #12345, Page', required: false, helpText: 'List the assets you shared access to' });
-    }
-    if (platformName.includes('merchant center')) {
-      fields.push({ name: 'merchantId', label: 'Merchant Center ID', placeholder: 'e.g., 123456789', required: true });
-    }
-    if (platformName.includes('looker') || platformName.includes('data studio')) {
-      fields.push({ name: 'reportUrl', label: 'Report URL Shared', placeholder: 'https://lookerstudio.google.com/...', required: false });
-    }
-    if (platformName.includes('power bi')) {
-      fields.push({ name: 'workspaceName', label: 'Workspace Name', placeholder: 'Name of the shared workspace', required: false });
-    }
-    
-    // Default fallback if no specific fields
-    if (fields.length === 0 && needsAssetSelection) {
-      fields.push({ name: 'assetIdentifier', label: 'Asset/Account Shared', placeholder: 'Account ID or asset name', required: false, helpText: 'Provide details about what you shared access to' });
-    }
-    
-    return fields;
   };
-
-  const assetFields = getAssetFields();
 
   // Parse instruction text into steps
   const parseInstructions = (text) => {
@@ -129,12 +225,6 @@ function StandardStep({ item, platform, token, onComplete }) {
     if (agencyData.businessManagerId) {
       processedText = processedText.replace(/your business manager/gi, `Business Manager ID: ${agencyData.businessManagerId}`);
     }
-    if (agencyData.businessCenterId) {
-      processedText = processedText.replace(/business center id/gi, `Business Center ID: ${agencyData.businessCenterId}`);
-    }
-    if (agencyData.seatId) {
-      processedText = processedText.replace(/seat id/gi, `Seat ID: ${agencyData.seatId}`);
-    }
     
     // Split into sentences as steps
     const sentences = processedText.split(/\.\s+/).filter(s => s.trim());
@@ -151,7 +241,49 @@ function StandardStep({ item, platform, token, onComplete }) {
         'Confirm when done.'
       ];
 
+  const validateFields = () => {
+    const newErrors = {};
+    let isValid = true;
+
+    for (const field of assetFields) {
+      const value = clientProvidedTarget[field.name];
+      
+      // Check required
+      if (field.required && (!value || (Array.isArray(value) && value.length === 0) || (Array.isArray(value) && value.every(v => !v)))) {
+        newErrors[field.name] = `${field.label} is required`;
+        isValid = false;
+        continue;
+      }
+      
+      // Check validation pattern
+      if (value && field.validation?.pattern) {
+        const regex = new RegExp(field.validation.pattern);
+        if (Array.isArray(value)) {
+          for (const v of value) {
+            if (v && !regex.test(v)) {
+              newErrors[field.name] = field.validation.message || 'Invalid format';
+              isValid = false;
+              break;
+            }
+          }
+        } else if (!regex.test(value)) {
+          newErrors[field.name] = field.validation.message || 'Invalid format';
+          isValid = false;
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
   const handleComplete = async () => {
+    // Validate asset fields if any
+    if (assetFields.length > 0 && !validateFields()) {
+      toast({ title: 'Validation Error', description: 'Please fill in all required fields correctly', variant: 'destructive' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -184,6 +316,14 @@ function StandardStep({ item, platform, token, onComplete }) {
       <div className="text-center py-6">
         <i className="fas fa-check-circle text-4xl text-green-500 mb-3 block"></i>
         <p className="font-semibold text-green-700">Step completed!</p>
+        {item.clientProvidedTarget && Object.keys(item.clientProvidedTarget).length > 0 && (
+          <div className="mt-3 text-left p-3 bg-gray-50 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-2">Assets selected:</p>
+            {Object.entries(item.clientProvidedTarget).map(([k, v]) => (
+              <p key={k} className="text-sm"><strong>{k}:</strong> {Array.isArray(v) ? v.join(', ') : v}</p>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -200,8 +340,8 @@ function StandardStep({ item, platform, token, onComplete }) {
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
               <i className="fas fa-envelope text-green-600"></i>
             </div>
-            <div className="flex-1">
-              <p className="font-mono font-semibold text-sm">{resolvedIdentity}</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-mono font-semibold text-sm truncate">{resolvedIdentity}</p>
               <p className="text-xs text-muted-foreground">Role: <strong>{item.role}</strong></p>
             </div>
             <Button
@@ -218,100 +358,87 @@ function StandardStep({ item, platform, token, onComplete }) {
         </div>
       )}
 
-      {/* Agency Data Display */}
+      {/* Agency data (MCC ID, BM ID, etc.) */}
       {hasAgencyData && (
-        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-          <p className="text-sm font-semibold text-blue-900 mb-3">
-            <i className="fas fa-id-card mr-2"></i>Agency Information to Use
+        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+          <p className="text-sm font-semibold text-gray-800 mb-2">
+            <i className="fas fa-id-card mr-2"></i>Agency Information
           </p>
           <div className="space-y-2">
-            {Object.entries(agencyData).filter(([k, v]) => v).map(([key, value]) => (
-              <div key={key} className="flex items-center gap-3 p-2 bg-white rounded border border-blue-200">
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">{formatAgencyDataKey(key)}</p>
-                  <p className="font-mono text-sm font-medium">{value}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8"
-                  onClick={() => {
-                    navigator.clipboard.writeText(value);
-                    toast({ title: 'Copied!', description: `${formatAgencyDataKey(key)} copied to clipboard` });
-                  }}
-                >
-                  <i className="fas fa-copy mr-1"></i>Copy
-                </Button>
+            {Object.entries(agencyData).filter(([_, v]) => v).map(([key, val]) => (
+              <div key={key} className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">{formatAgencyDataKey(key)}:</span>
+                <span className="font-mono font-medium">{val}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Instructions */}
-      <div>
-        <p className="text-sm font-semibold mb-3">
+      {/* Step-by-step instructions */}
+      <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+        <p className="text-sm font-semibold text-blue-900 mb-3">
           <i className="fas fa-list-check mr-2"></i>Steps to Complete
         </p>
-        <ol className="space-y-3">
-          {steps.map((step, i) => (
-            <li key={i} className="flex gap-3">
-              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
-              <p className="text-sm text-foreground">{step}</p>
+        <ol className="space-y-2">
+          {steps.map((step, idx) => (
+            <li key={idx} className="flex gap-3 text-sm text-blue-800">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-semibold">{idx + 1}</span>
+              <span className="pt-0.5">{step}</span>
             </li>
           ))}
         </ol>
       </div>
 
-      {/* Asset Collection Fields */}
+      {/* Dynamic Asset Fields (from client-asset-fields.js) */}
       {assetFields.length > 0 && (
-        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-          <p className="text-sm font-semibold text-amber-900 mb-3">
-            <i className="fas fa-cube mr-2"></i>Asset Details
+        <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+          <p className="text-sm font-semibold text-purple-900 mb-3">
+            <i className="fas fa-database mr-2"></i>Your Account Information
           </p>
-          <p className="text-xs text-amber-700 mb-3">
-            Please provide details about the specific asset(s) you're granting access to.
-          </p>
-          <div className="space-y-3">
+          <p className="text-xs text-purple-700 mb-4">Please provide details about the assets you're granting access to:</p>
+          <div className="space-y-4">
             {assetFields.map(field => (
-              <div key={field.name}>
-                <Label className="text-sm">{field.label}{field.required && <span className="text-destructive ml-1">*</span>}</Label>
-                <Input
-                  placeholder={field.placeholder}
-                  value={clientProvidedTarget[field.name] || ''}
-                  onChange={e => setClientProvidedTarget(prev => ({ ...prev, [field.name]: e.target.value }))}
-                  className="mt-1 bg-white"
-                />
-                {field.helpText && <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>}
-              </div>
+              <DynamicField
+                key={field.name}
+                field={field}
+                value={clientProvidedTarget[field.name]}
+                onChange={handleFieldChange}
+                error={errors[field.name]}
+              />
             ))}
           </div>
         </div>
       )}
 
+      {/* Confirm button */}
       <Button onClick={handleComplete} disabled={submitting} className="w-full">
-        {submitting ? (
-          <><i className="fas fa-spinner fa-spin mr-2"></i>Confirming...</>
-        ) : (
-          <><i className="fas fa-check mr-2"></i>I've completed this step</>
-        )}
+        {submitting ? <><i className="fas fa-spinner fa-spin mr-2"></i>Confirming...</>
+          : <><i className="fas fa-check mr-2"></i>I've Completed This Step</>}
       </Button>
     </div>
   );
 }
 
 // SHARED_ACCOUNT_PAM + CLIENT_OWNED → collect credentials
-function PamClientOwnedStep({ item, platform, token, onComplete }) {
+function PamClientOwnedStep({ item, platform, token, onComplete, assetFields }) {
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [clientProvidedTarget, setClientProvidedTarget] = useState(item.clientProvidedTarget || {});
+  const [errors, setErrors] = useState({});
   const done = item.status === 'validated';
 
   // Get instructions from Excel if available
   const instructions = item.clientInstructions || 
     'Create a dedicated agency login for the platform. This improves security and makes access easier to revoke.';
+
+  const handleFieldChange = (name, value) => {
+    setClientProvidedTarget(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+  };
 
   const handleSubmit = async () => {
     if (!username || !password) {
@@ -323,7 +450,11 @@ function PamClientOwnedStep({ item, platform, token, onComplete }) {
       const res = await fetch(`/api/onboarding/${token}/items/${item.id}/submit-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ 
+          username, 
+          password,
+          clientProvidedTarget: Object.keys(clientProvidedTarget).length > 0 ? clientProvidedTarget : undefined
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -362,7 +493,7 @@ function PamClientOwnedStep({ item, platform, token, onComplete }) {
       </div>
 
       {/* Instructions from Excel */}
-      {instructions && instructions !== item.clientInstructions && (
+      {instructions && (
         <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm">
           <p className="font-medium text-gray-800 mb-1">Instructions</p>
           <p className="text-gray-700">{instructions}</p>
@@ -373,6 +504,26 @@ function PamClientOwnedStep({ item, platform, token, onComplete }) {
         <p className="font-medium text-blue-800 mb-1">What happens to these credentials?</p>
         <p className="text-blue-700">They are encrypted and stored in our secure vault. Your agency uses them only when needed, under a timed checkout policy, and they can be rotated at any time.</p>
       </div>
+
+      {/* Dynamic Asset Fields */}
+      {assetFields.length > 0 && (
+        <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+          <p className="text-sm font-semibold text-purple-900 mb-3">
+            <i className="fas fa-database mr-2"></i>Account Information
+          </p>
+          <div className="space-y-4">
+            {assetFields.map(field => (
+              <DynamicField
+                key={field.name}
+                field={field}
+                value={clientProvidedTarget[field.name]}
+                onChange={handleFieldChange}
+                error={errors[field.name]}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         <div>
@@ -400,42 +551,44 @@ function PamClientOwnedStep({ item, platform, token, onComplete }) {
             />
             <button
               type="button"
-              onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
             >
-              <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+              <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
             </button>
           </div>
         </div>
       </div>
 
-      <Button onClick={handleSubmit} disabled={submitting} className="w-full">
-        {submitting ? <><i className="fas fa-spinner fa-spin mr-2"></i>Submitting...</>
+      <Button onClick={handleSubmit} disabled={submitting || !username || !password} className="w-full">
+        {submitting ? <><i className="fas fa-spinner fa-spin mr-2"></i>Encrypting &amp; Storing...</>
           : <><i className="fas fa-lock mr-2"></i>Submit Credentials Securely</>}
       </Button>
     </div>
   );
 }
 
-// SHARED_ACCOUNT_PAM + AGENCY_OWNED → invite instructions + attestation
-function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
+// SHARED_ACCOUNT_PAM + AGENCY_OWNED → invite agency identity
+function PamAgencyOwnedStep({ item, platform, token, onComplete, assetFields }) {
   const { toast } = useToast();
   const [attestChecked, setAttestChecked] = useState(false);
   const [attestText, setAttestText] = useState('');
   const [evidenceFile, setEvidenceFile] = useState(null);
-  const [evidenceB64, setEvidenceB64] = useState('');
-  const [assetType, setAssetType] = useState('');
-  const [assetId, setAssetId] = useState('');
+  const [evidenceB64, setEvidenceB64] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [clientProvidedTarget, setClientProvidedTarget] = useState(item.clientProvidedTarget || {});
+  const [errors, setErrors] = useState({});
   const done = item.status === 'validated';
 
   // Get agency data
   const agencyData = item.agencyData || {};
+  const pamAgencyEmail = item.resolvedIdentity || item.pamAgencyIdentityEmail || item.pamConfig?.agencyIdentityEmail;
+  const pamRole = item.pamRoleTemplate || item.pamConfig?.roleTemplate || item.role;
 
-  // Check if asset selection is needed
-  const instructions = item.clientInstructions || '';
-  const needsAssetSelection = instructions.toLowerCase().includes('select') || 
-    instructions.toLowerCase().includes('choose assets');
+  const handleFieldChange = (name, value) => {
+    setClientProvidedTarget(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -457,11 +610,10 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          attestationText: attestText || `Client confirmed: added ${item.pamAgencyIdentityEmail} with role ${item.pamRoleTemplate}`,
+          attestationText: attestText || `Client confirmed: added ${pamAgencyEmail} with role ${pamRole}`,
           evidenceBase64: evidenceB64 || undefined,
           evidenceFileName: evidenceFile?.name || undefined,
-          assetType: assetType || undefined,
-          assetId: assetId || undefined
+          clientProvidedTarget: Object.keys(clientProvidedTarget).length > 0 ? clientProvidedTarget : undefined
         })
       });
       const data = await res.json();
@@ -494,8 +646,8 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
         `Log in to your ${platform?.name || 'platform'} account.`,
         `Navigate to Settings → Users / Permissions (or similar).`,
         `Click "Add User", "Invite User", or "Add team member".`,
-        `Enter the email: ${item.pamAgencyIdentityEmail}`,
-        `Assign the role: ${item.pamRoleTemplate || item.role}`,
+        `Enter the email: ${pamAgencyEmail}`,
+        `Assign the role: ${pamRole}`,
         'Save and confirm the invitation.'
       ];
 
@@ -509,14 +661,14 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
             <i className="fas fa-user-shield text-blue-600"></i>
           </div>
           <div className="flex-1">
-            <p className="font-mono font-semibold text-sm">{item.pamAgencyIdentityEmail}</p>
-            <p className="text-xs text-muted-foreground">Role to assign: <strong>{item.pamRoleTemplate || item.role}</strong></p>
+            <p className="font-mono font-semibold text-sm">{pamAgencyEmail}</p>
+            <p className="text-xs text-muted-foreground">Role to assign: <strong>{pamRole}</strong></p>
           </div>
           <Button
             size="sm"
             variant="outline"
             onClick={() => {
-              navigator.clipboard.writeText(item.pamAgencyIdentityEmail || '');
+              navigator.clipboard.writeText(pamAgencyEmail || '');
               toast({ title: 'Copied!', description: 'Email copied to clipboard' });
             }}
           >
@@ -528,12 +680,12 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
       {/* Additional agency data if present */}
       {Object.keys(agencyData).filter(k => agencyData[k]).length > 0 && (
         <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-          <p className="text-sm font-semibold text-gray-900 mb-2">Additional Agency Information</p>
-          <div className="space-y-2">
-            {Object.entries(agencyData).filter(([k, v]) => v).map(([key, value]) => (
-              <div key={key} className="flex justify-between items-center text-sm">
+          <p className="text-sm font-semibold mb-2"><i className="fas fa-info-circle mr-2"></i>Additional Information</p>
+          <div className="space-y-1 text-sm">
+            {Object.entries(agencyData).filter(([_, v]) => v).map(([key, val]) => (
+              <div key={key} className="flex justify-between">
                 <span className="text-muted-foreground">{formatAgencyDataKey(key)}:</span>
-                <span className="font-mono font-medium">{value}</span>
+                <span className="font-mono">{val}</span>
               </div>
             ))}
           </div>
@@ -541,63 +693,48 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
       )}
 
       {/* Step-by-step instructions */}
-      <div>
-        <p className="text-sm font-semibold mb-2">How to add this user</p>
+      <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+        <p className="text-sm font-semibold text-green-900 mb-3"><i className="fas fa-list-check mr-2"></i>Steps to Complete</p>
         <ol className="space-y-2">
-          {instructionSteps.map((step, i) => (
-            <li key={i} className="flex gap-3">
-              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
-              <p className="text-sm">{step}</p>
+          {instructionSteps.map((step, idx) => (
+            <li key={idx} className="flex gap-3 text-sm text-green-800">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-200 text-green-700 flex items-center justify-center text-xs font-semibold">{idx + 1}</span>
+              <span className="pt-0.5">{step}</span>
             </li>
           ))}
         </ol>
       </div>
 
-      {/* Asset Selection (if needed) */}
-      {needsAssetSelection && (
-        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-          <p className="text-sm font-semibold text-amber-900 mb-3">
-            <i className="fas fa-cube mr-2"></i>Asset Selection
+      {/* Dynamic Asset Fields */}
+      {assetFields.length > 0 && (
+        <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
+          <p className="text-sm font-semibold text-purple-900 mb-3">
+            <i className="fas fa-database mr-2"></i>Account Information
           </p>
-          <p className="text-xs text-amber-700 mb-3">
-            Select which assets (Ad Accounts, Pages, Properties, etc.) you're sharing access to.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm">Asset Type</Label>
-              <Input
-                placeholder="e.g., Ad Account, Page, Pixel"
-                value={assetType}
-                onChange={e => setAssetType(e.target.value)}
-                className="mt-1"
+          <div className="space-y-4">
+            {assetFields.map(field => (
+              <DynamicField
+                key={field.name}
+                field={field}
+                value={clientProvidedTarget[field.name]}
+                onChange={handleFieldChange}
+                error={errors[field.name]}
               />
-            </div>
-            <div>
-              <Label className="text-sm">Asset ID / Name</Label>
-              <Input
-                placeholder="e.g., 123456789"
-                value={assetId}
-                onChange={e => setAssetId(e.target.value)}
-                className="mt-1"
-              />
-            </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Verification section */}
-      <div className="border rounded-lg p-4 space-y-4">
-        <p className="text-sm font-semibold">Verify access was granted</p>
-
+      {/* Attestation */}
+      <div className="space-y-4 pt-4 border-t">
         <div className="flex items-start gap-3">
           <Checkbox
             id="attest"
             checked={attestChecked}
-            onCheckedChange={v => setAttestChecked(v)}
-            className="mt-0.5"
+            onCheckedChange={setAttestChecked}
           />
-          <label htmlFor="attest" className="text-sm cursor-pointer">
-            I confirm I have added <strong>{item.pamAgencyIdentityEmail}</strong> to my {platform?.name} account with the <strong>{item.pamRoleTemplate || item.role}</strong> role.
+          <label htmlFor="attest" className="text-sm leading-relaxed cursor-pointer">
+            I confirm I have added <strong>{pamAgencyEmail}</strong> to my {platform?.name} account with the <strong>{pamRole}</strong> role.
           </label>
         </div>
 
@@ -634,6 +771,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState(null);
+  const [assetFieldsMap, setAssetFieldsMap] = useState({});
 
   useEffect(() => {
     if (params.token) loadData();
@@ -648,6 +786,25 @@ export default function OnboardingPage() {
         // Start at first incomplete item
         const firstIncomplete = result.data.items?.findIndex(i => i.status !== 'validated');
         setActiveStep(firstIncomplete === -1 ? 0 : firstIncomplete);
+        
+        // Fetch asset fields for each platform/itemType combo
+        const fieldsMap = {};
+        for (const item of result.data.items || []) {
+          const platform = item.platform;
+          if (platform) {
+            const key = `${platform.id}-${item.itemType}`;
+            if (!fieldsMap[key]) {
+              try {
+                const fieldsRes = await fetch(`/api/client-asset-fields?platformName=${encodeURIComponent(platform.name)}&itemType=${item.itemType}`);
+                const fieldsData = await fieldsRes.json();
+                fieldsMap[key] = fieldsData.success ? fieldsData.fields : [];
+              } catch {
+                fieldsMap[key] = [];
+              }
+            }
+          }
+        }
+        setAssetFieldsMap(fieldsMap);
       } else {
         setError(result.error || 'Invalid link');
       }
@@ -660,6 +817,12 @@ export default function OnboardingPage() {
 
   const handleStepComplete = () => {
     loadData(); // re-fetch to get updated statuses
+  };
+
+  const getAssetFieldsForItem = (item) => {
+    if (!item.platform) return [];
+    const key = `${item.platform.id}-${item.itemType}`;
+    return assetFieldsMap[key] || [];
   };
 
   if (loading) {
@@ -699,123 +862,120 @@ export default function OnboardingPage() {
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
               <i className="fas fa-check-circle text-5xl text-green-500"></i>
             </div>
-            <h2 className="text-2xl font-bold mb-2">All done!</h2>
-            <p className="text-muted-foreground mb-6">
-              You've completed all {items.length} access grant{items.length !== 1 ? 's' : ''}. Your agency can now start work.
-            </p>
-            <Badge className="bg-green-100 text-green-700 border-green-200 text-sm px-4 py-2">
-              {validatedCount}/{items.length} completed
-            </Badge>
+            <h2 className="text-2xl font-bold text-green-800 mb-2">All Done!</h2>
+            <p className="text-green-700 mb-4">Your onboarding is complete. Your agency now has the access they need.</p>
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <p className="text-sm text-green-800">
+                <i className="fas fa-shield-check mr-2"></i>
+                {items.length} platform{items.length !== 1 ? 's' : ''} configured successfully
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <header className="border-b bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold">Platform Access Setup</h1>
-              <p className="text-sm text-muted-foreground">Welcome, {client?.name}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{validatedCount}/{items.length} complete</span>
-              <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{ width: `${items.length > 0 ? (validatedCount / items.length) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+  const currentItem = items[activeStep];
+  const currentPlatform = currentItem?.platform;
 
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">Grant Platform Access</h2>
+  // Determine which step component to render
+  const renderStep = () => {
+    if (!currentItem) return null;
+
+    const assetFields = getAssetFieldsForItem(currentItem);
+    const isPamClientOwned = currentItem.itemType === 'SHARED_ACCOUNT_PAM' && 
+      (currentItem.pamOwnership === 'CLIENT_OWNED' || currentItem.pamConfig?.ownership === 'CLIENT_OWNED');
+    const isPamAgencyOwned = currentItem.itemType === 'SHARED_ACCOUNT_PAM' && 
+      (currentItem.pamOwnership === 'AGENCY_OWNED' || currentItem.pamConfig?.ownership === 'AGENCY_OWNED');
+
+    if (isPamClientOwned) {
+      return <PamClientOwnedStep item={currentItem} platform={currentPlatform} token={params.token} onComplete={handleStepComplete} assetFields={assetFields} />;
+    }
+    if (isPamAgencyOwned) {
+      return <PamAgencyOwnedStep item={currentItem} platform={currentPlatform} token={params.token} onComplete={handleStepComplete} assetFields={assetFields} />;
+    }
+    return <StandardStep item={currentItem} platform={currentPlatform} token={params.token} onComplete={handleStepComplete} assetFields={assetFields} />;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <i className="fas fa-rocket mr-2 text-primary"></i>
+            Access Onboarding
+          </h1>
           <p className="text-muted-foreground">
-            Your agency needs access to the following platforms. Complete each step to grant the required access.
+            Hi <strong>{client?.name || 'there'}</strong>! Let's set up access for your agency.
           </p>
         </div>
 
-        {/* Step list */}
-        <div className="space-y-4">
-          {items.map((item, idx) => {
-            // Platform is already embedded in each item from the API
-            const platform = item.platform;
-            const isActive = idx === activeStep;
-            const isDone = item.status === 'validated';
-            const isPam = item.itemType === 'SHARED_ACCOUNT_PAM';
+        {/* Progress */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium">Progress</span>
+            <span className="text-sm text-muted-foreground">{validatedCount} of {items.length} complete</span>
+          </div>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-primary transition-all duration-500" 
+              style={{ width: `${items.length ? (validatedCount / items.length) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
 
-            return (
-              <Card
-                key={item.id}
-                className={`transition-all border-2 ${isDone ? 'border-green-200' : isActive ? 'border-primary shadow-md' : 'border-border opacity-80'}`}
-              >
-                {/* Step header */}
-                <CardHeader
-                  className="pb-3 cursor-pointer"
-                  onClick={() => !isDone && setActiveStep(idx)}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isDone ? 'bg-green-100 text-green-600' : isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                      {isDone ? <i className="fas fa-check"></i> : idx + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {platform?.iconName && (
-                          <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                            <i className={`${platform.iconName} text-xs text-primary`}></i>
-                          </div>
-                        )}
-                        <CardTitle className="text-base">{item.assetName || platform?.name || 'Platform Access'}</CardTitle>
-                        <ItemTypeBadge item={item} />
-                        <StatusBadge status={item.status} />
-                      </div>
-                      <CardDescription className="text-xs mt-0.5">
-                        {platform?.name} • {item.accessPattern} • Role: {item.role}
-                        {item.selectedAssetType && ` • ${item.selectedAssetType}${item.selectedAssetId ? ` #${item.selectedAssetId}` : ''}`}
-                      </CardDescription>
-                    </div>
-                    <i className={`fas fa-chevron-${isActive && !isDone ? 'up' : 'down'} text-muted-foreground`}></i>
-                  </div>
-                </CardHeader>
+        {/* Step Tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {items.map((item, idx) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveStep(idx)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                idx === activeStep 
+                  ? 'bg-primary text-primary-foreground' 
+                  : item.status === 'validated'
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              {item.status === 'validated' && <i className="fas fa-check text-xs"></i>}
+              {item.platform?.name || `Step ${idx + 1}`}
+            </button>
+          ))}
+        </div>
 
-                {/* Step body — only when active and not done */}
-                {isActive && !isDone && (
-                  <CardContent className="border-t pt-5">
-                    {isPam && item.pamOwnership === 'CLIENT_OWNED' ? (
-                      <PamClientOwnedStep
-                        item={item}
-                        platform={platform}
-                        token={params.token}
-                        onComplete={handleStepComplete}
-                      />
-                    ) : isPam && item.pamOwnership === 'AGENCY_OWNED' ? (
-                      <PamAgencyOwnedStep
-                        item={item}
-                        platform={platform}
-                        token={params.token}
-                        onComplete={handleStepComplete}
-                      />
-                    ) : (
-                      <StandardStep
-                        item={item}
-                        platform={platform}
-                        token={params.token}
-                        onComplete={handleStepComplete}
-                      />
-                    )}
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
+        {/* Current Step Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {currentPlatform?.icon && <i className={`${currentPlatform.icon} text-primary`}></i>}
+                  {currentPlatform?.name || 'Platform Access'}
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {currentItem?.label} • {currentItem?.role}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusBadge status={currentItem?.status} />
+                <ItemTypeBadge item={currentItem || {}} />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {renderStep()}
+          </CardContent>
+        </Card>
+
+        {/* Help */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-muted-foreground">
+            <i className="fas fa-question-circle mr-1"></i>
+            Need help? Contact your agency for assistance.
+          </p>
         </div>
       </div>
     </div>
