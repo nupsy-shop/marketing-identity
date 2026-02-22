@@ -235,8 +235,16 @@ export async function POST(request, { params }) {
         integrationIdentityId, agencyData, pamConfig, validationMethod
       } = body || {};
 
-      // Derive pattern from itemType
+      // Derive pattern from itemType - use proper pattern label
       const derivedPattern = ITEM_TYPE_TO_PATTERN[itemType] || itemType;
+      const itemTypeLabels = {
+        'NAMED_INVITE': 'Named Invite',
+        'PARTNER_DELEGATION': 'Partner Delegation',
+        'GROUP_ACCESS': 'Group / Service Account',
+        'PROXY_TOKEN': 'API / Integration Token',
+        'SHARED_ACCOUNT_PAM': 'Shared Account (PAM)'
+      };
+      const patternLabel = itemTypeLabels[itemType] || derivedPattern;
 
       if (!itemType || !label || !role) {
         return NextResponse.json({ success: false, error: 'itemType, label and role are required' }, { status: 400 });
@@ -251,11 +259,12 @@ export async function POST(request, { params }) {
         }, { status: 400 });
       }
 
-      // Validate Named Invite - CLIENT_DEDICATED not allowed
-      if (itemType === 'NAMED_INVITE' && humanIdentityStrategy === 'CLIENT_DEDICATED') {
+      // Run comprehensive validation with platform context
+      const validation = validateAccessItemPayload(body, platform?.name || '');
+      if (!validation.valid) {
         return NextResponse.json({
           success: false,
-          error: 'CLIENT_DEDICATED identity strategy is not allowed for Named Invite items.'
+          error: validation.errors.join(' ')
         }, { status: 400 });
       }
 
@@ -263,7 +272,7 @@ export async function POST(request, { params }) {
         id: uuidv4(),
         itemType,
         accessPattern: derivedPattern,
-        patternLabel: derivedPattern,
+        patternLabel: patternLabel,
         label,
         role,
         notes,
