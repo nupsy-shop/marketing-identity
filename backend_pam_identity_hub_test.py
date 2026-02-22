@@ -591,78 +591,102 @@ class PAMIdentityHubTester:
         print("\n=== Test 7: Access Pattern Read-Only ===")
         
         try:
-            # Create agency platform
+            # Create agency platform with Google Ads for PARTNER_DELEGATION test
             status, resp = self.make_request('POST', 'agency/platforms', {
-                'platformId': self.platform_ids['ga4']
+                'platformId': self.platform_ids['google_ads']
             })
             
             if status in [200, 201]:
-                agency_platform_id = resp['data']['id']
-                self.created_agency_platforms.append(agency_platform_id)
+                google_ads_platform_id = resp['data']['id']
+                self.created_agency_platforms.append(google_ads_platform_id)
                 
-                # Test different item types and their derived patterns
-                test_cases = [
-                    {
-                        'itemType': 'NAMED_INVITE',
-                        'expectedPattern': 'Named Invite',
-                        'accessPattern': 'HUMAN_INVITE'
-                    },
-                    {
-                        'itemType': 'PARTNER_DELEGATION', 
-                        'expectedPattern': 'Partner Delegation',
-                        'accessPattern': 'DELEGATION'
-                    },
-                    {
-                        'itemType': 'SHARED_ACCOUNT_PAM',
-                        'expectedPattern': 'Shared Account (PAM)',
-                        'accessPattern': 'PAM'
-                    }
-                ]
+                # Also create GA4 platform for other tests
+                status, resp = self.make_request('POST', 'agency/platforms', {
+                    'platformId': self.platform_ids['ga4']
+                })
                 
-                for test_case in test_cases:
-                    # Create appropriate item
-                    item_data = {
-                        'itemType': test_case['itemType'],
-                        'accessPattern': test_case['accessPattern'],
-                        'label': f"Test {test_case['itemType']}",
-                        'role': 'Admin'
-                    }
+                if status in [200, 201]:
+                    ga4_platform_id = resp['data']['id']
+                    self.created_agency_platforms.append(ga4_platform_id)
                     
-                    # Add required fields based on item type
-                    if test_case['itemType'] == 'NAMED_INVITE':
-                        item_data.update({
-                            'identityPurpose': 'HUMAN_INTERACTIVE',
-                            'humanIdentityStrategy': 'AGENCY_GROUP',
-                            'agencyGroupEmail': 'test@youragency.com'
-                        })
-                    elif test_case['itemType'] == 'SHARED_ACCOUNT_PAM':
-                        item_data.update({
-                            'pamConfig': {
-                                'ownership': 'CLIENT_OWNED'
-                            }
-                        })
+                    # Test different item types and their derived patterns
+                    test_cases = [
+                        {
+                            'itemType': 'NAMED_INVITE',
+                            'expectedPattern': 'Named Invite',
+                            'accessPattern': 'HUMAN_INVITE',
+                            'platformId': ga4_platform_id  # GA4 supports NAMED_INVITE
+                        },
+                        {
+                            'itemType': 'PARTNER_DELEGATION', 
+                            'expectedPattern': 'Partner Delegation',
+                            'accessPattern': 'DELEGATION',
+                            'platformId': google_ads_platform_id  # Google Ads supports PARTNER_DELEGATION
+                        },
+                        {
+                            'itemType': 'SHARED_ACCOUNT_PAM',
+                            'expectedPattern': 'Shared Account (PAM)',
+                            'accessPattern': 'PAM',
+                            'platformId': ga4_platform_id  # GA4 supports PAM
+                        }
+                    ]
                     
-                    status, resp = self.make_request('POST', f'agency/platforms/{agency_platform_id}/items', item_data)
-                    
-                    if status in [200, 201]:
-                        # Check if patternLabel is derived correctly
-                        items = resp['data'].get('accessItems', [])
-                        if items:
-                            last_item = items[-1]  # Get the newly created item
-                            pattern_label = last_item.get('patternLabel')
-                            
-                            if pattern_label == test_case['expectedPattern']:
-                                self.log_result(f"Access Pattern Read-Only - {test_case['itemType']}", True,
-                                              f"Pattern label correctly set to '{pattern_label}'")
+                    for test_case in test_cases:
+                        # Create appropriate item
+                        item_data = {
+                            'itemType': test_case['itemType'],
+                            'accessPattern': test_case['accessPattern'],
+                            'label': f"Test {test_case['itemType']}",
+                            'role': 'Admin'
+                        }
+                        
+                        # Add required fields based on item type
+                        if test_case['itemType'] == 'NAMED_INVITE':
+                            item_data.update({
+                                'identityPurpose': 'HUMAN_INTERACTIVE',
+                                'humanIdentityStrategy': 'AGENCY_GROUP',
+                                'agencyGroupEmail': 'test@youragency.com'
+                            })
+                        elif test_case['itemType'] == 'PARTNER_DELEGATION':
+                            item_data.update({
+                                'agencyData': {
+                                    'managerAccountId': '123-456-7890'
+                                }
+                            })
+                        elif test_case['itemType'] == 'SHARED_ACCOUNT_PAM':
+                            item_data.update({
+                                'pamConfig': {
+                                    'ownership': 'CLIENT_OWNED'
+                                }
+                            })
+                        
+                        status, resp = self.make_request('POST', f'agency/platforms/{test_case["platformId"]}/items', item_data)
+                        
+                        if status in [200, 201]:
+                            # Check if patternLabel is derived correctly
+                            items = resp['data'].get('accessItems', [])
+                            if items:
+                                last_item = items[-1]  # Get the newly created item
+                                pattern_label = last_item.get('patternLabel')
+                                
+                                if pattern_label == test_case['expectedPattern']:
+                                    self.log_result(f"Access Pattern Read-Only - {test_case['itemType']}", True,
+                                                  f"Pattern label correctly set to '{pattern_label}'")
+                                else:
+                                    self.log_result(f"Access Pattern Read-Only - {test_case['itemType']}", False,
+                                                  f"Expected '{test_case['expectedPattern']}' but got '{pattern_label}'")
                             else:
                                 self.log_result(f"Access Pattern Read-Only - {test_case['itemType']}", False,
-                                              f"Expected '{test_case['expectedPattern']}' but got '{pattern_label}'")
+                                              "No items found in response")
                         else:
                             self.log_result(f"Access Pattern Read-Only - {test_case['itemType']}", False,
-                                          "No items found in response")
-                    else:
-                        self.log_result(f"Access Pattern Read-Only - {test_case['itemType']}", False,
-                                      f"Failed to create item: {status} - {resp}")
+                                          f"Failed to create item: {status} - {resp}")
+                else:
+                    self.log_result("Access Pattern Read-Only - GA4 Platform Setup", False,
+                                  f"Failed to create GA4 agency platform: {status} - {resp}")
+            else:
+                self.log_result("Access Pattern Read-Only - Google Ads Platform Setup", False,
+                              f"Failed to create Google Ads agency platform: {status} - {resp}")
 
         except Exception as e:
             self.log_result("Access Pattern Read-Only", False, f"Exception: {str(e)}")
