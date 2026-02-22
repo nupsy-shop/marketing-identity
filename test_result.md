@@ -468,11 +468,16 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Enhanced Access Request API - New Items Structure"
-    - "Backward Compatibility - Old PlatformIds Format"
-    - "Platform API - Enhanced Filtering"
-    - "Validation API - ItemId and PlatformId Support"
-    - "Onboarding API - Enriched Platform Data"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - GET /api/agency/platforms"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - POST /api/agency/platforms"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - GET /api/agency/platforms/:id"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - POST /api/agency/platforms/:id/items"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - PUT /api/agency/platforms/:id/items/:itemId"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - PATCH /api/agency/platforms/:id/toggle"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - DELETE /api/agency/platforms/:id/items/:itemId"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - DELETE /api/agency/platforms/:id"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - End-to-End Access Request Flow"
+    - "NEW AGENCY-SCOPED ARCHITECTURE - Old Route Removal Verification"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
