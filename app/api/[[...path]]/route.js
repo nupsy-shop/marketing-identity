@@ -180,6 +180,22 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: allPamItems });
     }
 
+    // GET /api/integration-identities - List all integration identities
+    if (path === 'integration-identities') {
+      const identities = getAllIntegrationIdentities();
+      return NextResponse.json({ success: true, data: identities });
+    }
+
+    // GET /api/integration-identities/:id - Get integration identity by ID
+    if (path.match(/^integration-identities\/[^/]+$/) && !path.endsWith('/toggle')) {
+      const id = path.split('/')[1];
+      const identity = getIntegrationIdentityById(id);
+      if (!identity) {
+        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: identity });
+    }
+
     // GET /api/agency/platforms - List all agency platforms with enrichment
     if (path === 'agency/platforms') {
       const allAP = getAllAgencyPlatforms();
