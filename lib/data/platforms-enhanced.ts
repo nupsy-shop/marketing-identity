@@ -210,6 +210,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -238,6 +239,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -266,6 +268,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -294,6 +297,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -322,6 +326,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -354,6 +359,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -376,6 +382,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -398,6 +405,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -420,6 +428,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -442,6 +451,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -470,6 +480,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -498,6 +509,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -520,6 +532,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -542,6 +555,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -564,6 +578,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -586,6 +601,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -608,6 +624,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -630,6 +647,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['PARTNER_DELEGATION', 'NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '1 (Partner Hub)',
@@ -658,6 +676,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -680,6 +699,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['NAMED_INVITE'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
@@ -702,6 +722,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 2,
     clientFacing: true,
     oauthSupported: false,
+    supportedItemTypes: ['GROUP_ACCESS', 'PROXY_TOKEN'],
     accessPatterns: [
       {
         pattern: '4 (Proxy)',
