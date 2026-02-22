@@ -39,13 +39,14 @@ export default function OnboardingPage() {
     }
   };
 
-  const markAsGranted = async (platformId) => {
+  const markAsGranted = async (itemId, platformId) => {
     try {
       const response = await fetch(`/api/access-requests/${accessRequest.id}/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          platformId,
+          itemId: itemId,
+          platformId: platformId, // Fallback for backward compatibility
           notes: 'Manually confirmed by client'
         })
       });
