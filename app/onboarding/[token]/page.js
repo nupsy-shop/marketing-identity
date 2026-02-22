@@ -32,43 +32,112 @@ function StatusBadge({ status }) {
   return <Badge variant="secondary"><i className="fas fa-clock mr-1"></i>Pending</Badge>;
 }
 
+// Helper to format agency data display
+function formatAgencyDataKey(key) {
+  const labels = {
+    managerAccountId: 'Manager Account ID',
+    businessManagerId: 'Business Manager ID',
+    businessCenterId: 'Business Center ID',
+    seatId: 'Seat ID',
+    agencyEmail: 'Agency Email',
+    serviceAccountEmail: 'Service Account Email',
+    ssoGroupName: 'SSO Group Name',
+    apiKey: 'API Key',
+    verificationToken: 'Verification Token',
+    shopifyPartnerId: 'Shopify Partner ID',
+    agencyIdentity: 'Agency Identity'
+  };
+  return labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+}
+
 // ── Onboarding Step Components ────────────────────────────────────────────────
 
-// NAMED_INVITE / PARTNER_DELEGATION / GROUP_ACCESS / PROXY_TOKEN
-function StandardStep({ item, platform, onComplete }) {
+// Standard step with Excel instructions + asset selection
+function StandardStep({ item, platform, token, onComplete }) {
+  const { toast } = useToast();
   const [done, setDone] = useState(item.status === 'validated');
+  const [assetType, setAssetType] = useState('');
+  const [assetId, setAssetId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const getInstructions = () => {
-    const pat = item.accessPattern || '';
-    if (pat.includes('1 (Partner')) return [
-      `Log in to your ${platform?.name} account.`,
-      'Navigate to Settings → Business Settings or Partner Management.',
-      `Find the "Partners" or "Agency Access" section and add the agency's Business ID.`,
-      `Assign the role: ${item.role}`,
-      'Confirm the partnership request.'
-    ];
-    if (pat.includes('3 (Group')) return [
-      `Log in to your ${platform?.name} account.`,
-      `Navigate to Admin → Users / Permissions.`,
-      `Add the following group or service account: ${item.pamAgencyIdentityEmail || 'provided by your agency'}`,
-      `Assign role: ${item.role}`,
-      'Save the changes.'
-    ];
-    if (pat.includes('4 (Proxy')) return [
-      `Log in to your ${platform?.name} admin panel.`,
-      'Generate an API key or OAuth token with the permissions listed below.',
-      'Share the generated token with your agency contact.',
-      `Required scope / role: ${item.role}`
-    ];
-    // Default: Named Invite
-    return [
-      `Log in to your ${platform?.name} account.`,
-      'Navigate to Settings → Users & Permissions.',
-      `Click "Add User" or "Invite".`,
-      `Enter the agency email address provided by your account manager.`,
-      `Set the role to: ${item.role}`,
-      'Send the invitation and confirm when done.'
-    ];
+  // Get agency data to display
+  const agencyData = item.agencyData || {};
+  const hasAgencyData = Object.keys(agencyData).filter(k => agencyData[k]).length > 0;
+
+  // Check if asset selection is needed based on instructions
+  const instructions = item.clientInstructions || '';
+  const needsAssetSelection = instructions.toLowerCase().includes('select') || 
+    instructions.toLowerCase().includes('choose') ||
+    instructions.toLowerCase().includes('property id') ||
+    instructions.toLowerCase().includes('container');
+
+  // Parse instruction text into steps
+  const parseInstructions = (text) => {
+    if (!text) return [];
+    
+    // Replace agency data placeholders with actual values
+    let processedText = text;
+    if (agencyData.managerAccountId) {
+      processedText = processedText.replace(/your google ads manager account/gi, `your agency's MCC: ${agencyData.managerAccountId}`);
+      processedText = processedText.replace(/this mcc/gi, agencyData.managerAccountId);
+    }
+    if (agencyData.businessManagerId) {
+      processedText = processedText.replace(/your business manager/gi, `Business Manager ID: ${agencyData.businessManagerId}`);
+      processedText = processedText.replace(/your bm/gi, `BM ID: ${agencyData.businessManagerId}`);
+    }
+    if (agencyData.agencyEmail) {
+      processedText = processedText.replace(/the email address/gi, agencyData.agencyEmail);
+      processedText = processedText.replace(/the email of the user/gi, agencyData.agencyEmail);
+    }
+    if (agencyData.businessCenterId) {
+      processedText = processedText.replace(/business center id/gi, `Business Center ID: ${agencyData.businessCenterId}`);
+    }
+    if (agencyData.seatId) {
+      processedText = processedText.replace(/seat id/gi, `Seat ID: ${agencyData.seatId}`);
+    }
+    
+    // Split into sentences as steps
+    const sentences = processedText.split(/\.\s+/).filter(s => s.trim());
+    return sentences.map(s => s.trim().replace(/\.$/, '') + '.');
+  };
+
+  const steps = item.clientInstructions 
+    ? parseInstructions(item.clientInstructions)
+    : [
+        `Log in to your ${platform?.name || 'platform'} account.`,
+        'Navigate to Settings → Users & Permissions.',
+        'Follow your agency\'s instructions to grant access.',
+        `Set the role to: ${item.role}`,
+        'Confirm when done.'
+      ];
+
+  const handleComplete = async () => {
+    setSubmitting(true);
+    try {
+      const payload = {
+        attestationText: `Client confirmed access was granted for ${platform?.name}`,
+        assetType: assetType || undefined,
+        assetId: assetId || undefined
+      };
+
+      const res = await fetch(`/api/onboarding/${token}/items/${item.id}/attest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setDone(true);
+        onComplete();
+      } else {
+        toast({ title: 'Error', description: data.error || 'Failed to complete step', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to complete step', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (done) {
@@ -82,22 +151,95 @@ function StandardStep({ item, platform, onComplete }) {
 
   return (
     <div className="space-y-4">
-      <ol className="space-y-3">
-        {getInstructions().map((step, i) => (
-          <li key={i} className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
-            <p className="text-sm text-foreground">{step}</p>
-          </li>
-        ))}
-      </ol>
-      <Button onClick={() => { setDone(true); onComplete(); }} className="w-full">
-        <i className="fas fa-check mr-2"></i>I've completed this step
+      {/* Agency Data Display */}
+      {hasAgencyData && (
+        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <p className="text-sm font-semibold text-blue-900 mb-3">
+            <i className="fas fa-id-card mr-2"></i>Agency Information to Use
+          </p>
+          <div className="space-y-2">
+            {Object.entries(agencyData).filter(([k, v]) => v).map(([key, value]) => (
+              <div key={key} className="flex items-center gap-3 p-2 bg-white rounded border border-blue-200">
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">{formatAgencyDataKey(key)}</p>
+                  <p className="font-mono text-sm font-medium">{value}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => {
+                    navigator.clipboard.writeText(value);
+                    toast({ title: 'Copied!', description: `${formatAgencyDataKey(key)} copied to clipboard` });
+                  }}
+                >
+                  <i className="fas fa-copy mr-1"></i>Copy
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Instructions */}
+      <div>
+        <p className="text-sm font-semibold mb-3">
+          <i className="fas fa-list-check mr-2"></i>Steps to Complete
+        </p>
+        <ol className="space-y-3">
+          {steps.map((step, i) => (
+            <li key={i} className="flex gap-3">
+              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
+              <p className="text-sm text-foreground">{step}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {/* Asset Selection (if needed) */}
+      {needsAssetSelection && (
+        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+          <p className="text-sm font-semibold text-amber-900 mb-3">
+            <i className="fas fa-cube mr-2"></i>Asset Selection
+          </p>
+          <p className="text-xs text-amber-700 mb-3">
+            Please provide details about the specific asset you're granting access to.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">Asset Type</Label>
+              <Input
+                placeholder="e.g., Ad Account, Property, Container"
+                value={assetType}
+                onChange={e => setAssetType(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-sm">Asset ID / Name</Label>
+              <Input
+                placeholder="e.g., 123456789 or 'Main Website'"
+                value={assetId}
+                onChange={e => setAssetId(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Button onClick={handleComplete} disabled={submitting} className="w-full">
+        {submitting ? (
+          <><i className="fas fa-spinner fa-spin mr-2"></i>Confirming...</>
+        ) : (
+          <><i className="fas fa-check mr-2"></i>I've completed this step</>
+        )}
       </Button>
     </div>
   );
 }
 
-// SHARED_ACCOUNT_PAM + CLIENT_OWNED  → collect credentials
+// SHARED_ACCOUNT_PAM + CLIENT_OWNED → collect credentials
 function PamClientOwnedStep({ item, platform, token, onComplete }) {
   const { toast } = useToast();
   const [username, setUsername] = useState('');
@@ -105,6 +247,10 @@ function PamClientOwnedStep({ item, platform, token, onComplete }) {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const done = item.status === 'validated';
+
+  // Get instructions from Excel if available
+  const instructions = item.clientInstructions || 
+    'Create a dedicated agency login for the platform. This improves security and makes access easier to revoke.';
 
   const handleSubmit = async () => {
     if (!username || !password) {
@@ -154,6 +300,14 @@ function PamClientOwnedStep({ item, platform, token, onComplete }) {
         </div>
       </div>
 
+      {/* Instructions from Excel */}
+      {instructions && instructions !== item.clientInstructions && (
+        <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm">
+          <p className="font-medium text-gray-800 mb-1">Instructions</p>
+          <p className="text-gray-700">{instructions}</p>
+        </div>
+      )}
+
       <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm">
         <p className="font-medium text-blue-800 mb-1">What happens to these credentials?</p>
         <p className="text-blue-700">They are encrypted and stored in our secure vault. Your agency uses them only when needed, under a timed checkout policy, and they can be rotated at any time.</p>
@@ -202,15 +356,25 @@ function PamClientOwnedStep({ item, platform, token, onComplete }) {
   );
 }
 
-// SHARED_ACCOUNT_PAM + AGENCY_OWNED  → invite instructions + attestation
+// SHARED_ACCOUNT_PAM + AGENCY_OWNED → invite instructions + attestation
 function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
   const { toast } = useToast();
   const [attestChecked, setAttestChecked] = useState(false);
   const [attestText, setAttestText] = useState('');
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceB64, setEvidenceB64] = useState('');
+  const [assetType, setAssetType] = useState('');
+  const [assetId, setAssetId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const done = item.status === 'validated';
+
+  // Get agency data
+  const agencyData = item.agencyData || {};
+
+  // Check if asset selection is needed
+  const instructions = item.clientInstructions || '';
+  const needsAssetSelection = instructions.toLowerCase().includes('select') || 
+    instructions.toLowerCase().includes('choose assets');
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -234,7 +398,9 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
         body: JSON.stringify({
           attestationText: attestText || `Client confirmed: added ${item.pamAgencyIdentityEmail} with role ${item.pamRoleTemplate}`,
           evidenceBase64: evidenceB64 || undefined,
-          evidenceFileName: evidenceFile?.name || undefined
+          evidenceFileName: evidenceFile?.name || undefined,
+          assetType: assetType || undefined,
+          assetId: assetId || undefined
         })
       });
       const data = await res.json();
@@ -260,6 +426,18 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
     );
   }
 
+  // Parse instruction sentences
+  const instructionSteps = item.clientInstructions
+    ? item.clientInstructions.split(/\.\s+/).filter(s => s.trim()).map(s => s.trim().replace(/\.$/, '') + '.')
+    : [
+        `Log in to your ${platform?.name || 'platform'} account.`,
+        `Navigate to Settings → Users / Permissions (or similar).`,
+        `Click "Add User", "Invite User", or "Add team member".`,
+        `Enter the email: ${item.pamAgencyIdentityEmail}`,
+        `Assign the role: ${item.pamRoleTemplate || item.role}`,
+        'Save and confirm the invitation.'
+      ];
+
   return (
     <div className="space-y-4">
       {/* Identity to invite */}
@@ -276,25 +454,36 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => navigator.clipboard.writeText(item.pamAgencyIdentityEmail || '')}
+            onClick={() => {
+              navigator.clipboard.writeText(item.pamAgencyIdentityEmail || '');
+              toast({ title: 'Copied!', description: 'Email copied to clipboard' });
+            }}
           >
             <i className="fas fa-copy mr-1"></i>Copy
           </Button>
         </div>
       </div>
 
+      {/* Additional agency data if present */}
+      {Object.keys(agencyData).filter(k => agencyData[k]).length > 0 && (
+        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+          <p className="text-sm font-semibold text-gray-900 mb-2">Additional Agency Information</p>
+          <div className="space-y-2">
+            {Object.entries(agencyData).filter(([k, v]) => v).map(([key, value]) => (
+              <div key={key} className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">{formatAgencyDataKey(key)}:</span>
+                <span className="font-mono font-medium">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Step-by-step instructions */}
       <div>
         <p className="text-sm font-semibold mb-2">How to add this user</p>
         <ol className="space-y-2">
-          {[
-            `Log in to your ${platform?.name || 'platform'} account.`,
-            `Navigate to Settings → Users / Permissions (or similar).`,
-            `Click "Add User", "Invite User", or "Add team member".`,
-            `Enter the email: ${item.pamAgencyIdentityEmail}`,
-            `Assign the role: ${item.pamRoleTemplate || item.role}`,
-            'Save and confirm the invitation.'
-          ].map((step, i) => (
+          {instructionSteps.map((step, i) => (
             <li key={i} className="flex gap-3">
               <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
               <p className="text-sm">{step}</p>
@@ -302,6 +491,38 @@ function PamAgencyOwnedStep({ item, platform, token, onComplete }) {
           ))}
         </ol>
       </div>
+
+      {/* Asset Selection (if needed) */}
+      {needsAssetSelection && (
+        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+          <p className="text-sm font-semibold text-amber-900 mb-3">
+            <i className="fas fa-cube mr-2"></i>Asset Selection
+          </p>
+          <p className="text-xs text-amber-700 mb-3">
+            Select which assets (Ad Accounts, Pages, Properties, etc.) you're sharing access to.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">Asset Type</Label>
+              <Input
+                placeholder="e.g., Ad Account, Page, Pixel"
+                value={assetType}
+                onChange={e => setAssetType(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-sm">Asset ID / Name</Label>
+              <Input
+                placeholder="e.g., 123456789"
+                value={assetId}
+                onChange={e => setAssetId(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Verification section */}
       <div className="border rounded-lg p-4 space-y-4">
@@ -496,8 +717,8 @@ export default function OnboardingPage() {
                         <StatusBadge status={item.status} />
                       </div>
                       <CardDescription className="text-xs mt-0.5">
-                        {platform?.name} &bull; {item.accessPattern} &bull; Role: {item.role}
-                        {item.assetType && ` &bull; ${item.assetType}${item.assetId ? ` #${item.assetId}` : ''}`}
+                        {platform?.name} • {item.accessPattern} • Role: {item.role}
+                        {item.selectedAssetType && ` • ${item.selectedAssetType}${item.selectedAssetId ? ` #${item.selectedAssetId}` : ''}`}
                       </CardDescription>
                     </div>
                     <i className={`fas fa-chevron-${isActive && !isDone ? 'up' : 'down'} text-muted-foreground`}></i>
@@ -525,17 +746,8 @@ export default function OnboardingPage() {
                       <StandardStep
                         item={item}
                         platform={platform}
-                        onComplete={() => {
-                          // For standard steps: use attestation endpoint
-                          fetch(`/api/onboarding/${params.token}/items/${item.id}/attest`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ attestationText: 'Client confirmed access was granted' })
-                          }).then(() => {
-                            handleStepComplete();
-                            setActiveStep(idx + 1);
-                          });
-                        }}
+                        token={params.token}
+                        onComplete={handleStepComplete}
                       />
                     )}
                   </CardContent>
