@@ -978,8 +978,9 @@ export async function PUT(request) {
       }
 
       const updated = updateAccessItem(apId, itemId, {
-        accessPattern,
-        patternLabel: patternLabel || accessPattern,
+        itemType: itemType || undefined,
+        accessPattern: finalPattern,
+        patternLabel: patternLabel || finalPattern,
         label,
         role,
         notes: notes || undefined,
