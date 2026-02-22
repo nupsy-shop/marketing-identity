@@ -232,17 +232,6 @@ export default function AdminDashboard() {
 }
 
 function ClientCard({ client, router }) {
-  const [configuredCount, setConfiguredCount] = useState(null);
-
-  useEffect(() => {
-    fetch(`/api/clients/${client.id}/configured-apps`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) setConfiguredCount(d.data.filter(a => a.isActive).length);
-      })
-      .catch(() => {});
-  }, [client.id]);
-
   return (
     <Card
       className="hover:shadow-lg transition-shadow cursor-pointer"
@@ -273,37 +262,7 @@ function ClientCard({ client, router }) {
             <i className="fas fa-calendar-alt mr-1"></i>
             Created {new Date(client.createdAt).toLocaleDateString()}
           </span>
-          {configuredCount !== null && (
-            <span>
-              <i className="fas fa-cubes mr-1"></i>
-              {configuredCount === 0 ? (
-                <span className="text-amber-600 font-medium">No platforms configured yet</span>
-              ) : (
-                <span>{configuredCount} platform{configuredCount !== 1 ? 's' : ''} configured</span>
-              )}
-            </span>
-          )}
         </div>
-        {configuredCount === 0 && (
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
-            <p className="text-sm text-amber-800">
-              <i className="fas fa-exclamation-triangle mr-2"></i>
-              Add platforms from the catalog to enable access requests
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="ml-3 border-amber-300 text-amber-800 hover:bg-amber-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(`/admin/catalog?clientId=${client.id}`);
-              }}
-            >
-              <i className="fas fa-plus mr-1"></i>
-              Add Platforms
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
