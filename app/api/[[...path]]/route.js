@@ -288,8 +288,202 @@ export async function POST(request) {
       });
     }
 
-    // POST /api/agency/platforms - Add platform to agency
-    if (path === 'agency/platforms') {
+    // POST /api/agency/platforms/:id/items - Add access item (supports PAM)
+    if (path.match(/^agency\/platforms\/[^/]+\/items$/)) {
+      const apId = path.split('/')[2];
+      const ap = getAgencyPlatformById(apId);
+      if (!ap) {
+        return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
+      }
+      const { itemType = 'NAMED_INVITE', accessPattern, patternLabel, label, role, assetType, assetId, notes, pamConfig } = body || {};
+      if (!accessPattern || !label || !role) {
+        return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
+      }
+
+      // Validate PAM config
+      if (itemType === 'SHARED_ACCOUNT_PAM') {
+        if (!pamConfig?.ownership) {
+          return NextResponse.json({ success: false, error: 'pamConfig.ownership is required for SHARED_ACCOUNT_PAM items' }, { status: 400 });
+        }
+        if (pamConfig.ownership === 'AGENCY_OWNED' && !pamConfig.agencyIdentityEmail) {
+          return NextResponse.json({ success: false, error: 'pamConfig.agencyIdentityEmail is required for AGENCY_OWNED items' }, { status: 400 });
+        }
+        if (pamConfig.ownership === 'AGENCY_OWNED' && !pamConfig.roleTemplate) {
+          return NextResponse.json({ success: false, error: 'pamConfig.roleTemplate is required for AGENCY_OWNED items' }, { status: 400 });
+        }
+      }
+
+      const item = {
+        id: uuidv4(),
+        itemType,
+        accessPattern,
+        patternLabel: patternLabel || accessPattern,
+        label,
+        role,
+        assetType: assetType || undefined,
+        assetId: assetId || undefined,
+        notes: notes || undefined,
+        pamConfig: itemType === 'SHARED_ACCOUNT_PAM' ? {
+          ...pamConfig,
+          grantMethod: pamConfig.ownership === 'CLIENT_OWNED' ? 'CREDENTIAL_HANDOFF' : 'INVITE_AGENCY_IDENTITY',
+          sessionMode: 'REVEAL',
+          requiresDedicatedAgencyLogin: pamConfig.ownership === 'CLIENT_OWNED' ? (pamConfig.requiresDedicatedAgencyLogin ?? true) : undefined
+        } : undefined,
+        createdAt: new Date()
+      };
+      const updated = addAccessItem(apId, item);
+      return NextResponse.json({
+        success: true,
+        data: { ...updated, platform: getPlatformById(updated.platformId) }
+      });
+    }
+
+    // POST /api/onboarding/:token/items/:itemId/submit-credentials (CLIENT_OWNED PAM)
+    if (path.match(/^onboarding\/[^/]+\/items\/[^/]+\/submit-credentials$/)) {
+      const parts = path.split('/');
+      const token = parts[1];
+      const itemId = parts[3];
+      const { username, password } = body || {};
+      if (!username || !password) {
+        return NextResponse.json({ success: false, error: 'username and password are required' }, { status: 400 });
+      }
+      const req = getAccessRequestByToken(token);
+      if (!req) return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
+      const item = req.items.find(i => i.id === itemId);
+      if (!item) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
+      if (item.pamOwnership !== 'CLIENT_OWNED') {
+        return NextResponse.json({ success: false, error: 'This item is not a CLIENT_OWNED shared account' }, { status: 400 });
+      }
+      // Store a reference (in production: encrypt and store in vault)
+      const secretRef = Buffer.from(JSON.stringify({ username, passwordHint: password.slice(0, 1) + '***' })).toString('base64');
+      item.pamUsername = username;
+      item.pamSecretRef = secretRef;
+      item.status = 'validated';
+      item.validatedAt = new Date();
+      item.validatedBy = 'client_credential_submission';
+      item.validationMode = 'AUTO';
+      item.validationResult = {
+        timestamp: new Date(),
+        actor: 'client',
+        mode: 'CREDENTIAL_HANDOFF',
+        details: `Credentials submitted by client for username: ${username}`
+      };
+      addAuditLog({
+        event: 'CREDENTIAL_SUBMITTED',
+        actor: 'client',
+        requestId: req.id,
+        itemId,
+        platformId: item.platformId,
+        details: { username, requestToken: token }
+      });
+      const allDone = req.items.every(i => i.status === 'validated');
+      if (allDone && !req.completedAt) req.completedAt = new Date();
+      updateAccessRequest(req.id, req);
+      return NextResponse.json({ success: true, data: { ...req, items: req.items } });
+    }
+
+    // POST /api/onboarding/:token/items/:itemId/attest (AGENCY_OWNED PAM + general attestation)
+    if (path.match(/^onboarding\/[^/]+\/items\/[^/]+\/attest$/)) {
+      const parts = path.split('/');
+      const token = parts[1];
+      const itemId = parts[3];
+      const { attestationText, evidenceBase64, evidenceFileName } = body || {};
+      const req = getAccessRequestByToken(token);
+      if (!req) return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
+      const item = req.items.find(i => i.id === itemId);
+      if (!item) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
+      item.status = 'validated';
+      item.validatedAt = new Date();
+      item.validatedBy = 'client_attestation';
+      item.validationMode = evidenceBase64 ? 'EVIDENCE' : 'ATTESTATION';
+      item.validationResult = {
+        timestamp: new Date(),
+        actor: 'client',
+        mode: item.validationMode,
+        details: attestationText || 'Client confirmed access was granted',
+        evidenceRef: evidenceBase64 || undefined,
+        attestationText: attestationText || undefined
+      };
+      addAuditLog({
+        event: evidenceBase64 ? 'EVIDENCE_UPLOADED' : 'ACCESS_ATTESTED',
+        actor: 'client',
+        requestId: req.id,
+        itemId,
+        platformId: item.platformId,
+        details: { attestationText, hasEvidence: !!evidenceBase64, evidenceFileName }
+      });
+      const allDone = req.items.every(i => i.status === 'validated');
+      if (allDone && !req.completedAt) req.completedAt = new Date();
+      updateAccessRequest(req.id, req);
+      return NextResponse.json({ success: true, data: { ...req, items: req.items } });
+    }
+
+    // POST /api/pam/:requestId/items/:itemId/checkout
+    if (path.match(/^pam\/[^/]+\/items\/[^/]+\/checkout$/)) {
+      const parts = path.split('/');
+      const requestId = parts[1];
+      const itemId = parts[3];
+      const { reason, durationMinutes = 60 } = body || {};
+      const req = getAccessRequestById(requestId);
+      if (!req) return NextResponse.json({ success: false, error: 'Request not found' }, { status: 404 });
+      const item = req.items.find(i => i.id === itemId);
+      if (!item) return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
+      if (item.pamOwnership !== 'CLIENT_OWNED' && !item.pamSecretRef) {
+        return NextResponse.json({ success: false, error: 'No credentials available for checkout' }, { status: 400 });
+      }
+      const session = {
+        id: uuidv4(),
+        requestId,
+        itemId,
+        checkedOutBy: 'admin-1',
+        checkedOutAt: new Date(),
+        expiresAt: new Date(Date.now() + durationMinutes * 60 * 1000),
+        reason: reason || undefined,
+        active: true
+      };
+      addPamSession(session);
+      addAuditLog({
+        event: 'PAM_CHECKOUT',
+        actor: 'admin',
+        requestId,
+        itemId,
+        platformId: item.platformId,
+        details: { durationMinutes, reason, sessionId: session.id }
+      });
+      // Return session + decrypted credential (stub)
+      let revealedCredential = null;
+      if (item.pamSecretRef) {
+        try {
+          revealedCredential = JSON.parse(Buffer.from(item.pamSecretRef, 'base64').toString());
+        } catch {}
+      }
+      return NextResponse.json({ success: true, data: { session, revealedCredential, username: item.pamUsername } });
+    }
+
+    // POST /api/pam/:requestId/items/:itemId/checkin
+    if (path.match(/^pam\/[^/]+\/items\/[^/]+\/checkin$/)) {
+      const parts = path.split('/');
+      const requestId = parts[1];
+      const itemId = parts[3];
+      const activeSession = pamSessions.find(s => s.requestId === requestId && s.itemId === itemId && s.active);
+      if (!activeSession) {
+        return NextResponse.json({ success: false, error: 'No active checkout session found' }, { status: 404 });
+      }
+      updatePamSession(activeSession.id, { active: false, checkedInAt: new Date() });
+      const req = getAccessRequestById(requestId);
+      const item = req?.items.find(i => i.id === itemId);
+      addAuditLog({
+        event: 'PAM_CHECKIN',
+        actor: 'admin',
+        requestId,
+        itemId,
+        platformId: item?.platformId,
+        details: { sessionId: activeSession.id }
+      });
+      return NextResponse.json({ success: true, data: { message: 'Checked in successfully', sessionId: activeSession.id } });
+    }
+
+    // POST /api/clients - Create new client
       const { platformId } = body || {};
       if (!platformId) {
         return NextResponse.json({ success: false, error: 'platformId is required' }, { status: 400 });
