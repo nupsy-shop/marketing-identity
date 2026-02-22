@@ -309,7 +309,12 @@ export default function AppCatalogPage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {domainPlatforms.map(platform => (
-                    <PlatformCard key={platform.id} platform={platform} />
+                    <PlatformCard 
+                      key={platform.id} 
+                      platform={platform}
+                      onAddToClient={handleAddToClient}
+                      hasClientSelected={!!selectedClient}
+                    />
                   ))}
                 </div>
               </div>
