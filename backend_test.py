@@ -179,7 +179,7 @@ class IdentityTaxonomyTester:
         
         # First create an agency platform
         try:
-            platform_data = {"platformId": "google-analytics-ga4"}
+            platform_data = {"platformId": "0f75633f-0f75-40f7-80f7-0f75633f0000"}  # Google Analytics / GA4
             result = self.make_request("POST", "agency/platforms", platform_data)
             if result and result.get("success"):
                 self.agency_platform_id = result.get("data", {}).get("id")
