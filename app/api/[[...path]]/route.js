@@ -677,6 +677,55 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: true, message: 'Checked in successfully' });
     }
 
+    // ─── PLUGIN VALIDATION ENDPOINTS ─────────────────────────────────────────────
+
+    // POST /api/plugins/:platformKey/validate/agency-config - Validate agency config
+    if (path.match(/^plugins\/[^/]+\/validate\/agency-config$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessItemType, config } = body || {};
+      
+      if (!accessItemType || !config) {
+        return NextResponse.json({ success: false, error: 'accessItemType and config are required' }, { status: 400 });
+      }
+      
+      const result = PluginRegistry.validateAgencyConfig(platformKey, accessItemType, config);
+      return NextResponse.json({ success: true, data: result });
+    }
+
+    // POST /api/plugins/:platformKey/validate/client-target - Validate client target
+    if (path.match(/^plugins\/[^/]+\/validate\/client-target$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessItemType, target } = body || {};
+      
+      if (!accessItemType || !target) {
+        return NextResponse.json({ success: false, error: 'accessItemType and target are required' }, { status: 400 });
+      }
+      
+      const result = PluginRegistry.validateClientTarget(platformKey, accessItemType, target);
+      return NextResponse.json({ success: true, data: result });
+    }
+
+    // POST /api/plugins/:platformKey/instructions - Build client instructions
+    if (path.match(/^plugins\/[^/]+\/instructions$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessItemType, agencyConfig, clientTarget, roleTemplate, clientName, generatedIdentity } = body || {};
+      
+      if (!accessItemType) {
+        return NextResponse.json({ success: false, error: 'accessItemType is required' }, { status: 400 });
+      }
+      
+      const instructions = PluginRegistry.buildInstructions(platformKey, {
+        accessItemType,
+        agencyConfig: agencyConfig || {},
+        clientTarget,
+        roleTemplate: roleTemplate || '',
+        clientName,
+        generatedIdentity
+      });
+      
+      return NextResponse.json({ success: true, data: instructions });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('POST error:', error);
