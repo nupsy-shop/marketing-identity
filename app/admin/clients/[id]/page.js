@@ -15,6 +15,7 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState(null);
   const [accessRequests, setAccessRequests] = useState([]);
   const [platforms, setPlatforms] = useState([]);
+  const [configuredApps, setConfiguredApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
