@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PlatformConfigurationDialog from '@/components/PlatformConfigurationDialog';
+import { useToast } from '@/hooks/use-toast';
 
-export default function AppCatalogPage() {
+function AppCatalogContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [platforms, setPlatforms] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,10 +23,19 @@ export default function AppCatalogPage() {
   const [selectedClient, setSelectedClient] = useState('');
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [successPlatforms, setSuccessPlatforms] = useState(new Set());
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Pre-select client from URL param
+  useEffect(() => {
+    const clientIdParam = searchParams.get('clientId');
+    if (clientIdParam) {
+      setSelectedClient(clientIdParam);
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     try {
