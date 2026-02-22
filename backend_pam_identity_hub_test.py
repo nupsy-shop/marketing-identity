@@ -80,7 +80,7 @@ class PAMIdentityHubTester:
                 'platformId': self.platform_ids['google_ads']
             })
             
-            if status == 201:
+            if status in [200, 201]:
                 agency_platform_id = resp['data']['id']
                 self.created_agency_platforms.append(agency_platform_id)
                 
@@ -125,7 +125,7 @@ class PAMIdentityHubTester:
                 'platformId': self.platform_ids['meta']
             })
             
-            if status == 201:
+            if status in [200, 201]:
                 agency_platform_id = resp['data']['id']
                 self.created_agency_platforms.append(agency_platform_id)
                 
@@ -176,7 +176,7 @@ class PAMIdentityHubTester:
                 'platformId': self.platform_ids['ga4']
             })
             
-            if status == 201:
+            if status in [200, 201]:
                 agency_platform_id = resp['data']['id']
                 self.created_agency_platforms.append(agency_platform_id)
                 
@@ -264,7 +264,7 @@ class PAMIdentityHubTester:
                 'platformId': self.platform_ids['ga4']
             })
             
-            if status == 201:
+            if status in [200, 201]:
                 agency_platform_id = resp['data']['id']
                 self.created_agency_platforms.append(agency_platform_id)
                 
@@ -593,7 +593,7 @@ class PAMIdentityHubTester:
                 'platformId': self.platform_ids['ga4']
             })
             
-            if status == 201:
+            if status in [200, 201]:
                 agency_platform_id = resp['data']['id']
                 self.created_agency_platforms.append(agency_platform_id)
                 
