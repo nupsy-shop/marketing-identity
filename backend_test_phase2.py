@@ -254,7 +254,7 @@ def test_domain_filtering():
 def test_configured_apps_flow():
     """Test full configured apps flow with new platform IDs"""
     print("\n=== Testing Full Configured Apps Flow ===")
-    global created_client_id, created_configured_app_id
+    global created_client_id, created_configured_app_id, google_analytics_platform_id
     
     # Step 1: Create a client
     client_data = {
