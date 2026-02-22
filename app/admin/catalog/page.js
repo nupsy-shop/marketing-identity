@@ -64,23 +64,23 @@ export default function AppCatalogPage() {
   const oauthCount = platforms.filter(p => p.oauthSupported).length;
 
   return (
-    <div className=\"min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50\">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
-      <header className=\"border-b bg-white shadow-sm\">
-        <div className=\"container mx-auto px-4 py-4\">
-          <div className=\"flex items-center justify-between\">
-            <div className=\"flex items-center gap-4\">
-              <Button variant=\"ghost\" size=\"sm\" onClick={() => router.push('/admin')}>
-                <i className=\"fas fa-arrow-left mr-2\"></i>
+      <header className="border-b bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => router.push('/admin')}>
+                <i className="fas fa-arrow-left mr-2"></i>
                 Back to Dashboard
               </Button>
-              <div className=\"h-8 w-px bg-border\" />
+              <div className="h-8 w-px bg-border" />
               <div>
-                <h1 className=\"text-2xl font-bold\">Platform Catalog</h1>
-                <p className=\"text-sm text-muted-foreground\">Browse and configure marketing platforms</p>
+                <h1 className="text-2xl font-bold">Platform Catalog</h1>
+                <p className="text-sm text-muted-foreground">Browse and configure marketing platforms</p>
               </div>
             </div>
-            <Badge variant=\"secondary\" className=\"text-lg px-4 py-2\">
+            <Badge variant="secondary" className="text-lg px-4 py-2">
               {platforms.length} Platforms
             </Badge>
           </div>
