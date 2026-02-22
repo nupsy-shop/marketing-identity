@@ -472,6 +472,79 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+backend:
+  - task: "Platform Access Instructions - Agency Platform Creation with Agency Data"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Agency platform creation with agency data working perfectly. Successfully tested: (1) POST /api/agency/platforms creates agency platform with Google Ads platformId, (2) POST /api/agency/platforms/:id/items adds access items with agencyData (managerAccountId: 123-456-7890), (3) clientInstructions properly stored, (4) Agency data preserved and accessible. Complete agency platform workflow operational."
+
+  - task: "Platform Access Instructions - Access Request Creation with Agency Data"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Access request creation with agency data working perfectly. Successfully tested: (1) POST /api/access-requests accepts items[] with agencyData and clientInstructions fields, (2) Agency data (managerAccountId) preserved during access request creation, (3) Client instructions preserved and accessible, (4) Items structure correctly includes itemType: PARTNER_DELEGATION, (5) Complete integration with agency platform data. Access request workflow with agency data fully functional."
+
+  - task: "Platform Access Instructions - Onboarding API Returns Agency Data"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Onboarding API with agency data working perfectly. Successfully tested: (1) GET /api/onboarding/:token returns items with complete agency data, (2) managerAccountId included in agencyData object, (3) clientInstructions text properly returned, (4) Platform enrichment working with agency data preserved. Onboarding flow includes all required agency information for client completion."
+
+  - task: "Platform Access Instructions - Attestation with Asset Selection"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Attestation with asset selection working perfectly. Successfully tested: (1) POST /api/onboarding/:token/items/:itemId/attest accepts assetType and assetId parameters, (2) selectedAssetType and selectedAssetId stored on item after attestation, (3) Asset information included in validationResult with selectedAssetType: 'Ad Account' and selectedAssetId: '123456789', (4) Complete asset selection workflow during client onboarding operational."
+
+  - task: "Platform Access Instructions - Different Agency Data Fields"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Multiple agency data fields working perfectly. Successfully tested: (1) Meta: businessManagerId field stored and retrieved, (2) TikTok: businessCenterId field stored and retrieved, (3) Google Analytics: agencyEmail field stored and retrieved, (4) Snowflake: serviceAccountEmail and ssoGroupName complex fields stored, (5) DV360: seatId field stored and retrieved. All platform-specific agency data fields functioning correctly."
+
+  - task: "Platform Access Instructions - Client Instructions in Onboarding"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Client instructions in onboarding working perfectly. Successfully tested: (1) Detailed multi-step client instructions stored during access request creation, (2) GET /api/onboarding/:token returns complete clientInstructions text, (3) Instructions exactly preserved without modification, (4) Step-by-step instructions properly formatted and accessible. Client instruction workflow fully operational."
+
   - task: "Configured Apps API - POST /api/clients/:id/configured-apps"
     implemented: true
     working: true
