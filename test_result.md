@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Marketing Identity Platform backend API comprehensively - unified identity platform for managing client access to 60+ marketing platforms with in-memory data stores, platform registry, and connector architecture."
+user_problem_statement: "Test the Marketing Identity Platform frontend UI comprehensively using Playwright - unified identity platform with admin flow for creating clients and onboarding links, and client onboarding flow for platform access granting."
 
 backend:
   - task: "Platforms API - GET /api/platforms"
