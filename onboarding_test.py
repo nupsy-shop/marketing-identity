@@ -327,16 +327,18 @@ def test_end_to_end_flow():
     else:
         all_passed &= log_test("Step 2: Agency platform creation", False, f"Status: {response.status_code}")
         return all_passed
-        item_data = {
-            "accessPattern": "Named User Access",
-            "label": "GA4 Analytics Access",
-            "role": "Analyst",
-            "assetType": "GA4 Property",
-            "assetId": "999888777",
-            "notes": "End-to-end test item"
-        }
-        
-        response = requests.post(f"{API_BASE}/agency/platforms/{agency_platform_id}/items", json=item_data)
+    
+    # Step 3: Add NAMED_INVITE item to agency platform
+    item_data = {
+        "accessPattern": "Named User Access",
+        "label": "GA4 Analytics Access",
+        "role": "Analyst",
+        "assetType": "GA4 Property",
+        "assetId": "999888777",
+        "notes": "End-to-end test item"
+    }
+    
+    response = requests.post(f"{API_BASE}/agency/platforms/{agency_platform_id}/items", json=item_data)
         
         if response.status_code == 200:
             updated_platform = response.json()['data']
