@@ -328,13 +328,11 @@ def test_end_to_end_flow():
         all_passed &= log_test("Step 2: Agency platform creation", False, f"Status: {response.status_code}")
         return all_passed
     
-    # Step 3: Add NAMED_INVITE item to agency platform
+    # Step 3: Add NAMED_INVITE item to agency platform (without client asset fields)
     item_data = {
         "accessPattern": "Named User Access",
         "label": "GA4 Analytics Access",
         "role": "Analyst",
-        "assetType": "GA4 Property",
-        "assetId": "999888777",
         "notes": "End-to-end test item"
     }
     
