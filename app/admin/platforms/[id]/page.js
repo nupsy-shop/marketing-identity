@@ -727,7 +727,7 @@ export default function PlatformConfigPage() {
                     <div className="space-y-3">
                       {needsMccId && (
                         <div>
-                          <Label className="text-sm">Google Ads Manager (MCC) ID</Label>
+                          <Label className="text-sm">Google Ads Manager (MCC) ID <span className="text-destructive">*</span></Label>
                           <Input
                             placeholder="e.g., 123-456-7890"
                             value={formData.managerAccountId}
@@ -738,7 +738,7 @@ export default function PlatformConfigPage() {
                       )}
                       {needsBmId && (
                         <div>
-                          <Label className="text-sm">Business Manager ID</Label>
+                          <Label className="text-sm">Business Manager ID <span className="text-destructive">*</span></Label>
                           <Input
                             placeholder="e.g., 1234567890"
                             value={formData.businessManagerId}
@@ -749,7 +749,7 @@ export default function PlatformConfigPage() {
                       )}
                       {needsBcId && (
                         <div>
-                          <Label className="text-sm">Business Center ID</Label>
+                          <Label className="text-sm">Business Center ID <span className="text-destructive">*</span></Label>
                           <Input
                             placeholder="e.g., 7123456789012345"
                             value={formData.businessCenterId}
@@ -760,7 +760,7 @@ export default function PlatformConfigPage() {
                       )}
                       {needsSeatId && (
                         <div>
-                          <Label className="text-sm">Seat / Partner ID</Label>
+                          <Label className="text-sm">Seat / Partner ID <span className="text-destructive">*</span></Label>
                           <Input
                             placeholder="Your agency seat ID"
                             value={formData.seatId}
