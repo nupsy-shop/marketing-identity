@@ -1,17 +1,8 @@
 // Seed script for Marketing Identity Platform
 import { PrismaClient } from '@prisma/client';
-import { PrismaAdapter } from '@prisma/adapter-pg';
-import pg from 'pg';
 
-const { Pool } = pg;
-
-// For Prisma v7, we need to use an adapter
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL?.replace('prisma+postgres://', 'postgres://')
-});
-
-const adapter = new PrismaAdapter(pool);
-const prisma = new PrismaClient({ adapter });
+// Prisma v7 with Prisma Postgres works without explicit configuration
+const prisma = new PrismaClient();
 
 // Platform metadata with icons, descriptions, tiers, and detailed access patterns
 const platformsData = [
