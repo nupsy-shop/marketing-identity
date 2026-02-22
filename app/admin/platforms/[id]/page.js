@@ -243,21 +243,34 @@ export default function PlatformConfigPage() {
 
     // Shared Account PAM
     if (formData.itemType === 'SHARED_ACCOUNT_PAM') {
-      base.pamConfig = {
-        ownership: formData.pamOwnership,
-        // Identity strategy for Agency-Owned
-        identityStrategy: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamIdentityStrategy : undefined,
-        // For STATIC strategy - single email
-        agencyIdentityEmail: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'STATIC' ? formData.pamAgencyIdentityEmail : undefined,
-        // For CLIENT_DEDICATED strategy - per-client identity
-        identityType: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'CLIENT_DEDICATED' ? formData.pamIdentityType : undefined,
-        namingTemplate: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'CLIENT_DEDICATED' ? formData.pamNamingTemplate : undefined,
-        // Role template for both strategies
-        roleTemplate: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamRoleTemplate : undefined,
-        // Checkout policy - always present for PAM
-        checkoutPolicy: { durationMinutes: Number(formData.pamCheckoutDuration) || 60 },
-        rotationPolicy: { trigger: formData.pamRotationTrigger }
-      };
+      // For Agency-Owned Integration (Non-Human) - no PAM checkout
+      if (formData.pamOwnership === 'AGENCY_OWNED' && formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE) {
+        base.identityPurpose = IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE;
+        base.integrationIdentityId = formData.integrationIdentityId;
+        base.pamConfig = {
+          ownership: formData.pamOwnership,
+          roleTemplate: formData.pamRoleTemplate,
+          isIntegration: true // Mark as non-human for backend handling
+        };
+      } else {
+        // Human Interactive PAM with checkout
+        base.identityPurpose = IDENTITY_PURPOSE.HUMAN_INTERACTIVE;
+        base.pamConfig = {
+          ownership: formData.pamOwnership,
+          // Identity strategy for Agency-Owned
+          identityStrategy: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamIdentityStrategy : undefined,
+          // For STATIC strategy - single email
+          agencyIdentityEmail: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'STATIC' ? formData.pamAgencyIdentityEmail : undefined,
+          // For CLIENT_DEDICATED strategy - per-client identity
+          identityType: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'CLIENT_DEDICATED' ? formData.pamIdentityType : undefined,
+          namingTemplate: formData.pamOwnership === 'AGENCY_OWNED' && formData.pamIdentityStrategy === 'CLIENT_DEDICATED' ? formData.pamNamingTemplate : undefined,
+          // Role template for both strategies
+          roleTemplate: formData.pamOwnership === 'AGENCY_OWNED' ? formData.pamRoleTemplate : undefined,
+          // Checkout policy - always present for human PAM
+          checkoutPolicy: { durationMinutes: Number(formData.pamCheckoutDuration) || 60 },
+          rotationPolicy: { trigger: formData.pamRotationTrigger }
+        };
+      }
     }
 
     return base;
