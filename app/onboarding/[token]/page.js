@@ -398,7 +398,7 @@ ${platform.notes ? `\n**Note:** ${platform.notes}` : ''}
               <polyline points="20 6 9 17 4 12"/>
             </svg>
             <span className="text-sm font-medium">
-              Access validated on {new Date(platformStatus.validatedAt).toLocaleDateString()}
+              Access validated on {new Date(item.validatedAt).toLocaleDateString()}
             </span>
           </div>
         </CardContent>
