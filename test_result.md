@@ -974,6 +974,67 @@ agent_communication:
         agent: "main"
         comment: "Updated EnhancedAccessRequestDialog to support new Identity Taxonomy. Shows identity strategy badges, displays resolved identity preview, handles INDIVIDUAL_USERS strategy with inline email input field. Passes all Identity Taxonomy fields to access request creation. Needs UI testing."
 
+backend:
+  - task: "Bug Fix Testing - Named Invite Identity Strategy Restrictions"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL BUG: Named Invite Identity Strategy restriction NOT implemented. CLIENT_DEDICATED is still being allowed for NAMED_INVITE items when validation should reject it. The Field Policy Engine needs to add validation rule to prevent CLIENT_DEDICATED strategy for itemType: NAMED_INVITE. Only AGENCY_GROUP and INDIVIDUAL_USERS should be valid for Named Invite."
+
+  - task: "Bug Fix Testing - PAM Client-Dedicated Identity"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PAM Client-Dedicated Identity working correctly. SHARED_ACCOUNT_PAM items with CLIENT_DEDICATED identity strategy properly create pamConfig with identityStrategy, namingTemplate, identityType, and roleTemplate. Access requests correctly generate resolvedIdentity from naming templates (e.g., 'test-corporation-pam-ga4@agency.com')."
+
+  - task: "Bug Fix Testing - Group Access with Service Account/SSO fields"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Group Access with Service Account/SSO fields working correctly. GROUP_ACCESS items properly store and retrieve agencyData containing serviceAccountEmail and ssoGroupName. Fields are persisted correctly and returned in subsequent API calls."
+
+  - task: "Bug Fix Testing - Access Pattern Derivation"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Access Pattern Derivation working correctly. Patterns are properly derived from itemType: NAMED_INVITE→NAMED_INVITE, PARTNER_DELEGATION→PARTNER_DELEGATION, GROUP_ACCESS→GROUP_BASED, SHARED_ACCOUNT_PAM→PAM. Platform compatibility validation correctly prevents unsupported item types (e.g., PARTNER_DELEGATION not supported by Google Analytics)."
+
+  - task: "Bug Fix Testing - Platform Support Validation"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Platform support validation working correctly. Google Analytics platform (ID: 0f75633f-0f75-40f7-80f7-0f75633f0000) correctly supports NAMED_INVITE, GROUP_ACCESS, and SHARED_ACCOUNT_PAM item types. Validation properly rejects unsupported item types (PARTNER_DELEGATION) with clear error messages."
+
   - task: "PAM Identity Strategy - Backend Implementation"
     implemented: true
     working: true
