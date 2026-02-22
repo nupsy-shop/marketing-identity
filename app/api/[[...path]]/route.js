@@ -4,6 +4,8 @@ import { platforms, getPlatformById, getClientFacingPlatforms, getAllDomains, ge
 import {
   clients,
   accessRequests,
+  auditLogs,
+  pamSessions,
   addClient,
   getClientById,
   getAllClients,
@@ -11,7 +13,12 @@ import {
   getAccessRequestById,
   getAccessRequestByToken,
   getAccessRequestsByClientId,
-  updateAccessRequest
+  updateAccessRequest,
+  addAuditLog,
+  getAuditLogs,
+  addPamSession,
+  getActivePamSessions,
+  updatePamSession
 } from '@/lib/data/stores';
 import {
   getAllAgencyPlatforms,
