@@ -13,68 +13,40 @@ import { useToast } from '@/hooks/use-toast';
 export default function EnhancedAccessRequestDialog({ open, onOpenChange, clientId, onSuccess }) {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
-  const [platforms, setPlatforms] = useState([]);
-  const [selectedPlatforms, setSelectedPlatforms] = useState([]);
-  const [configuredItems, setConfiguredItems] = useState([]);
+  const [configuredApps, setConfiguredApps] = useState([]);
+  const [selectedItems, setSelectedItems] = useState([]); // Changed from selectedPlatforms
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (open) {
-      loadPlatforms();
+    if (open && clientId) {
+      loadConfiguredApps();
       // Reset state when dialog opens
       setStep(1);
-      setSelectedPlatforms([]);
-      setConfiguredItems([]);
-      setSearchTerm('');
+      setSelectedItems([]);
     }
-  }, [open]);
+  }, [open, clientId]);
 
-  const loadPlatforms = async () => {
+  const loadConfiguredApps = async () => {
     try {
-      const response = await fetch('/api/platforms?clientFacing=true');
+      const response = await fetch(`/api/clients/${clientId}/configured-apps`);
       const result = await response.json();
       if (result.success) {
-        setPlatforms(result.data);
+        setConfiguredApps(result.data.filter(app => app.isActive)); // Only show active apps
       }
     } catch (error) {
-      console.error('Failed to load platforms:', error);
+      console.error('Failed to load configured apps:', error);
     }
   };
 
-  const handlePlatformToggle = (platform) => {
-    setSelectedPlatforms(prev => {
-      const exists = prev.find(p => p.id === platform.id);
-      if (exists) {
-        return prev.filter(p => p.id !== platform.id);
+  const toggleItem = (appId, itemId) => {
+    const key = `${appId}-${itemId}`;
+    setSelectedItems(prev => {
+      if (prev.includes(key)) {
+        return prev.filter(k => k !== key);
       } else {
-        return [...prev, platform];
+        return [...prev, key];
       }
     });
-  };
-
-  const handleNextToConfiguration = () => {
-    // Initialize configured items for each selected platform
-    const items = selectedPlatforms.map(platform => ({
-      platformId: platform.id,
-      platform: platform,
-      accessPattern: platform.accessPatterns?.[0]?.pattern || 'Default',
-      role: platform.accessPatterns?.[0]?.roles?.[0] || 'Standard',
-      assetType: '',
-      assetId: '',
-      assetName: ''
-    }));
-    setConfiguredItems(items);
-    setStep(2);
-  };
-
-  const updateItemConfig = (platformId, field, value) => {
-    setConfiguredItems(prev => prev.map(item => {
-      if (item.platformId === platformId) {
-        return { ...item, [field]: value };
-      }
-      return item;
-    }));
   };
 
   const handleCreateRequest = async () => {
