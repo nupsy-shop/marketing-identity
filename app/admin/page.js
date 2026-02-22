@@ -97,8 +97,12 @@ export default function AdminDashboard() {
               <p className="text-sm text-muted-foreground">Admin Dashboard</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => router.push('/admin/catalog')}>
+              <Button variant="outline" onClick={() => router.push('/admin/platforms')}>
                 <i className="fas fa-layer-group mr-2"></i>
+                Agency Platforms
+              </Button>
+              <Button variant="outline" onClick={() => router.push('/admin/catalog')}>
+                <i className="fas fa-store mr-2"></i>
                 Platform Catalog
               </Button>
               <Badge variant="secondary">Admin</Badge>
