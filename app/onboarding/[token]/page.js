@@ -203,9 +203,10 @@ export default function OnboardingPage() {
   );
 }
 
-function PlatformAccessCard({ platformStatus, platform, index, onMarkGranted }) {
+function PlatformAccessCard({ item, index, onMarkGranted }) {
   const [expanded, setExpanded] = useState(false);
-  const isValidated = platformStatus.status === 'validated';
+  const platform = item.platform;
+  const isValidated = item.status === 'validated';
   const isHighAutomation = platform?.automationFeasibility?.includes('High');
   const isMediumAutomation = platform?.automationFeasibility?.includes('Medium');
   const isLowAutomation = platform?.automationFeasibility === 'Low' || platform?.automationFeasibility === 'Low-Medium';
