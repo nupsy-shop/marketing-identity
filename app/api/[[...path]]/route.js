@@ -536,7 +536,17 @@ export async function POST(request) {
           assetType: item.assetType,
           assetId: item.assetId,
           assetName: item.assetName,
-          status: 'pending'
+          status: 'pending',
+          // Copy item subtype and PAM fields
+          itemType: item.itemType || 'NAMED_INVITE',
+          pamOwnership: item.pamOwnership || undefined,
+          pamGrantMethod: item.pamGrantMethod || undefined,
+          pamUsername: item.pamUsername || undefined,
+          pamAgencyIdentityEmail: item.pamAgencyIdentityEmail || undefined,
+          pamRoleTemplate: item.pamRoleTemplate || undefined,
+          validationMode: item.pamOwnership === 'CLIENT_OWNED' ? 'AUTO'
+            : item.pamOwnership === 'AGENCY_OWNED' ? 'ATTESTATION'
+            : undefined
         }));
       } else if (body.platformIds && Array.isArray(body.platformIds)) {
         // Old format: just platformIds (backward compatibility)
