@@ -339,24 +339,24 @@ def test_end_to_end_flow():
     }
     
     response = requests.post(f"{API_BASE}/agency/platforms/{agency_platform_id}/items", json=item_data)
+    
+    if response.status_code == 200:
+        updated_platform = response.json()['data']
+        all_passed &= log_test("Step 3: Add NAMED_INVITE item", True, 
+                             f"Items count: {len(updated_platform['accessItems'])}")
         
-        if response.status_code == 200:
-            updated_platform = response.json()['data']
-            all_passed &= log_test("Step 3: Add NAMED_INVITE item", True, 
-                                 f"Items count: {len(updated_platform['accessItems'])}")
-            
-            # Step 4: Create access request using agency platform items
-            access_request_data = {
-                "clientId": client_id,
-                "items": [{
-                    "platformId": ga_platform_id,
-                    "accessPattern": "Named User Access",
-                    "role": "Analyst",
-                    "assetType": "GA4 Property", 
-                    "assetId": "999888777",
-                    "assetName": "E2E Test Property"
-                }]
-            }
+        # Step 4: Create access request using agency platform items
+        access_request_data = {
+            "clientId": client_id,
+            "items": [{
+                "platformId": ga_platform_id,
+                "accessPattern": "Named User Access",
+                "role": "Analyst",
+                "assetType": "GA4 Property", 
+                "assetId": "999888777",
+                "assetName": "E2E Test Property"
+            }]
+        }
             
             response = requests.post(f"{API_BASE}/access-requests", json=access_request_data)
             
