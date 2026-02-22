@@ -81,8 +81,6 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
         platformId: ap.platformId,
         accessPattern: item.accessPattern,
         role: item.role,
-        assetType: item.assetType || undefined,
-        assetId: item.assetId || undefined,
         assetName: item.label,
         // Pass item type and PAM fields so they're stored in the AccessRequestItem
         itemType: item.itemType || 'NAMED_INVITE',
@@ -90,7 +88,10 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
         pamGrantMethod: item.pamConfig?.grantMethod || undefined,
         pamUsername: item.pamConfig?.username || undefined,
         pamAgencyIdentityEmail: item.pamConfig?.agencyIdentityEmail || undefined,
-        pamRoleTemplate: item.pamConfig?.roleTemplate || undefined
+        pamRoleTemplate: item.pamConfig?.roleTemplate || undefined,
+        // NEW: Pass agency data and client instructions from Excel
+        agencyData: item.agencyData || undefined,
+        clientInstructions: item.clientInstructions || undefined
       }));
 
       const res = await fetch('/api/access-requests', {
