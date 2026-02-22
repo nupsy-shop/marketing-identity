@@ -125,8 +125,7 @@ export default function PlatformConfigPage() {
     const firstPattern = platform?.accessPatterns?.[0];
     setFormData({
       ...defaultForm(),
-      accessPattern: firstPattern?.pattern || '',
-      patternLabel: firstPattern?.label || '',
+      // Set default role from first available pattern
       role: firstPattern?.roles?.[0] || ''
     });
     setEditingItem(null);
@@ -139,8 +138,6 @@ export default function PlatformConfigPage() {
       label: item.label || '',
       role: item.role || '',
       notes: item.notes || '',
-      accessPattern: item.accessPattern || '',
-      patternLabel: item.patternLabel || '',
       identityPurpose: item.identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
       humanIdentityStrategy: item.humanIdentityStrategy || HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED,
       clientDedicatedIdentityType: item.clientDedicatedIdentityType || CLIENT_DEDICATED_IDENTITY_TYPE.GROUP,
