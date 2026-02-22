@@ -129,7 +129,7 @@ def test_onboarding_token_retrieval():
         return False
     
     client_id = client['id']
-    ga_platform_id = calculate_google_analytics_id()
+    ga_platform_id = get_google_analytics_id()
     
     # Create access request with GA4 item
     access_request_data = {
@@ -228,7 +228,7 @@ def test_pam_credentials_with_target():
         return False
     
     client_id = client['id']
-    ga_platform_id = calculate_google_analytics_id()
+    ga_platform_id = get_google_analytics_id()
     
     # Create access request with SHARED_ACCOUNT_PAM + CLIENT_OWNED item
     access_request_data = {
@@ -305,7 +305,7 @@ def test_end_to_end_flow():
         return False
     
     client_id = client['id']
-    ga_platform_id = calculate_google_analytics_id()
+    ga_platform_id = get_google_analytics_id()
     all_passed &= log_test("Step 1: Client creation", True, f"Client ID: {client_id}")
     
     # Step 2: Create agency platform with GA4
