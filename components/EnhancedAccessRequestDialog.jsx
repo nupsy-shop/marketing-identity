@@ -52,19 +52,28 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
   const handleCreateRequest = async () => {
     setLoading(true);
     try {
+      // Build items from selected configured items
+      const itemsToCreate = selectedItems.map(key => {
+        const [appId, itemId] = key.split('-');
+        const app = configuredApps.find(a => a.id === appId);
+        const item = app?.items.find(i => i.id === itemId);
+        
+        return {
+          platformId: app.platformId,
+          accessPattern: item.accessPattern,
+          role: item.role,
+          assetType: item.assetType,
+          assetId: item.assetId,
+          assetName: item.label // Use label as assetName
+        };
+      });
+
       const response = await fetch('/api/access-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId,
-          items: configuredItems.map(item => ({
-            platformId: item.platformId,
-            accessPattern: item.accessPattern,
-            role: item.role,
-            assetType: item.assetType || undefined,
-            assetId: item.assetId || undefined,
-            assetName: item.assetName || undefined
-          }))
+          items: itemsToCreate
         })
       });
 
