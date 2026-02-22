@@ -9,6 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  getFieldsForAccessItem, 
+  getClientInstructions,
+  requiresAssetSelection 
+} from '@/lib/data/platform-access-instructions';
 
 const ITEM_TYPES = [
   { value: 'NAMED_INVITE', label: 'Named Invite', icon: 'fas fa-envelope', desc: 'Invite a specific user by email' },
@@ -28,6 +33,8 @@ export default function PlatformConfigPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState(defaultForm());
+  const [dynamicFields, setDynamicFields] = useState([]);
+  const [agencyDataValues, setAgencyDataValues] = useState({});
 
   function defaultForm() {
     return {
@@ -36,8 +43,6 @@ export default function PlatformConfigPage() {
       patternLabel: '',
       label: '',
       role: '',
-      assetType: '',
-      assetId: '',
       notes: '',
       // PAM fields
       pamOwnership: 'CLIENT_OWNED',
@@ -54,6 +59,22 @@ export default function PlatformConfigPage() {
   useEffect(() => {
     if (params.id) loadPlatform();
   }, [params.id]);
+
+  // Update dynamic fields when platform or access pattern changes
+  useEffect(() => {
+    if (agencyPlatform?.platform && formData.accessPattern) {
+      const platformName = agencyPlatform.platform.name;
+      const pattern = formData.patternLabel || formData.accessPattern;
+      const fields = getFieldsForAccessItem(platformName, pattern);
+      setDynamicFields(fields);
+      
+      // Check if asset selection is needed (for info display)
+      const assetInfo = requiresAssetSelection(platformName, pattern);
+      if (assetInfo.required) {
+        console.log('Asset selection will be required during onboarding:', assetInfo.assetTypes);
+      }
+    }
+  }, [agencyPlatform?.platform?.name, formData.accessPattern, formData.patternLabel]);
 
   const loadPlatform = async () => {
     setLoading(true);
@@ -82,6 +103,7 @@ export default function PlatformConfigPage() {
       patternLabel: firstPattern?.label || '',
       role: firstPattern?.roles?.[0] || ''
     });
+    setAgencyDataValues({});
     setEditingItem(null);
     setShowAddForm(true);
   };
@@ -93,8 +115,6 @@ export default function PlatformConfigPage() {
       patternLabel: item.patternLabel || '',
       label: item.label || '',
       role: item.role || '',
-      assetType: item.assetType || '',
-      assetId: item.assetId || '',
       notes: item.notes || '',
       pamOwnership: item.pamConfig?.ownership || 'CLIENT_OWNED',
       pamUsername: item.pamConfig?.username || '',
@@ -105,6 +125,8 @@ export default function PlatformConfigPage() {
       pamRotationTrigger: item.pamConfig?.rotationPolicy?.trigger || 'onCheckin',
       pamProvisioningSource: item.pamConfig?.provisioningSource || 'MANUAL'
     });
+    // Load existing agency data values
+    setAgencyDataValues(item.agencyData || {});
     setEditingItem(item.id);
     setShowAddForm(true);
   };
@@ -118,19 +140,30 @@ export default function PlatformConfigPage() {
       patternLabel: sel?.label || patternValue,
       role: sel?.roles?.[0] || ''
     }));
+    // Reset agency data when pattern changes
+    setAgencyDataValues({});
+  };
+
+  const handleAgencyDataChange = (fieldName, value) => {
+    setAgencyDataValues(prev => ({ ...prev, [fieldName]: value }));
   };
 
   const buildPayload = () => {
+    const platformName = agencyPlatform?.platform?.name;
+    const pattern = formData.patternLabel || formData.accessPattern;
+    const clientInstructions = getClientInstructions(platformName, pattern);
+
     const base = {
       itemType: formData.itemType,
       accessPattern: formData.accessPattern,
       patternLabel: formData.patternLabel,
       label: formData.label,
       role: formData.role,
-      assetType: formData.assetType || undefined,
-      assetId: formData.assetId || undefined,
-      notes: formData.notes || undefined
+      notes: formData.notes || undefined,
+      agencyData: Object.keys(agencyDataValues).length > 0 ? agencyDataValues : undefined,
+      clientInstructions: clientInstructions
     };
+
     if (formData.itemType === 'SHARED_ACCOUNT_PAM') {
       base.pamConfig = {
         ownership: formData.pamOwnership,
@@ -146,21 +179,50 @@ export default function PlatformConfigPage() {
     return base;
   };
 
-  const handleSaveItem = async () => {
+  const validateForm = () => {
     if (!formData.label || !formData.accessPattern || !formData.role) {
       toast({ title: 'Validation Error', description: 'Label, Access Pattern and Role are required', variant: 'destructive' });
-      return;
+      return false;
     }
+
+    // Validate required dynamic fields
+    for (const field of dynamicFields) {
+      if (field.required && !agencyDataValues[field.name]) {
+        toast({ title: 'Validation Error', description: `${field.label} is required`, variant: 'destructive' });
+        return false;
+      }
+      // Email validation
+      if (field.validation === 'email' && agencyDataValues[field.name]) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(agencyDataValues[field.name])) {
+          toast({ title: 'Validation Error', description: `${field.label} must be a valid email address`, variant: 'destructive' });
+          return false;
+        }
+      }
+      // Numeric validation
+      if (field.validation === 'numeric' && agencyDataValues[field.name]) {
+        if (!/^\d+(-\d+)*$/.test(agencyDataValues[field.name])) {
+          toast({ title: 'Validation Error', description: `${field.label} must be numeric (dashes allowed)`, variant: 'destructive' });
+          return false;
+        }
+      }
+    }
+
     if (formData.itemType === 'SHARED_ACCOUNT_PAM' && formData.pamOwnership === 'AGENCY_OWNED') {
       if (!formData.pamAgencyIdentityEmail) {
         toast({ title: 'Validation Error', description: 'Agency Identity Email is required for Agency-Owned accounts', variant: 'destructive' });
-        return;
+        return false;
       }
       if (!formData.pamRoleTemplate) {
         toast({ title: 'Validation Error', description: 'Role Template is required for Agency-Owned accounts', variant: 'destructive' });
-        return;
+        return false;
       }
     }
+    return true;
+  };
+
+  const handleSaveItem = async () => {
+    if (!validateForm()) return;
 
     setSaving(true);
     try {
@@ -178,6 +240,7 @@ export default function PlatformConfigPage() {
         setAgencyPlatform(data.data);
         setShowAddForm(false);
         setEditingItem(null);
+        setAgencyDataValues({});
         toast({ title: editingItem ? 'Item updated' : 'Item added', description: `"${formData.label}" saved` });
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to save item', variant: 'destructive' });
@@ -220,6 +283,11 @@ export default function PlatformConfigPage() {
   const namedItems = accessItems.filter(i => i.itemType !== 'SHARED_ACCOUNT_PAM');
   const pamItems = accessItems.filter(i => i.itemType === 'SHARED_ACCOUNT_PAM');
 
+  // Get client instructions preview
+  const instructionsPreview = formData.accessPattern 
+    ? getClientInstructions(platform?.name, formData.patternLabel || formData.accessPattern)
+    : null;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -238,7 +306,7 @@ export default function PlatformConfigPage() {
                 )}
                 <div>
                   <h1 className="text-xl font-bold">{platform?.name}</h1>
-                  <p className="text-sm text-muted-foreground">{platform?.domain} &bull; {accessItems.length} access item{accessItems.length !== 1 ? 's' : ''}</p>
+                  <p className="text-sm text-muted-foreground">{platform?.domain} • {accessItems.length} access item{accessItems.length !== 1 ? 's' : ''}</p>
                 </div>
               </div>
             </div>
@@ -486,26 +554,44 @@ export default function PlatformConfigPage() {
                     </div>
                   </div>
 
-                  {platform?.tier === 1 && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm">Asset Type</Label>
-                        <Input
-                          placeholder="e.g., Ad Account"
-                          value={formData.assetType}
-                          onChange={e => setFormData(prev => ({ ...prev, assetType: e.target.value }))}
-                          className="mt-1"
-                        />
+                  {/* Dynamic Fields from Excel "Data to collect" */}
+                  {dynamicFields.length > 0 && formData.itemType !== 'SHARED_ACCOUNT_PAM' && (
+                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <i className="fas fa-database text-blue-600"></i>
+                        <p className="font-semibold text-sm text-blue-900">Agency Configuration Data</p>
                       </div>
-                      <div>
-                        <Label className="text-sm">Asset ID</Label>
-                        <Input
-                          placeholder="e.g., 123-456"
-                          value={formData.assetId}
-                          onChange={e => setFormData(prev => ({ ...prev, assetId: e.target.value }))}
-                          className="mt-1"
-                        />
+                      <p className="text-xs text-blue-700 mb-3">
+                        This data will be shown to clients during onboarding. They will use it to grant your agency access.
+                      </p>
+                      {dynamicFields.map(field => (
+                        <div key={field.name}>
+                          <Label className="text-sm">
+                            {field.label} {field.required && <span className="text-destructive">*</span>}
+                          </Label>
+                          <Input
+                            type={field.type === 'email' ? 'email' : 'text'}
+                            placeholder={field.placeholder}
+                            value={agencyDataValues[field.name] || ''}
+                            onChange={e => handleAgencyDataChange(field.name, e.target.value)}
+                            className="mt-1"
+                          />
+                          {field.helpText && (
+                            <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Instructions Preview */}
+                  {instructionsPreview && (
+                    <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <i className="fas fa-eye text-green-600"></i>
+                        <p className="font-semibold text-sm text-green-900">Client Instructions Preview</p>
                       </div>
+                      <p className="text-xs text-green-800">{instructionsPreview}</p>
                     </div>
                   )}
 
@@ -521,7 +607,7 @@ export default function PlatformConfigPage() {
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <Button variant="ghost" onClick={() => { setShowAddForm(false); setEditingItem(null); }}>Cancel</Button>
+                  <Button variant="ghost" onClick={() => { setShowAddForm(false); setEditingItem(null); setAgencyDataValues({}); }}>Cancel</Button>
                   <Button onClick={handleSaveItem} disabled={saving}>
                     {saving ? <><i className="fas fa-spinner fa-spin mr-2"></i>Saving...</>
                       : editingItem ? <><i className="fas fa-check mr-2"></i>Update</>
@@ -578,6 +664,13 @@ export default function PlatformConfigPage() {
 
 function ItemRow({ item, onEdit, onDelete, isPam = false }) {
   const pamConfig = item.pamConfig;
+  const agencyData = item.agencyData || {};
+  
+  // Get the primary agency data value for display
+  const primaryAgencyValue = agencyData.managerAccountId || agencyData.businessManagerId || 
+    agencyData.businessCenterId || agencyData.seatId || agencyData.agencyEmail || 
+    agencyData.serviceAccountEmail || agencyData.agencyIdentity;
+
   return (
     <Card className={`border ${isPam ? 'border-amber-200 bg-amber-50/30' : ''}`}>
       <CardContent className="py-3">
@@ -595,6 +688,9 @@ function ItemRow({ item, onEdit, onDelete, isPam = false }) {
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               <span>{item.patternLabel || item.accessPattern}</span>
+              {primaryAgencyValue && !isPam && (
+                <span className="text-blue-600"><i className="fas fa-id-badge mr-1"></i>{primaryAgencyValue}</span>
+              )}
               {isPam && pamConfig?.ownership === 'AGENCY_OWNED' && pamConfig?.agencyIdentityEmail && (
                 <span><i className="fas fa-envelope mr-1"></i>{pamConfig.agencyIdentityEmail}</span>
               )}
@@ -604,7 +700,6 @@ function ItemRow({ item, onEdit, onDelete, isPam = false }) {
               {isPam && pamConfig?.checkoutPolicy?.durationMinutes && (
                 <span><i className="fas fa-clock mr-1"></i>{pamConfig.checkoutPolicy.durationMinutes}min checkout</span>
               )}
-              {item.assetType && <span><i className="fas fa-cube mr-1"></i>{item.assetType}{item.assetId && ` #${item.assetId}`}</span>}
             </div>
           </div>
           <div className="flex gap-2 flex-shrink-0">
