@@ -477,7 +477,7 @@ export async function POST(request) {
       const parts = path.split('/');
       const token = parts[1];
       const itemId = parts[3];
-      const { attestationText, evidenceBase64, evidenceFileName, assetType, assetId } = body || {};
+      const { attestationText, evidenceBase64, evidenceFileName, assetType, assetId, clientProvidedTarget } = body || {};
       const req = getAccessRequestByToken(token);
       if (!req) return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 404 });
       const item = req.items.find(i => i.id === itemId);
@@ -489,6 +489,16 @@ export async function POST(request) {
       // Store client-selected asset details (from onboarding)
       if (assetType) item.selectedAssetType = assetType;
       if (assetId) item.selectedAssetId = assetId;
+      // Store clientProvidedTarget (new structured asset data)
+      if (clientProvidedTarget) {
+        item.clientProvidedTarget = clientProvidedTarget;
+      } else if (assetType || assetId) {
+        // Backward compatibility: create clientProvidedTarget from assetType/assetId
+        item.clientProvidedTarget = {
+          assetType: assetType,
+          assetId: assetId
+        };
+      }
       item.validationResult = {
         timestamp: new Date(),
         actor: 'client',
@@ -496,8 +506,7 @@ export async function POST(request) {
         details: attestationText || 'Client confirmed access was granted',
         evidenceRef: evidenceBase64 || undefined,
         attestationText: attestationText || undefined,
-        selectedAssetType: assetType || undefined,
-        selectedAssetId: assetId || undefined
+        clientProvidedTarget: item.clientProvidedTarget || undefined
       };
       addAuditLog({
         event: evidenceBase64 ? 'EVIDENCE_UPLOADED' : 'ACCESS_ATTESTED',
@@ -505,7 +514,7 @@ export async function POST(request) {
         requestId: req.id,
         itemId,
         platformId: item.platformId,
-        details: { attestationText, hasEvidence: !!evidenceBase64, evidenceFileName, assetType, assetId }
+        details: { attestationText, hasEvidence: !!evidenceBase64, evidenceFileName, clientProvidedTarget: item.clientProvidedTarget }
       });
       const allDone = req.items.every(i => i.status === 'validated');
       if (allDone && !req.completedAt) req.completedAt = new Date();
