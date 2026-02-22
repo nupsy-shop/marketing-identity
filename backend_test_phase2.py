@@ -190,15 +190,14 @@ def test_domain_filtering():
         paid_search_count = len(platforms)
         
         # Check that returned platforms are Paid Search related
-        expected_platforms = ['google ads', 'microsoft advertising', 'youtube ads', 'apple search ads']
         found_platforms = [p.get('name', '').lower() for p in platforms]
         
         google_ads_found = any('google ads' in name for name in found_platforms)
         microsoft_ads_found = any('microsoft advertising' in name for name in found_platforms)
-        youtube_ads_found = any('youtube ads' in name for name in found_platforms)
+        apple_search_ads_found = any('apple search ads' in name for name in found_platforms)
         
-        if google_ads_found and microsoft_ads_found and youtube_ads_found:
-            log_test("GET /api/platforms?domain=Paid Search content", True, f"Found expected Paid Search platforms: Google Ads, Microsoft Advertising, YouTube Ads")
+        if google_ads_found and microsoft_ads_found and apple_search_ads_found:
+            log_test("GET /api/platforms?domain=Paid Search content", True, f"Found expected Paid Search platforms: Google Ads, Microsoft Advertising, Apple Search Ads")
         else:
             log_test("GET /api/platforms?domain=Paid Search content", False, f"Missing expected platforms. Found: {', '.join(found_platforms)}")
             
