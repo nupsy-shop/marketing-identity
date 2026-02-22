@@ -7,6 +7,10 @@ import {
   validateAccessItemPayload,
   generateClientDedicatedIdentity
 } from '@/lib/data/field-policy';
+import { initializePlugins, PluginRegistry } from '@/lib/plugins/loader';
+
+// Initialize plugins on module load
+initializePlugins();
 
 // Helper to parse request body
 async function getBody(request) {
