@@ -27,7 +27,7 @@ class PAMIdentityHubTester:
         self.platform_ids = {
             'google_ads': '5b9278e4-5b92-45b9-85b9-5b9278e40000',
             'ga4': '0f75633f-0f75-40f7-80f7-0f75633f0000', 
-            'meta': '7c3d89f5-7c3d-47c3-97c3-97c3-7c3d89f50000'
+            'meta': '7c3d89f5-7c3d-47c3-97c3-7c3d89f50000'
         }
         
         # Store created resources for cleanup
