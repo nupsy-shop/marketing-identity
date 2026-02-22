@@ -221,6 +221,12 @@ export async function POST(request) {
       
       if (items && Array.isArray(items)) {
         // New format: enhanced with pattern, role, assets
+        if (items.length === 0) {
+          return NextResponse.json(
+            { success: false, error: 'items array cannot be empty' },
+            { status: 400 }
+          );
+        }
         requestItems = items.map(item => ({
           id: uuidv4(),
           platformId: item.platformId,
@@ -233,6 +239,12 @@ export async function POST(request) {
         }));
       } else if (body.platformIds && Array.isArray(body.platformIds)) {
         // Old format: just platformIds (backward compatibility)
+        if (body.platformIds.length === 0) {
+          return NextResponse.json(
+            { success: false, error: 'platformIds array cannot be empty' },
+            { status: 400 }
+          );
+        }
         requestItems = body.platformIds.map(platformId => ({
           id: uuidv4(),
           platformId,
