@@ -418,7 +418,7 @@ def main():
     print(f"🌐 Testing against: {BASE_URL}")
     
     # Calculate Google Analytics platform ID
-    ga_id = calculate_google_analytics_id()
+    ga_id = get_google_analytics_id()
     print(f"📋 Using Google Analytics Platform ID: {ga_id}")
     
     all_tests_passed = True
