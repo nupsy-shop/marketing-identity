@@ -479,27 +479,57 @@ test_plan:
 
   - task: "Configured Apps API - POST /api/clients/:id/configured-apps"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Fixed critical bug: POST handler condition was `path === 'clients' && path.match(...)` which could never match. Changed to just `path.match(/^clients\\/[^/]+\\/configured-apps$/)`. This is required for the 'Add to Client' flow to work."
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/clients/:id/configured-apps working perfectly. Successfully tested: (1) Creating configured app with platformId and items[] array, (2) Proper validation - rejects duplicate platform for same client (400), invalid platformId (404), missing items array (400), (3) Returns enriched response with platform details, (4) Items structure correctly stored with accessPattern, label, role, assetType, assetId fields. API route fix successful."
 
   - task: "Configured Apps API - GET /api/clients/:id/configured-apps"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Also fixed getConfiguredAppsByClientId to return ALL apps (not just active ones) so the admin can see and toggle inactive apps on the Configured Platforms tab."
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/clients/:id/configured-apps working perfectly. Confirmed: (1) Returns ALL configured apps (both active and inactive), (2) Includes platform enrichment with full platform details, (3) After toggling app to inactive via PATCH /api/configured-apps/:id/toggle, GET still returns the inactive app with isActive: false. This was the key fix - previously only returned active apps."
+
+  - task: "Configured Apps API - PATCH Toggle Status"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PATCH /api/configured-apps/:id/toggle working perfectly. Successfully toggles isActive status from true to false (and vice versa). Returns updated configured app with platform enrichment. Integration with GET endpoint confirmed - inactive apps remain visible in admin interface."
+
+  - task: "Configured Apps End-to-End Flow"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Full end-to-end configured apps workflow successful. Tested complete flow: (1) Create client, (2) Get client-facing platform, (3) Create configured app with items[] structure, (4) Use configured app items to create access request with enhanced items[] format, (5) Verified access request contains proper platformId, accessPattern, role, assetType, assetId, assetName fields from configured app. Complete integration working."
 
 agent_communication:
   - agent: "testing"
