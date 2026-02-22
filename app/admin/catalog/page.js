@@ -467,7 +467,3 @@ function PlatformCard({ platform, onAddToClient, hasClientSelected, isAdded }) {
     </Card>
   );
 }
-      </CardContent>
-    </Card>
-  );
-}
