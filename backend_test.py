@@ -313,11 +313,19 @@ class IdentityTaxonomyTester:
                 "validationMethod": "ATTESTATION"
             }
             
-            result = self.make_request("POST", f"agency/platforms/{self.agency_platform_id}/items", invalid_item_data, expect_status=400)
-            if result is None:  # expect_status=400 means we expected failure
-                self.log_result("Field Policy Engine validation", True, "Correctly rejected invalid payload (missing namingTemplate)")
+            # Make request and check response manually since we expect 400
+            url = f"{API_BASE}/agency/platforms/{self.agency_platform_id}/items"
+            response = requests.post(url, json=invalid_item_data, timeout=10)
+            
+            if response.status_code == 400:
+                result = response.json() if response.content else {}
+                error_message = result.get("error", "")
+                if "CLIENT_DEDICATED strategy requires a namingTemplate" in error_message:
+                    self.log_result("Field Policy Engine validation", True, "Correctly rejected invalid payload (missing namingTemplate)")
+                else:
+                    self.log_result("Field Policy Engine validation", False, f"Wrong error message: {error_message}")
             else:
-                self.log_result("Field Policy Engine validation", False, "Should have rejected invalid payload")
+                self.log_result("Field Policy Engine validation", False, f"Expected 400 but got {response.status_code}")
         except Exception as e:
             self.log_result("Field Policy Engine validation", False, str(e))
 
