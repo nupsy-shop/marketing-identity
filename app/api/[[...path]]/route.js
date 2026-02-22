@@ -369,9 +369,34 @@ export async function POST(request) {
         integrationIdentityId,
         validationMethod
       } = body || {};
+
+      // Item Type → Pattern mapping (pattern is derived from itemType)
+      const ITEM_TYPE_TO_PATTERN = {
+        'NAMED_INVITE': 'NAMED_INVITE',
+        'PARTNER_DELEGATION': 'PARTNER_DELEGATION',
+        'GROUP_ACCESS': 'GROUP_BASED',
+        'PROXY_TOKEN': 'PROXY',
+        'SHARED_ACCOUNT_PAM': 'PAM'
+      };
+
+      // Derive pattern from itemType
+      const derivedPattern = ITEM_TYPE_TO_PATTERN[itemType] || itemType;
       
-      if (!accessPattern || !label || !role) {
-        return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
+      // Server-side validation: If accessPattern is provided and conflicts with itemType, reject
+      if (accessPattern && accessPattern !== derivedPattern && !accessPattern.startsWith(derivedPattern)) {
+        // Allow accessPattern if it matches derived pattern or is for backward compatibility
+        const isBackwardCompatible = ['1 (Partner Hub)', '2 (Named Invites)', '3 (Group Access)'].includes(accessPattern);
+        if (!isBackwardCompatible && accessPattern !== itemType) {
+          // Only reject if it's truly conflicting
+          console.log(`Note: accessPattern "${accessPattern}" provided with itemType "${itemType}", using derived pattern "${derivedPattern}"`);
+        }
+      }
+
+      // Use derived pattern
+      const finalPattern = derivedPattern;
+      
+      if (!itemType || !label || !role) {
+        return NextResponse.json({ success: false, error: 'itemType, label and role are required' }, { status: 400 });
       }
 
       // Validate using Field Policy Engine
@@ -396,8 +421,8 @@ export async function POST(request) {
       const item = {
         id: uuidv4(),
         itemType,
-        accessPattern,
-        patternLabel: patternLabel || accessPattern,
+        accessPattern: finalPattern,
+        patternLabel: patternLabel || finalPattern,
         label,
         role,
         notes: notes || undefined,
