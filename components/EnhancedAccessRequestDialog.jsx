@@ -182,9 +182,20 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
 
   // Helper to get identity preview for an item
   const getIdentityPreview = (item, ap) => {
-    const strategy = item.humanIdentityStrategy;
     const platform = ap.platform;
     
+    // Handle PAM items first
+    if (item.itemType === 'SHARED_ACCOUNT_PAM' && item.pamConfig?.ownership === 'AGENCY_OWNED') {
+      const identityStrategy = item.pamConfig?.identityStrategy || 'STATIC';
+      if (identityStrategy === 'CLIENT_DEDICATED' && item.pamConfig?.namingTemplate) {
+        return generateClientDedicatedIdentity(item.pamConfig.namingTemplate, clientData || { name: 'Client' }, platform);
+      } else if (identityStrategy === 'STATIC' && item.pamConfig?.agencyIdentityEmail) {
+        return item.pamConfig.agencyIdentityEmail;
+      }
+    }
+    
+    // Handle Named Invite identity strategies
+    const strategy = item.humanIdentityStrategy;
     if (strategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && item.namingTemplate) {
       return generateClientDedicatedIdentity(item.namingTemplate, clientData || { name: 'Client' }, platform);
     } else if (strategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP && item.agencyGroupEmail) {
@@ -199,6 +210,22 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
 
   // Helper to get strategy badge
   const getStrategyBadge = (item) => {
+    // Handle PAM items
+    if (item.itemType === 'SHARED_ACCOUNT_PAM') {
+      const ownership = item.pamConfig?.ownership;
+      const identityStrategy = item.pamConfig?.identityStrategy || 'STATIC';
+      if (ownership === 'CLIENT_OWNED') {
+        return <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-200"><i className="fas fa-key mr-1"></i>Client-Owned PAM</Badge>;
+      } else if (ownership === 'AGENCY_OWNED') {
+        if (identityStrategy === 'CLIENT_DEDICATED') {
+          return <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200"><i className="fas fa-user-tag mr-1"></i>Agency PAM (Per-Client)</Badge>;
+        } else {
+          return <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200"><i className="fas fa-shield-halved mr-1"></i>Agency PAM (Static)</Badge>;
+        }
+      }
+    }
+    
+    // Handle Named Invite strategies
     const strategy = item.humanIdentityStrategy;
     if (strategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED) {
       return <Badge variant="outline" className="text-xs text-green-600 border-green-300"><i className="fas fa-user-tag mr-1"></i>Client-Dedicated</Badge>;
