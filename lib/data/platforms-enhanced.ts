@@ -106,7 +106,7 @@ const enhancedPlatformsData: Omit<EnhancedPlatform, 'id'>[] = [
     tier: 1,
     clientFacing: true,
     oauthSupported: true,
-    supportedItemTypes: ['NAMED_INVITE', 'GROUP_ACCESS'],
+    supportedItemTypes: ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT_PAM'],
     accessPatterns: [
       {
         pattern: '2 (Named Invites)',
