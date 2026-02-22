@@ -379,11 +379,12 @@ export default function PlatformConfigPage() {
           </Card>
         )}
 
-        {/* Supported Access Patterns */}
+        {/* Supported Role Templates (from platform's access patterns) */}
+        {platform?.accessPatterns?.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-3">Supported Access Patterns</h2>
+          <h2 className="text-lg font-semibold mb-3">Supported Role Templates</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {availablePatterns.map(ap => (
+            {platform.accessPatterns.map(ap => (
               <Card key={ap.pattern}>
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-start gap-3">
@@ -401,6 +402,7 @@ export default function PlatformConfigPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Access Items */}
         <div className="mb-6">
