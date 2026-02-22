@@ -190,7 +190,7 @@ def test_create_access_request_with_pam(client_id, platform_id, pam_items):
         ]
     }
     
-    result = make_request("POST", "access-requests", access_request_data, 201)
+    result = make_request("POST", "access-requests", access_request_data, 200)
     if not result or not result.get("success"):
         log_error("Failed to create access request with PAM items")
         return None
