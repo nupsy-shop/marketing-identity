@@ -705,18 +705,51 @@ export async function POST(request) {
         requestItems = items.map(item => {
           const platform = getPlatformById(item.platformId);
           
-          // Generate resolved identity for CLIENT_DEDICATED strategy
+          // Generate resolved identity based on item type and strategy
           let resolvedIdentity = undefined;
-          if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && item.namingTemplate) {
-            resolvedIdentity = generateClientDedicatedIdentity(item.namingTemplate, client, platform);
-          } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
-            resolvedIdentity = item.agencyGroupEmail;
-          } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS) {
-            // For INDIVIDUAL_USERS, the invitees should be in item.inviteeEmails
-            resolvedIdentity = item.inviteeEmails?.join(', ') || undefined;
-          } else if (item.agencyData?.agencyEmail) {
-            // Fallback to agencyData.agencyEmail for backward compatibility
-            resolvedIdentity = item.agencyData.agencyEmail;
+          let pamConfig = undefined;
+          
+          // Handle PAM items with CLIENT_DEDICATED identity strategy
+          if (item.itemType === 'SHARED_ACCOUNT_PAM' && item.pamOwnership === 'AGENCY_OWNED') {
+            const pamIdentityStrategy = item.pamIdentityStrategy || 'STATIC';
+            if (pamIdentityStrategy === 'CLIENT_DEDICATED' && item.pamNamingTemplate) {
+              // Generate per-client identity using the PAM naming template
+              resolvedIdentity = generateClientDedicatedIdentity(item.pamNamingTemplate, client, platform);
+            } else if (pamIdentityStrategy === 'STATIC') {
+              resolvedIdentity = item.pamAgencyIdentityEmail;
+            }
+            pamConfig = {
+              ownership: item.pamOwnership,
+              identityStrategy: pamIdentityStrategy,
+              agencyIdentityEmail: item.pamAgencyIdentityEmail || undefined,
+              identityType: item.pamIdentityType || undefined,
+              namingTemplate: item.pamNamingTemplate || undefined,
+              roleTemplate: item.pamRoleTemplate || undefined,
+              grantMethod: 'INVITE_AGENCY_IDENTITY',
+              checkoutPolicy: item.pamCheckoutPolicy || undefined,
+              rotationPolicy: item.pamRotationPolicy || undefined
+            };
+          } else if (item.itemType === 'SHARED_ACCOUNT_PAM' && item.pamOwnership === 'CLIENT_OWNED') {
+            // Client-owned PAM - no resolved identity, client provides credentials
+            pamConfig = {
+              ownership: item.pamOwnership,
+              grantMethod: 'CREDENTIAL_HANDOFF',
+              checkoutPolicy: item.pamCheckoutPolicy || undefined,
+              rotationPolicy: item.pamRotationPolicy || undefined
+            };
+          } else {
+            // Handle Named Invite identity strategies
+            if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && item.namingTemplate) {
+              resolvedIdentity = generateClientDedicatedIdentity(item.namingTemplate, client, platform);
+            } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
+              resolvedIdentity = item.agencyGroupEmail;
+            } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS) {
+              // For INDIVIDUAL_USERS, the invitees should be in item.inviteeEmails
+              resolvedIdentity = item.inviteeEmails?.join(', ') || undefined;
+            } else if (item.agencyData?.agencyEmail) {
+              // Fallback to agencyData.agencyEmail for backward compatibility
+              resolvedIdentity = item.agencyData.agencyEmail;
+            }
           }
           
           return {
@@ -726,14 +759,17 @@ export async function POST(request) {
             role: item.role,
             assetName: item.assetName,
             status: 'pending',
-            // Item type and PAM fields
+            // Item type
             itemType: item.itemType || 'NAMED_INVITE',
+            // PAM configuration (with full identity strategy)
+            pamConfig: pamConfig || undefined,
+            // Legacy PAM fields for backward compatibility
             pamOwnership: item.pamOwnership || undefined,
-            pamGrantMethod: item.pamGrantMethod || undefined,
+            pamGrantMethod: pamConfig?.grantMethod || item.pamGrantMethod || undefined,
             pamUsername: item.pamUsername || undefined,
-            pamAgencyIdentityEmail: item.pamAgencyIdentityEmail || undefined,
-            pamRoleTemplate: item.pamRoleTemplate || undefined,
-            // Identity Taxonomy fields
+            pamAgencyIdentityEmail: pamConfig?.agencyIdentityEmail || item.pamAgencyIdentityEmail || undefined,
+            pamRoleTemplate: pamConfig?.roleTemplate || item.pamRoleTemplate || undefined,
+            // Identity Taxonomy fields (for Named Invite)
             identityPurpose: item.identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
             humanIdentityStrategy: item.humanIdentityStrategy || undefined,
             namingTemplate: item.namingTemplate || undefined,
