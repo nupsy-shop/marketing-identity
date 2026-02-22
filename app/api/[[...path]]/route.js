@@ -359,11 +359,25 @@ export async function POST(request) {
         notes, 
         pamConfig,
         agencyData,
-        clientInstructions
+        clientInstructions,
+        // NEW: Identity Taxonomy fields
+        identityPurpose,
+        humanIdentityStrategy,
+        clientDedicatedIdentityType,
+        namingTemplate,
+        agencyGroupEmail,
+        integrationIdentityId,
+        validationMethod
       } = body || {};
       
       if (!accessPattern || !label || !role) {
         return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
+      }
+
+      // Validate using Field Policy Engine
+      const validation = validateAccessItemPayload(body);
+      if (!validation.valid) {
+        return NextResponse.json({ success: false, error: validation.errors.join('; ') }, { status: 400 });
       }
 
       // Validate PAM config
@@ -387,9 +401,17 @@ export async function POST(request) {
         label,
         role,
         notes: notes || undefined,
-        // NEW: Agency data fields from Excel
+        // Identity Taxonomy fields
+        identityPurpose: identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
+        humanIdentityStrategy: humanIdentityStrategy || undefined,
+        clientDedicatedIdentityType: clientDedicatedIdentityType || undefined,
+        namingTemplate: namingTemplate || undefined,
+        agencyGroupEmail: agencyGroupEmail || undefined,
+        integrationIdentityId: integrationIdentityId || undefined,
+        validationMethod: validationMethod || 'ATTESTATION',
+        // Agency data fields from Excel
         agencyData: agencyData || undefined,
-        // NEW: Client instructions from Excel
+        // Client instructions from Excel
         clientInstructions: clientInstructions || undefined,
         pamConfig: itemType === 'SHARED_ACCOUNT_PAM' ? {
           ...pamConfig,
