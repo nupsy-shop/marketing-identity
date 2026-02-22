@@ -83,7 +83,14 @@ export default function EnhancedAccessRequestDialog({ open, onOpenChange, client
         role: item.role,
         assetType: item.assetType || undefined,
         assetId: item.assetId || undefined,
-        assetName: item.label
+        assetName: item.label,
+        // Pass item type and PAM fields so they're stored in the AccessRequestItem
+        itemType: item.itemType || 'NAMED_INVITE',
+        pamOwnership: item.pamConfig?.ownership || undefined,
+        pamGrantMethod: item.pamConfig?.grantMethod || undefined,
+        pamUsername: item.pamConfig?.username || undefined,
+        pamAgencyIdentityEmail: item.pamConfig?.agencyIdentityEmail || undefined,
+        pamRoleTemplate: item.pamConfig?.roleTemplate || undefined
       }));
 
       const res = await fetch('/api/access-requests', {
