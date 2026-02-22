@@ -637,6 +637,24 @@ export async function DELETE(request) {
   const path = pathname.replace('/api/', '');
 
   try {
+    // DELETE /api/configured-apps/:id - Remove configured app
+    if (path.startsWith('configured-apps/') && path.split('/').length === 2) {
+      const id = path.split('/')[1];
+      
+      const success = removeConfiguredApp(id);
+      if (!success) {
+        return NextResponse.json(
+          { success: false, error: 'Configured app not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: { message: 'Configured app removed successfully' }
+      });
+    }
+
     // DELETE /api/access-requests/:id/platforms/:platformId - Revoke platform access
     if (path.match(/^access-requests\/[^/]+\/platforms\/[^/]+$/)) {
       const parts = path.split('/');
