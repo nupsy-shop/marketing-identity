@@ -398,9 +398,14 @@ function PlatformCard({ platform, onAddToClient, hasClientSelected }) {
           </div>
         )}
 
-        <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+        <Button 
+          variant="outline" 
+          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+          onClick={() => onAddToClient(platform)}
+          disabled={!hasClientSelected}
+        >
           <i className="fas fa-plus mr-2"></i>
-          Add to Client
+          {hasClientSelected ? 'Add to Client' : 'Select Client First'}
         </Button>
       </CardContent>
     </Card>
