@@ -529,8 +529,7 @@ export default function PlatformConfigPage() {
                     <Label className="text-sm font-medium mb-2 block">Identity Strategy <span className="text-destructive">*</span></Label>
                     <div className="space-y-2">
                       {[
-                        { value: HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED, label: 'Client-Dedicated Identity', icon: 'fas fa-user-tag', desc: 'Generate unique identity per client (recommended)', recommended: true },
-                        { value: HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP, label: 'Agency Group', icon: 'fas fa-users', desc: 'Use a single agency-wide group email' },
+                        { value: HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP, label: 'Agency Group', icon: 'fas fa-users', desc: 'Use a single agency-wide group email for all clients', recommended: true },
                         { value: HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS, label: 'Individual Users', icon: 'fas fa-user-friends', desc: 'Select specific users when creating request' }
                       ].map(o => (
                         <div
@@ -549,53 +548,13 @@ export default function PlatformConfigPage() {
                       ))}
                     </div>
 
-                    {/* CLIENT_DEDICATED specific fields */}
-                    {formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && (
-                      <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
-                        <div>
-                          <Label className="text-sm">Identity Type</Label>
-                          <div className="grid grid-cols-2 gap-2 mt-1">
-                            {[
-                              { value: CLIENT_DEDICATED_IDENTITY_TYPE.GROUP, label: 'Group', desc: 'Preferred if platform supports' },
-                              { value: CLIENT_DEDICATED_IDENTITY_TYPE.MAILBOX, label: 'Mailbox', desc: 'Loginable (PAM-manageable)' }
-                            ].map(t => (
-                              <div
-                                key={t.value}
-                                className={`border rounded p-2 cursor-pointer text-sm ${formData.clientDedicatedIdentityType === t.value ? 'border-blue-500 bg-blue-50' : 'border-blue-200'}`}
-                                onClick={() => setFormData(prev => ({ ...prev, clientDedicatedIdentityType: t.value }))}
-                              >
-                                <p className="font-medium">{t.label}</p>
-                                <p className="text-xs text-muted-foreground">{t.desc}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-sm">Naming Template <span className="text-destructive">*</span></Label>
-                          <Input
-                            placeholder="{clientSlug}-{platformKey}@youragency.com"
-                            value={formData.namingTemplate}
-                            onChange={e => setFormData(prev => ({ ...prev, namingTemplate: e.target.value }))}
-                            className="mt-1 font-mono text-sm"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">Variables: {'{clientSlug}'}, {'{platformKey}'}</p>
-                        </div>
-                        {sampleIdentity && (
-                          <div className="p-2 rounded bg-white border border-blue-200">
-                            <p className="text-xs text-muted-foreground">Sample identity for "Acme Corp":</p>
-                            <p className="font-mono text-sm text-blue-700">{sampleIdentity}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
                     {/* AGENCY_GROUP specific fields */}
                     {formData.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP && (
                       <div className="mt-4 pt-4 border-t border-blue-200">
-                        <Label className="text-sm">Agency Group Email <span className="text-destructive">*</span></Label>
+                        <Label className="text-sm">Agency User Email <span className="text-destructive">*</span></Label>
                         <Input
                           type="email"
-                          placeholder="analytics-team@youragency.com"
+                          placeholder="agency-user@youragency.com"
                           value={formData.agencyGroupEmail}
                           onChange={e => setFormData(prev => ({ ...prev, agencyGroupEmail: e.target.value }))}
                           className="mt-1"
