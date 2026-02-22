@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://platform-access-3.preview.emergentagent.com"
+BASE_URL = "https://agency-pam.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 # Test data

@@ -5,7 +5,7 @@ import json
 import sys
 from time import sleep
 
-BASE_URL = "https://platform-access-3.preview.emergentagent.com/api"
+BASE_URL = "https://agency-pam.preview.emergentagent.com/api"
 
 def test_new_agency_architecture():
     """

@@ -1,88 +1,88 @@
 <analysis>
 
-<original_problem_statement>
-The user is building an enterprise-grade Marketing Identity Platform. The goal is to create a central dashboard for an agency to manage client access to various marketing SaaS platforms.
+**original_problem_statement**:
+The user is building an enterprise-grade Marketing Identity Platform. The goal is to create a central dashboard for an agency to manage client access to various marketing SaaS platforms. The project has evolved through several architectural pivots and feature requests.
 
-The project has evolved through several phases:
-1.  **MVP:** An admin dashboard to create clients and generate onboarding links.
-2.  **Phase 2 (Client-Configured Apps):** An App Catalog where platforms could be added and configured for *each specific client*. This involved a complex access request wizard.
-3.  **Phase 3 (Agency-Wide Platforms - Current Architecture):** A major architectural pivot. Platforms are no longer tied to clients. Instead, an admin adds a platform from the catalog to the *agency's* central repository. They configure Access Items (e.g., 'Named Invite', 'Shared Account') for that platform at the agency level. These reusable Access Items can then be included in access requests for any client.
-4.  **Current Feature Request (Shared Account Enhancement):** Enhance the 'Shared Account' Access Item type to support two distinct ownership models:  (the client provides credentials for their existing account) and  (the client is instructed to grant access to a pre-defined agency identity/email).
+The latest and most critical feature request involves a deep refactoring of the identity management model. This introduces a new taxonomy to differentiate between human and non-human access, and separates the configuration of agency-owned identities from the access items themselves.
 
-PRODUCT REQUIREMENTS:
-- An admin must be able to add platforms to their agency from a global catalog.
-- An admin must be able to configure multiple Access Items for each agency-level platform.
-- For Shared Account Access Items, the admin must define whether it is  or .
-- The access request wizard must allow the admin to select from the agency's pre-configured Access Items to send to a client.
-- The client onboarding flow must present a different UI depending on the Access Item type and ownership model (e.g., collect credentials for , provide instructions for ).
-- Implement new dashboards for managing Shared Accounts () and viewing audit logs ().
-</original_problem_statement>
+**PRODUCT REQUIREMENTS (LATEST):**
+1.  **Implement a new Identity Taxonomy:**
+    *   :  vs. .
+    *   : , , .
+2.  **Refactor Admin Configuration:**
+    *   Admin forms must be driven by a new Field Policy Engine that determines which fields to show based on the selected identity purpose and strategy.
+    *   For  access, the form must NOT ask for a static email (unless using  strategy). Instead, it should configure how an identity will be generated (e.g., from a template like ).
+    *   Client-specific asset details (like a GA4 Property ID) must be REMOVED from the admin configuration.
+3.  **Create an Integration Identities Store:**
+    *   A new admin page () is required for managing non-human identities (Service Accounts, OAuth Apps, API Keys).
+    *    Access Items will now reference a pre-configured  instead of having credentials defined inline.
+4.  **Update Client Onboarding:**
+    *   The onboarding wizard is now the SOLE place where client-specific asset information (e.g., Which GA4 property do you want to grant access to?) is collected.
+    *   This data should be stored in a  field on the .
+5.  **Data Source:** All dynamic form fields and client instructions should continue to be driven by the  file, which has been converted into a JS module.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a Next.js project with a monolithic backend API route () that uses an in-memory data store. The architecture is based on the Agency-Wide Platforms model.
-
-- **Backend:** The API and in-memory database have been updated to support agency-level platforms and the new detailed data model for  access items (including , , , etc.). New endpoints for PAM and auditing have been added.
-- **Admin UI:**
-    - A global  to add platforms to the agency.
-    - A  page to list all agency-configured platforms.
-    - A  page with a complex form to configure Access Items, including the new  vs  logic for Shared Accounts.
-- **Data Model:**  has been updated with the new detailed structure for .
-- **New Pages (Stubs):** Stub files have been created for the PAM dashboard () and Audit Log page ().
+The application is a Next.js project with an in-memory database managed by a monolithic API route ().
+- **Completed Features:** The initial Shared Account Enhancement (CLIENT_OWNED vs. AGENCY_OWNED) is fully implemented and verified. The subsequent feature to create data-driven UIs from an Excel file is also complete and verified.
+- **Current State:** The application is in a **partially-refactored, broken state**. The agent has begun implementing the major Identity Taxonomy refactor. The following has been done:
+    - New data modules created:  (to drive UI logic) and  (mock data store).
+    - The Admin Platform Configuration page () has been completely rewritten to use the new identity taxonomy and field policy engine.
+    - A stub for the new Integrations page has been created ().
+- The backend, client onboarding, and access request dialog have **not yet been updated** to match these new frontend changes, leading to an inconsistent and non-functional state.
 
 **Last working item**:
-- Last item agent was working: Implementing the Shared Account Enhancement feature. The agent had finished updating the backend API, the data types, and the admin-facing platform configuration UI. The agent's last action was to start rewriting the client-facing onboarding page () to handle the two distinct flows for  and  shared accounts. This file is currently incomplete and has broken the client onboarding experience.
+- Last item agent was working: Implementing the Identity Taxonomy and Integration Identities feature. The agent was in the middle of a large-scale refactor, following a plan to update multiple core files. The last concrete action was rewriting the Admin Platform Configuration page () to support the new, complex identity model.
 - Status: IN PROGRESS
 - Agent Testing Done: N
 - Which testing method agent to use? both
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-- Issue 1: Onboarding flow is broken due to incomplete PAM feature implementation (P0)
+- Issue 1: Application is in a broken, half-refactored state due to the ongoing Identity Taxonomy implementation. (P0)
 
-Issues Detail:
+**Issues Detail**:
 - Issue 1:
-  - Description: The primary client onboarding page at  is in a half-finished state. The agent was rewriting it to support the new  and  shared account flows but did not complete the implementation. This makes the entire client onboarding journey non-functional.
+  - Description: The frontend admin UI for configuring platforms () has been updated with a new data model (, , etc.). However, the backend API (), the access request dialog, and the client onboarding page have not been updated. Submitting the new form will fail, and data is inconsistent across the app. This is the highest priority to resolve.
   - Next debug checklist:
-    1.  Open .
-    2.  Complete the React component logic to conditionally render different UI based on the  and .
-    3.  For  shared accounts, implement the form to securely collect  and  from the client. Ensure it calls the  endpoint.
-    4.  For  shared accounts, implement the UI to display instructions for the client (i.e., show  and ). Implement the attestation checkbox and ensure it calls the  endpoint.
-    5.  Ensure loading and success/error states are handled for both flows.
-  - Why fix this issue and what will be achieved with the fix? This is the most critical user-facing workflow in the application. Fixing it will complete the core logic of the Shared Account Enhancement feature and restore the ability for clients to complete their onboarding tasks.
+    1.  Implement the UI for the new Integrations management page at .
+    2.  Update the backend API in  to handle the new data structures for creating/updating Access Items (e.g., , , ).
+    3.  Update the  component to support the new logic (e.g., requiring selection of individual users when ).
+    4.  Update the client onboarding page () to include the UI for collecting client-specific asset details ().
+    5.  Update the backend API to store this  data on the .
+    6.  Ensure the Field Policy Engine () is correctly used in all relevant components.
+  - Why fix this issue and what will be achieved with the fix? This will complete the most complex feature request to date, creating a robust and scalable identity management model. It will fix the currently broken state of the application and make the core workflows functional again.
   - Status: IN PROGRESS
   - Is recurring issue? N
   - Should Test frontend/backend/both after fix? both
   - Blocked on other issue: None
 
 **In progress Task List**:
-- Task 1: Complete Shared Account Enhancement Feature (P0)
+- Task 1: Complete the Identity Taxonomy and Integration Identities Refactor (P0)
 
- Task Detail:
-  - Task 1:
-     - Where to resume: Resume work in  to complete the client-facing UI for the PAM feature, as detailed in Issue 1 above.
-     - What will be achieved with this? A fully functional end-to-end flow for configuring and onboarding both  and  shared accounts.
-     - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on something: No.
+**Task Detail**:
+- Task 1:
+  - Where to resume: The agent has already created , , and rewritten . The next logical step is to build the UI for the new Integrations page () and then update the backend API in  to support the new data model.
+  - What will be achieved with this? A fully implemented, robust identity management system as per the user's latest requirements.
+  - Status: IN PROGRESS
+  - Should Test frontend/backend/both after fix? both
+  - Blocked on something: No.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-  - P0: Implement the PAM Dashboard UI (): Fetch and display all shared account access items, showing their status and enabling checkout/check-in workflows (revealing credentials).
-  - P1: Implement the Audit Log UI (): Fetch and display all events from the  in-memory array, with filtering and sorting capabilities.
+  - P1: Implement the PAM Dashboard UI ().
+  - P2: Implement the Audit Log UI ().
 - **Future Tasks:**
-  - P2: Implement real OAuth for Google ecosystem platforms.
-  - P2: Implement an encrypted vault for credentials (currently stored in-memory).
-  - P3: Re-attempt the migration from the in-memory store to PostgreSQL using Prisma.
+  - P3: Migrate from the in-memory store to PostgreSQL using Prisma.
+  - P3: Implement an encrypted vault for credentials.
+  - P4: Implement real OAuth for Google ecosystem platforms.
 
 **Completed work in this session**
-- Major architectural refactor from a client-centric to an agency-centric platform configuration model.
-- Created new UI pages for managing agency-wide platforms () and configuring their access items ().
-- Rewrote the backend API () to support the new agency-centric architecture.
-- Updated the data model in  for the  feature, adding  and other related fields.
-- Updated the backend API in  with new endpoints and logic for configuring and onboarding PAM items.
-- Rewrote the admin platform configuration page () to include the form for  and  shared accounts.
+- **FIXED**: The broken client onboarding flow () was successfully debugged and fixed.
+- **COMPLETED**: The Shared Account Enhancement (PAM) feature with  and  flows was fully implemented and verified end-to-end.
+- **COMPLETED**: A data-driven UI feature, where admin forms and client instructions are dynamically generated from a central data source (), was implemented and verified.
+- **STARTED**: A major refactor to introduce a new Identity Taxonomy (, etc.) and a separate store for .
 
 **Earlier issues found/mentioned but not fixed**
 - The initial goal of migrating to PostgreSQL remains unaddressed. The  file is still present but unused. The application continues to run on a volatile in-memory database.
@@ -93,30 +93,29 @@ Issues Detail:
 **Key Technical Concepts**
 - **Framework:** Next.js 14 (App Router)
 - **Styling:** Tailwind CSS with shadcn/ui
-- **Database:** In-memory arrays within the main API route () acting as a mock database.
-- **Architecture:** A monolithic backend API route handles all data persistence and business logic. The architecture has been refactored to support agency-wide platform configurations instead of client-specific ones.
+- **Database:** In-memory arrays within the main API route ().
+- **Architecture:** A monolithic backend API with a highly dynamic frontend. The core logic is shifting towards a policy-driven model where a central  file dictates UI and validation rules.
 
 **key DB schema**
-The application uses in-memory arrays. The key data structures in  are:
-- : 
-- : 
-- : 
-- : 
-
-The  and  types now have a detailed  field for shared accounts.
+The in-memory database in  is evolving. Key structures now conceptually include:
+-  (Access Items): Will now contain , , , and .
+-  (Access Request Items): Will now need a  field to store asset information collected from the client.
+- : A new top-level array to store non-human identities.
 
 **All files of reference**
-- : **HIGHEST PRIORITY.** This file is broken and must be completed to fix the client onboarding flow.
-- : The backend for the entire application. It has been heavily modified to support agency-platforms and the new PAM feature.
-- : The admin UI for configuring access items, including the new PAM ownership models. This is a key reference for how PAM items are created.
-- : The source of truth for all data structures, especially the  interface.
-- : A stub file that needs to be implemented for the PAM dashboard.
-- : A stub file that needs to be implemented for the Audit Log dashboard.
+- : **CRITICAL.** Must be updated to support the new identity model and data structures.
+- : Recently rewritten. Serves as the primary example of the new identity model on the frontend.
+- : The new source of truth for form logic. Essential for understanding how the UI should behave.
+- : Needs to be updated to collect client asset data.
+- : Needs to be updated to handle the  strategy.
+- : A new page that needs to be built out.
 
 **Critical Info for New Agent**
-- **Do not revert the architecture.** The application was deliberately refactored to an agency-centric model. All new work must align with this.
-- **Your immediate task is to fix the broken onboarding flow.** Focus on completing the UI implementation in . The backend logic for this feature is largely in place. Refer to  and  to understand the data structure of a PAM item.
-- **The database is in-memory.** All data will be lost on server restart. Do not attempt the PostgreSQL migration until the current PAM feature is complete and verified by the user.
+- **Your immediate task is to complete the Identity Taxonomy refactor.** The application is currently in a broken, half-finished state. Do not get sidetracked.
+- **Follow the plan from message #180.** The previous agent laid out a clear plan: update the Integrations page, then the API route, then the onboarding page and request dialog.
+- **The  file is your guide.** This file now dictates what fields appear in the admin UI. You must understand and use it to correctly implement the backend and other UI components.
+- **The user's request in message #170 is the new Product Requirements Document.** Refer to it for all decisions regarding the identity model. It specifies very strict rules about what data can be stored where.
+- **The database is in-memory.** Be prepared for data to be lost on server restarts. Complete the full refactor before extensive E2E testing.
 
 **documents created in this job**
 - 
@@ -125,27 +124,24 @@ The  and  types now have a detailed  field for shared accounts.
 - 
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (msg 187):** Requested a major new feature: enhancing Shared Accounts (PAM) with  vs.  models, defining new data fields, and specifying two distinct onboarding flows.
-2.  **Agent (msg 188-195):** Acknowledged the request, read the codebase, and created stub files for the new PAM and Audit dashboards (, ) and updated the  file.
-3.  **Agent (msg 196-215):** Performed a large-scale update of the backend API in , adding new endpoints and logic to support the PAM feature. This involved fixing some merge/copy-paste errors along the way.
-4.  **Agent (msg 216-217):** Rewrote the platform configuration page () to include the complex new form for creating and editing PAM items.
-5.  **Agent (msg 218-221):** Updated the access request dialog () to handle the new PAM item structure.
-6.  **Agent (msg 222-223):** Began rewriting the client onboarding page () to implement the two distinct user flows. This work is incomplete.
-- **Pending:** The user is waiting for the complete implementation of the Shared Account Enhancement feature.
+- **User (msg 168-170):** Provided a very detailed, multi-point new feature request to refactor the entire identity model, introducing , , , and a . This is the current source of truth for the work. (PENDING IMPLEMENTATION)
+- **User (msg 173):** Provided clarification on how emails for  identities should be handled: auto-generate them but allow admin customization, using  as the domain. (IN PROGRESS)
+- **User (msg 174):** Confirmed the agent should implement all phases of the new feature before testing. (IN PROGRESS)
 
 **Project Health Check:**
-- **Broken:** The client onboarding flow () is non-functional due to the incomplete implementation of the PAM feature. This is a critical workflow.
-- **Mocked:** The entire database is an in-memory mock. All external integrations are stubs.
+- **Broken:** The application is non-functional due to a major, in-progress refactor. The admin platform configuration UI is misaligned with the backend API and other components.
 
 **3rd Party Integrations**
 - **Font Awesome:** Used for icons in the UI.
+- **xlsx:** Used at build-time (or by the agent) to process the  file.
 
 **Testing status**
-- Testing agent used after significant changes: YES (After the agency-level refactor, backend tests passed).
+- Testing agent used after significant changes: YES (Tests passed for the *previous* completed feature).
 - Troubleshoot agent used after agent stuck in loop: NO
 - Test files created: []
-- Known regressions: The entire client onboarding workflow is broken.
+- Known regressions: The entire workflow for configuring and requesting access is currently broken due to the ongoing refactor.
 
 **What agent forgot to execute**
-The agent did not finish the implementation of the  feature. It started rewriting the  component but left it in an incomplete state, breaking a critical part of the application. The new  and  pages also exist only as stubs and need to be implemented.
+The agent has not forgotten anything, but is in the middle of a very large, multi-file implementation. The work is simply incomplete. The agent correctly identified all the files that need to be changed but has only completed the first few steps. The most critical remaining parts are updating the backend API and the client-facing onboarding flow.
+
 </analysis>

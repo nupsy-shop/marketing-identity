@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 
 # Test configuration
-BASE_URL = "https://platform-access-3.preview.emergentagent.com/api"
+BASE_URL = "https://agency-pam.preview.emergentagent.com/api"
 TEST_RESULTS = []
 
 def log_test(test_name, success, details=""):
