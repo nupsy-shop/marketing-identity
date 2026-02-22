@@ -123,8 +123,14 @@ export default function PlatformConfigPage() {
   const openAddForm = () => {
     const platform = agencyPlatform?.platform;
     const firstPattern = platform?.accessPatterns?.[0];
+    // Get first supported item type for this platform
+    const supportedTypes = platform?.supportedItemTypes || [];
+    const firstSupportedType = supportedTypes.length > 0 ? supportedTypes[0] : 'NAMED_INVITE';
+    
     setFormData({
       ...defaultForm(),
+      itemType: firstSupportedType,
+      identityPurpose: firstSupportedType === 'PROXY_TOKEN' ? IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE : IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
       // Set default role from first available pattern
       role: firstPattern?.roles?.[0] || ''
     });
