@@ -295,7 +295,18 @@ export async function POST(request) {
       if (!ap) {
         return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
-      const { itemType = 'NAMED_INVITE', accessPattern, patternLabel, label, role, assetType, assetId, notes, pamConfig } = body || {};
+      const { 
+        itemType = 'NAMED_INVITE', 
+        accessPattern, 
+        patternLabel, 
+        label, 
+        role, 
+        notes, 
+        pamConfig,
+        agencyData,
+        clientInstructions
+      } = body || {};
+      
       if (!accessPattern || !label || !role) {
         return NextResponse.json({ success: false, error: 'accessPattern, label and role are required' }, { status: 400 });
       }
@@ -320,9 +331,11 @@ export async function POST(request) {
         patternLabel: patternLabel || accessPattern,
         label,
         role,
-        assetType: assetType || undefined,
-        assetId: assetId || undefined,
         notes: notes || undefined,
+        // NEW: Agency data fields from Excel
+        agencyData: agencyData || undefined,
+        // NEW: Client instructions from Excel
+        clientInstructions: clientInstructions || undefined,
         pamConfig: itemType === 'SHARED_ACCOUNT_PAM' ? {
           ...pamConfig,
           grantMethod: pamConfig.ownership === 'CLIENT_OWNED' ? 'CREDENTIAL_HANDOFF' : 'INVITE_AGENCY_IDENTITY',
