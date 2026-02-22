@@ -1,82 +1,47 @@
-// Marketing Identity Platform - Enterprise Schema
+// Marketing Identity Platform - PostgreSQL Schema
+// This schema matches the in-memory data structures in route.js
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================================================
-// AGENCY & BRANDING
+// PLATFORM CATALOG (Master list of supported platforms)
 // ============================================================================
 
-model AgencySettings {
-  id             String   @id @default(uuid())
-  agencyName     String   @default("Marketing Agency")
-  logoUrl        String?
-  primaryColor   String   @default("#2563eb") // Blue
-  secondaryColor String   @default("#7c3aed") // Purple
-  subdomain      String?  @unique
-  supportEmail   String   @default("support@agency.com")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model CatalogPlatform {
+  id                    String   @id @default(uuid())
+  name                  String   @unique
+  slug                  String   @unique
+  domain                String   // 'Paid Media', 'Analytics', 'CRM', 'Data Warehouse', etc.
+  description           String?
+  icon                  String?  // Font Awesome icon class or URL
+  tier                  Int      @default(2) // 1 = Tier 1, 2 = Tier 2
+  clientFacing          Boolean  @default(true)
+  automationFeasibility String?  // 'High', 'Medium', 'Low'
+  supportedItemTypes    String[] // ['NAMED_INVITE', 'PARTNER_DELEGATION', 'GROUP_ACCESS', etc.]
+  accessPatterns        Json?    // Array of { pattern, roles, description }
+  notes                 String?
+  oauthSupported        Boolean  @default(false)
+  oauthConfig           Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  @@map("agency_settings")
-}
-
-// ============================================================================
-// USERS & AUTHENTICATION
-// ============================================================================
-
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  role      String   @default("user") // 'admin' | 'user'
-  oktaId    String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  accessRequests    AccessRequest[]
-  validationHistory ValidationHistory[]
-
-  @@map("users")
-}
-
-// ============================================================================
-// PLATFORMS & CATALOG
-// ============================================================================
-
-model Platform {
-  id                     String   @id @default(uuid())
-  name                   String   @unique
-  slug                   String   @unique
-  domain                 String // 'Paid Media', 'Analytics', 'CRM', etc.
-  description            String?
-  iconName               String?  // Font Awesome icon name or custom SVG identifier
-  tier                   Int      @default(2) // 1 = Tier 1 (full asset support), 2 = Tier 2 (platform-level)
-  clientFacing           Boolean  @default(true) // false for internal tools like Gong
-  automationFeasibility  String // 'High', 'Medium', 'Low', 'Medium-High', 'Low-Medium'
-  accessPatterns         Json // Array of access pattern objects: [{ pattern: '1 (Partner Hub)', roles: ['Admin', 'Standard'] }]
-  notes                  String?
-  oauthSupported         Boolean  @default(false)
-  oauthConfig            Json? // OAuth configuration if supported
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  configuredApps       ConfiguredApp[]
-  accessRequestItems   AccessRequestItem[]
-  secrets              Secret[]
+  agencyPlatforms    AgencyPlatform[]
+  accessRequestItems AccessRequestItem[]
 
   @@index([domain])
-  @@index([tier])
   @@index([clientFacing])
-  @@map("platforms")
+  @@map("catalog_platforms")
 }
 
 // ============================================================================
-// CLIENTS & CONFIGURED APPS
+// CLIENTS
 // ============================================================================
 
 model Client {
@@ -86,31 +51,67 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  configuredApps   ConfiguredApp[]
-  accessRequests   AccessRequest[]
-  platformAccounts PlatformAccount[]
-  secrets          Secret[]
+  accessRequests AccessRequest[]
 
   @@map("clients")
 }
 
-// Per-client platform configuration
-model ConfiguredApp {
+// ============================================================================
+// AGENCY PLATFORMS (Agency's configured platforms with access items)
+// ============================================================================
+
+model AgencyPlatform {
   id         String   @id @default(uuid())
-  clientId   String
   platformId String
-  isActive   Boolean  @default(true) // Can be toggled on/off
-  config     Json? // Platform-specific configuration
+  isEnabled  Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  platform Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  platform    CatalogPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  accessItems AccessItem[]
 
-  @@unique([clientId, platformId])
-  @@index([clientId])
-  @@index([platformId])
-  @@map("configured_apps")
+  @@unique([platformId])
+  @@map("agency_platforms")
+}
+
+// Access items configured by the agency admin
+model AccessItem {
+  id               String   @id @default(uuid())
+  agencyPlatformId String
+  
+  // Item configuration
+  itemType         String   // NAMED_INVITE, PARTNER_DELEGATION, GROUP_ACCESS, SHARED_ACCOUNT_PAM, PROXY_TOKEN
+  accessPattern    String?  // Derived from itemType
+  patternLabel     String?
+  label            String
+  role             String
+  notes            String?
+  
+  // Identity taxonomy (for NAMED_INVITE)
+  identityPurpose        String?  // HUMAN_INTERACTIVE, INTEGRATION_NON_INTERACTIVE
+  humanIdentityStrategy  String?  // AGENCY_GROUP, INDIVIDUAL_USERS
+  agencyGroupEmail       String?
+  
+  // Integration identity reference (for PROXY_TOKEN, GROUP_ACCESS)
+  integrationIdentityId  String?
+  
+  // Agency data (MCC ID, BM ID, etc. for Partner Delegation)
+  agencyData             Json?
+  
+  // PAM configuration (for SHARED_ACCOUNT_PAM)
+  pamConfig              Json?
+  
+  // Validation
+  validationMethod       String?  @default("ATTESTATION")
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  agencyPlatform AgencyPlatform @relation(fields: [agencyPlatformId], references: [id], onDelete: Cascade)
+
+  @@index([agencyPlatformId])
+  @@index([itemType])
+  @@map("access_items")
 }
 
 // ============================================================================
@@ -121,48 +122,65 @@ model AccessRequest {
   id          String    @id @default(uuid())
   clientId    String
   token       String    @unique @default(uuid())
-  createdBy   String
+  notes       String?
   completedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [createdBy], references: [id])
-
-  items             AccessRequestItem[]
-  validationHistory ValidationHistory[]
+  client Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  items  AccessRequestItem[]
 
   @@index([clientId])
   @@index([token])
   @@map("access_requests")
 }
 
-// Individual access request items (per platform, access pattern, role, asset)
+// Individual items within an access request
 model AccessRequestItem {
-  id              String    @id @default(uuid())
+  id              String   @id @default(uuid())
   accessRequestId String
   platformId      String
   
-  // Access configuration
-  accessPattern   String // e.g., '1 (Partner Hub)', '2 (Named Invites)'
-  role            String // e.g., 'Admin', 'Standard', 'Read-only'
+  // Access configuration (copied from AccessItem at request time)
+  itemType        String
+  accessPattern   String?
+  patternLabel    String?
+  role            String
+  assetName       String?
   
-  // Asset-level selection (for Tier 1 platforms)
-  assetType       String? // e.g., 'Ad Account', 'Business Manager', 'Page', 'Pixel'
-  assetId         String? // Client-provided or auto-discovered asset ID
-  assetName       String? // Human-readable asset name
+  // Identity fields
+  identityPurpose       String?
+  humanIdentityStrategy String?
+  resolvedIdentity      String?  // Generated email/identity for this request
+  agencyGroupEmail      String?
+  
+  // Agency data
+  agencyData            Json?
+  
+  // PAM fields
+  pamOwnership          String?  // CLIENT_OWNED, AGENCY_OWNED
+  pamConfig             Json?
+  pamUsername           String?
+  pamSecretRef          String?  // Encrypted reference to credentials
+  
+  // Client-provided target (collected during onboarding)
+  clientProvidedTarget  Json?
+  
+  // Client instructions
+  clientInstructions    String?  @db.Text
   
   // Status tracking
-  status          String    @default("pending") // 'pending', 'validated', 'failed'
-  validatedAt     DateTime?
-  validatedBy     String? // Connector name or 'manual'
-  notes           String?
+  status                String   @default("pending") // pending, validated, needs_evidence, failed
+  validatedAt           DateTime?
+  validatedBy           String?
+  validationMode        String?
+  validationResult      Json?
   
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  accessRequest AccessRequest @relation(fields: [accessRequestId], references: [id], onDelete: Cascade)
-  platform      Platform      @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  accessRequest AccessRequest   @relation(fields: [accessRequestId], references: [id], onDelete: Cascade)
+  platform      CatalogPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
 
   @@index([accessRequestId])
   @@index([platformId])
@@ -171,87 +189,62 @@ model AccessRequestItem {
 }
 
 // ============================================================================
-// PLATFORM ACCOUNTS & GRANTS
+// INTEGRATION IDENTITIES (Service accounts, API keys, etc.)
 // ============================================================================
 
-model PlatformAccount {
-  id                String   @id @default(uuid())
-  platformId        String
-  clientId          String
-  accountIdentifier String // e.g., Google Ads MCC ID, email, etc.
-  accountName       String?
-  status            String   @default("pending") // 'active', 'pending', 'revoked'
-  metadata          Json? // Platform-specific account data
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+model IntegrationIdentity {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // SERVICE_ACCOUNT, API_KEY, OAUTH_CLIENT
+  identifier  String   // Email, key ID, client ID
+  description String?
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  grants Grant[]
-
-  @@index([clientId])
-  @@map("platform_accounts")
-}
-
-model Grant {
-  id                 String    @id @default(uuid())
-  userId             String
-  platformAccountId  String
-  role               String // Platform-specific role
-  grantedAt          DateTime  @default(now())
-  revokedAt          DateTime?
-
-  platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([platformAccountId])
-  @@map("grants")
+  @@map("integration_identities")
 }
 
 // ============================================================================
-// AUDIT & VALIDATION HISTORY
+// PAM SESSIONS (Credential checkouts)
 // ============================================================================
 
-model ValidationHistory {
-  id              String   @id @default(uuid())
-  accessRequestId String?
+model PamSession {
+  id              String    @id @default(uuid())
+  requestId       String
+  itemId          String
+  platformId      String
   userId          String
-  action          String // 'created', 'validated', 'failed', 'refreshed', 'revoked'
-  targetType      String // 'access_request', 'platform', 'item'
-  targetId        String
-  metadata        Json? // Additional context
-  timestamp       DateTime @default(now())
+  checkedOutAt    DateTime  @default(now())
+  expiresAt       DateTime
+  checkedInAt     DateTime?
+  status          String    @default("active") // active, expired, checked_in
+  credentialRef   String?   // Reference to decrypted credentials
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  accessRequest AccessRequest? @relation(fields: [accessRequestId], references: [id], onDelete: Cascade)
-  user          User           @relation(fields: [userId], references: [id])
-
-  @@index([accessRequestId])
-  @@index([userId])
-  @@index([timestamp])
-  @@map("validation_history")
+  @@index([requestId])
+  @@index([status])
+  @@map("pam_sessions")
 }
 
 // ============================================================================
-// SECRETS & VAULT FOUNDATION
+// AUDIT LOG
 // ============================================================================
 
-model Secret {
-  id             String    @id @default(uuid())
-  type           String // 'oauth_token', 'api_key', 'password', 'service_account'
-  platformId     String
-  clientId       String?
-  encryptedValue String // Encrypted using KMS or envelope encryption
-  metadata       Json? // Additional secret metadata (scopes, expiry, etc.)
-  rotationPolicy Json? // { frequency: '90d', lastRotated: '2024-01-01', nextRotation: '2024-04-01' }
-  lastRotated    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+model AuditLog {
+  id         String   @id @default(uuid())
+  event      String   // ACCESS_GRANTED, CREDENTIAL_CHECKED_OUT, etc.
+  actor      String   // User ID or 'system'
+  requestId  String?
+  itemId     String?
+  platformId String?
+  details    Json?
+  timestamp  DateTime @default(now())
 
-  platform Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
-  client   Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([platformId])
-  @@index([clientId])
-  @@index([type])
-  @@map("secrets")
+  @@index([event])
+  @@index([requestId])
+  @@index([timestamp])
+  @@map("audit_logs")
 }
