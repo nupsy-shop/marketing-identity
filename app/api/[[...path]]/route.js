@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { platforms, getPlatformById } from '@/lib/data/platforms';
+import { platforms, getPlatformById, getClientFacingPlatforms, getAllDomains, getPlatformsByTier } from '@/lib/data/platforms-enhanced';
 import {
   clients,
   accessRequests,
@@ -34,13 +34,19 @@ export async function GET(request) {
     if (path === 'platforms') {
       const domain = searchParams.get('domain');
       const automation = searchParams.get('automation');
+      const tier = searchParams.get('tier');
+      const clientFacing = searchParams.get('clientFacing');
       
-      let filtered = platforms;
+      let filtered = clientFacing === 'true' ? getClientFacingPlatforms() : platforms;
+      
       if (domain) {
         filtered = filtered.filter(p => p.domain === domain);
       }
       if (automation) {
         filtered = filtered.filter(p => p.automationFeasibility === automation);
+      }
+      if (tier) {
+        filtered = filtered.filter(p => p.tier === parseInt(tier));
       }
       
       return NextResponse.json({
@@ -49,8 +55,16 @@ export async function GET(request) {
       });
     }
 
+    // GET /api/platforms/domains - Get all unique domains
+    if (path === 'platforms/domains') {
+      return NextResponse.json({
+        success: true,
+        data: getAllDomains()
+      });
+    }
+
     // GET /api/platforms/:id - Get platform by ID
-    if (path.startsWith('platforms/') && path.split('/').length === 2) {
+    if (path.startsWith('platforms/') && path.split('/').length === 2 && path !== 'platforms/domains') {
       const id = path.split('/')[1];
       const platform = getPlatformById(id);
       
@@ -235,7 +249,7 @@ export async function POST(request) {
           platformId,
           status: 'pending'
         })),
-        createdBy: 'admin-1', // TODO: Get from session
+        createdBy: 'admin-1',
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -268,7 +282,6 @@ export async function POST(request) {
         );
       }
 
-      // Find and update the platform status
       const platformStatus = accessRequest.platformStatuses.find(
         ps => ps.platformId === platformId
       );
@@ -286,7 +299,6 @@ export async function POST(request) {
         platformStatus.notes = notes;
       }
 
-      // Check if all platforms are validated
       const allValidated = accessRequest.platformStatuses.every(
         ps => ps.status === 'validated'
       );
@@ -303,7 +315,7 @@ export async function POST(request) {
       });
     }
 
-    // POST /api/access-requests/:id/refresh - Refresh validation status for all platforms
+    // POST /api/access-requests/:id/refresh - Refresh validation status
     if (path.match(/^access-requests\/[^/]+\/refresh$/)) {
       const id = path.split('/')[1];
       const accessRequest = getAccessRequestById(id);
@@ -315,7 +327,6 @@ export async function POST(request) {
         );
       }
 
-      // Use connectors to verify access for each platform
       const results = [];
       for (const platformStatus of accessRequest.platformStatuses) {
         const platform = getPlatformById(platformStatus.platformId);
@@ -404,7 +415,6 @@ export async function DELETE(request) {
         );
       }
 
-      // Use connector to revoke access
       const platform = getPlatformById(platformId);
       if (platform) {
         const connector = getConnectorForPlatform(platform);
