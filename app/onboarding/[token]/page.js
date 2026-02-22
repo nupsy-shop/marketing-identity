@@ -110,9 +110,11 @@ export default function OnboardingPage() {
     );
   }
 
-  const validatedCount = accessRequest.platformStatuses.filter(ps => ps.status === 'validated').length;
-  const totalCount = accessRequest.platformStatuses.length;
-  const progress = (validatedCount / totalCount) * 100;
+  // Support both old and new structure
+  const items = accessRequest.items || accessRequest.platformStatuses || [];
+  const validatedCount = items.filter(item => item.status === 'validated').length;
+  const totalCount = items.length;
+  const progress = totalCount > 0 ? (validatedCount / totalCount) * 100 : 0;
   const isComplete = validatedCount === totalCount;
 
   return (
