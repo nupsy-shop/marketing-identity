@@ -280,15 +280,29 @@ export default function PlatformConfigPage() {
 
     // PAM validation
     if (formData.itemType === 'SHARED_ACCOUNT_PAM' && formData.pamOwnership === 'AGENCY_OWNED') {
-      if (formData.pamIdentityStrategy === 'STATIC') {
-        if (!formData.pamAgencyIdentityEmail || !formData.pamRoleTemplate) {
-          toast({ title: 'Validation Error', description: 'Agency Identity Email and Role Template are required for Static Agency Identity', variant: 'destructive' });
+      // Integration (Non-Human) - requires integration identity
+      if (formData.identityPurpose === IDENTITY_PURPOSE.INTEGRATION_NON_INTERACTIVE) {
+        if (!formData.integrationIdentityId) {
+          toast({ title: 'Validation Error', description: 'Please select an Integration Identity for non-human PAM access', variant: 'destructive' });
           return false;
         }
-      } else if (formData.pamIdentityStrategy === 'CLIENT_DEDICATED') {
-        if (!formData.pamNamingTemplate || !formData.pamRoleTemplate) {
-          toast({ title: 'Validation Error', description: 'Naming Template and Role Template are required for Client-Dedicated Identity', variant: 'destructive' });
+        if (!formData.pamRoleTemplate) {
+          toast({ title: 'Validation Error', description: 'Role is required', variant: 'destructive' });
           return false;
+        }
+      } 
+      // Human Interactive - requires identity strategy config
+      else if (formData.identityPurpose === IDENTITY_PURPOSE.HUMAN_INTERACTIVE) {
+        if (formData.pamIdentityStrategy === 'STATIC') {
+          if (!formData.pamAgencyIdentityEmail || !formData.pamRoleTemplate) {
+            toast({ title: 'Validation Error', description: 'Agency Identity Email and Role Template are required for Static Agency Identity', variant: 'destructive' });
+            return false;
+          }
+        } else if (formData.pamIdentityStrategy === 'CLIENT_DEDICATED') {
+          if (!formData.pamNamingTemplate || !formData.pamRoleTemplate) {
+            toast({ title: 'Validation Error', description: 'Naming Template and Role Template are required for Client-Dedicated Identity', variant: 'destructive' });
+            return false;
+          }
         }
       }
     }
