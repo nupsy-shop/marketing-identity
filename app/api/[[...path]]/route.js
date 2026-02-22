@@ -483,8 +483,29 @@ export async function POST(request) {
       return NextResponse.json({ success: true, data: { message: 'Checked in successfully', sessionId: activeSession.id } });
     }
 
-    // POST /api/clients - Create new client
+    // POST /api/agency/platforms - Add platform to agency
+    if (path === 'agency/platforms') {
       const { platformId } = body || {};
+      if (!platformId) {
+        return NextResponse.json({ success: false, error: 'platformId is required' }, { status: 400 });
+      }
+      const platform2 = getPlatformById(platformId);
+      if (!platform2) {
+        return NextResponse.json({ success: false, error: 'Platform not found' }, { status: 404 });
+      }
+      const existing2 = getAgencyPlatformByPlatformId(platformId);
+      if (existing2) {
+        return NextResponse.json({
+          success: false, error: 'Platform already added to agency',
+          data: { ...existing2, platform: platform2 }
+        }, { status: 409 });
+      }
+      const ap2 = { id: uuidv4(), platformId, isEnabled: true, accessItems: [], createdAt: new Date(), updatedAt: new Date() };
+      addAgencyPlatform(ap2);
+      return NextResponse.json({ success: true, data: { ...ap2, platform: platform2 } });
+    }
+
+    // POST /api/clients - Create new client
       if (!platformId) {
         return NextResponse.json({ success: false, error: 'platformId is required' }, { status: 400 });
       }
