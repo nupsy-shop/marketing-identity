@@ -1,6 +1,9 @@
 // Enhanced Platform registry with enterprise metadata
 import { v4 as uuidv4 } from 'uuid';
 
+// Valid item types that can be assigned to platforms
+export type ItemType = 'NAMED_INVITE' | 'PARTNER_DELEGATION' | 'GROUP_ACCESS' | 'PROXY_TOKEN' | 'SHARED_ACCOUNT_PAM';
+
 // Enhanced platform interface with new fields
 export interface EnhancedPlatform {
   id: string;
@@ -15,6 +18,7 @@ export interface EnhancedPlatform {
   tier?: number; // 1 = Tier 1 (full asset support), 2 = Tier 2 (platform-level)
   clientFacing?: boolean;
   oauthSupported?: boolean;
+  supportedItemTypes: ItemType[]; // Which item types this platform supports
   accessPatterns?: Array<{
     pattern: string;
     label: string;
