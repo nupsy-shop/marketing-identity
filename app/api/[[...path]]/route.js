@@ -979,6 +979,16 @@ export async function DELETE(request) {
   const path = pathname.replace('/api/', '');
 
   try {
+    // DELETE /api/integration-identities/:id - Delete integration identity
+    if (path.match(/^integration-identities\/[^/]+$/)) {
+      const id = path.split('/')[1];
+      const success = deleteIntegrationIdentity(id);
+      if (!success) {
+        return NextResponse.json({ success: false, error: 'Integration identity not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: { message: 'Integration identity deleted' } });
+    }
+
     // DELETE /api/agency/platforms/:id - Remove platform from agency
     if (path.match(/^agency\/platforms\/[^/]+$/) && path.split('/').length === 3) {
       const id = path.split('/')[2];
