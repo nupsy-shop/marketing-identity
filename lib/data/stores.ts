@@ -1,13 +1,37 @@
 // In-memory data stores
 // In production, replace these with database calls
 
-import { Client, AccessRequest, PlatformAccount, Grant, User } from '@/types';
+import { Client, User } from '@/types';
+
+// Enhanced AccessRequest structure for enterprise features
+export interface AccessRequestItem {
+  id: string;
+  platformId: string;
+  accessPattern: string; // e.g., '1 (Partner Hub)', '2 (Named Invites)'
+  role: string; // e.g., 'Admin', 'Standard', 'Viewer'
+  assetType?: string; // For Tier 1: 'Ad Account', 'Business Manager', 'Page', 'Pixel'
+  assetId?: string; // Client-provided or auto-discovered asset ID
+  assetName?: string; // Human-readable asset name
+  status: string; // 'pending', 'validated', 'failed'
+  validatedAt?: Date;
+  validatedBy?: string;
+  notes?: string;
+}
+
+export interface EnhancedAccessRequest {
+  id: string;
+  clientId: string;
+  token: string;
+  items: AccessRequestItem[]; // Changed from platformStatuses to items
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+}
 
 // Storage arrays
 export const clients: Client[] = [];
-export const accessRequests: AccessRequest[] = [];
-export const platformAccounts: PlatformAccount[] = [];
-export const grants: Grant[] = [];
+export const accessRequests: EnhancedAccessRequest[] = [];
 export const users: User[] = [
   {
     id: 'admin-1',
@@ -19,7 +43,6 @@ export const users: User[] = [
 ];
 
 // Helper functions for data access
-// These provide a clean interface that can be easily replaced with database queries
 
 // Clients
 export function addClient(client: Client): Client {
@@ -44,61 +67,29 @@ export function updateClient(id: string, updates: Partial<Client>): Client | und
 }
 
 // Access Requests
-export function addAccessRequest(request: AccessRequest): AccessRequest {
+export function addAccessRequest(request: EnhancedAccessRequest): EnhancedAccessRequest {
   accessRequests.push(request);
   return request;
 }
 
-export function getAccessRequestById(id: string): AccessRequest | undefined {
+export function getAccessRequestById(id: string): EnhancedAccessRequest | undefined {
   return accessRequests.find(r => r.id === id);
 }
 
-export function getAccessRequestByToken(token: string): AccessRequest | undefined {
+export function getAccessRequestByToken(token: string): EnhancedAccessRequest | undefined {
   return accessRequests.find(r => r.token === token);
 }
 
-export function getAccessRequestsByClientId(clientId: string): AccessRequest[] {
+export function getAccessRequestsByClientId(clientId: string): EnhancedAccessRequest[] {
   return accessRequests.filter(r => r.clientId === clientId);
 }
 
-export function updateAccessRequest(id: string, updates: Partial<AccessRequest>): AccessRequest | undefined {
+export function updateAccessRequest(id: string, updates: Partial<EnhancedAccessRequest>): EnhancedAccessRequest | undefined {
   const request = getAccessRequestById(id);
   if (request) {
     Object.assign(request, updates, { updatedAt: new Date() });
   }
   return request;
-}
-
-// Platform Accounts
-export function addPlatformAccount(account: PlatformAccount): PlatformAccount {
-  platformAccounts.push(account);
-  return account;
-}
-
-export function getPlatformAccountsByClientId(clientId: string): PlatformAccount[] {
-  return platformAccounts.filter(a => a.clientId === clientId);
-}
-
-export function getPlatformAccountById(id: string): PlatformAccount | undefined {
-  return platformAccounts.find(a => a.id === id);
-}
-
-// Grants
-export function addGrant(grant: Grant): Grant {
-  grants.push(grant);
-  return grant;
-}
-
-export function getGrantsByUserId(userId: string): Grant[] {
-  return grants.filter(g => g.userId === userId && !g.revokedAt);
-}
-
-export function revokeGrant(grantId: string): Grant | undefined {
-  const grant = grants.find(g => g.id === grantId);
-  if (grant) {
-    grant.revokedAt = new Date();
-  }
-  return grant;
 }
 
 // Users
