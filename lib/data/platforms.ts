@@ -1,10 +1,180 @@
-// Platform registry seeded from the merged platform coverage Excel file
+// Enhanced Platform registry with enterprise metadata
 import { Platform } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
-// Raw platform data from Excel
+// Enhanced platform data with icons, descriptions, tiers, and detailed access patterns
 const rawPlatforms = [
-  { name: 'Adobe Analytics', domain: 'Analytics', accessPattern: '2 (Named Invites)', automationFeasibility: 'Medium', notes: 'Govern via IGA approvals + periodic user export review.' },
+  // TIER 1 PLATFORMS - Full asset-level support
+  { 
+    name: 'Google Ads', 
+    domain: 'Paid Media', 
+    accessPattern: '1 (Partner Hub)', 
+    automationFeasibility: 'Medium-High', 
+    notes: 'MCC linking centralizes internal access; core reference pattern.',
+    description: 'Reach customers searching for your products and services with targeted search, display, and video ads.',
+    iconName: 'fab fa-google',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: true,
+    accessPatterns: [
+      { pattern: '1 (Partner Hub)', label: 'MCC Linking', roles: ['Admin', 'Standard', 'Read-only', 'Email-only'] }
+    ]
+  },
+  { 
+    name: 'Meta/Facebook Ads', 
+    domain: 'Paid Media', 
+    accessPattern: '1 (Partner Hub)', 
+    automationFeasibility: 'Medium', 
+    notes: 'Partner/Business Manager delegation pattern (agency manages internally).',
+    description: 'Create ads to reach your ideal customers on Facebook, Instagram, Messenger, and Audience Network.',
+    iconName: 'fab fa-facebook',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: true,
+    accessPatterns: [
+      { pattern: '1 (Partner Hub)', label: 'Business Manager Access', roles: ['Admin', 'Advertiser', 'Analyst'] }
+    ]
+  },
+  { 
+    name: 'Google Analytics/GA4', 
+    domain: 'Analytics', 
+    accessPattern: '2 or 3', 
+    automationFeasibility: 'Medium', 
+    notes: 'Prefer group-based where supported; otherwise named users + recert.',
+    description: 'Understand how users interact with your website and apps with advanced analytics and reporting.',
+    iconName: 'fab fa-google',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: true,
+    accessPatterns: [
+      { pattern: '2 (Named Invites)', label: 'User Access', roles: ['Administrator', 'Editor', 'Analyst', 'Viewer'] },
+      { pattern: '3', label: 'Group Access', roles: ['Administrator', 'Editor', 'Analyst', 'Viewer'] }
+    ]
+  },
+  { 
+    name: 'Google Tag Manager', 
+    domain: 'Tagging', 
+    accessPattern: '2 (Named Invites)', 
+    automationFeasibility: 'Medium', 
+    notes: 'User + container permissions; avoid single-admin lockout risk.',
+    description: 'Manage website tags and track conversions without editing code.',
+    iconName: 'fab fa-google',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: true,
+    accessPatterns: [
+      { pattern: '2 (Named Invites)', label: 'Container Access', roles: ['Administrator', 'Publish', 'Edit', 'Read'] }
+    ]
+  },
+  { 
+    name: 'Google Search Console', 
+    domain: 'SEO/Analytics', 
+    accessPattern: '2 (Named Invites) or 4 (Proxy)', 
+    automationFeasibility: 'Low', 
+    notes: 'No group assignment; must manage per-user property access.',
+    description: 'Monitor and maintain your site\'s presence in Google Search results.',
+    iconName: 'fab fa-google',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: true,
+    accessPatterns: [
+      { pattern: '2 (Named Invites)', label: 'Property Access', roles: ['Owner', 'Full User', 'Restricted User'] },
+      { pattern: '4 (Proxy)', label: 'Delegated Access', roles: ['Full User'] }
+    ]
+  },
+  { 
+    name: 'Google Merchant Center', 
+    domain: 'Retail / Ecommerce', 
+    accessPattern: '2 (Named Invites)', 
+    automationFeasibility: 'Medium', 
+    notes: 'Named users; couple with strict admin role governance.',
+    description: 'Upload your product data to Google and make it available for Shopping ads.',
+    iconName: 'fab fa-google',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: true,
+    accessPatterns: [
+      { pattern: '2 (Named Invites)', label: 'Account Access', roles: ['Admin', 'Standard', 'Reporting'] }
+    ]
+  },
+  { 
+    name: 'LinkedIn Ads', 
+    domain: 'Advertising platform', 
+    accessPattern: '1 (Partner Hub)', 
+    automationFeasibility: 'Medium', 
+    notes: '',
+    description: 'Reach professionals with targeted advertising on the world\'s largest professional network.',
+    iconName: 'fab fa-linkedin',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: false,
+    accessPatterns: [
+      { pattern: '1 (Partner Hub)', label: 'Campaign Manager Access', roles: ['Account Manager', 'Campaign Manager', 'Creative Manager', 'Viewer'] }
+    ]
+  },
+  { 
+    name: 'TikTok Ads', 
+    domain: 'Paid Media', 
+    accessPattern: '1 (Partner Hub)', 
+    automationFeasibility: 'Medium', 
+    notes: 'Business Center partner asset permissions are designed for delegation.',
+    description: 'Create engaging video ads and reach TikTok\'s highly engaged audience.',
+    iconName: 'fab fa-tiktok',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: false,
+    accessPatterns: [
+      { pattern: '1 (Partner Hub)', label: 'Business Center Access', roles: ['Admin', 'Operator', 'Analyst'] }
+    ]
+  },
+  { 
+    name: 'Microsoft Advertising', 
+    domain: 'Advertising platform', 
+    accessPattern: '1 (Partner Hub)', 
+    automationFeasibility: 'Medium', 
+    notes: 'Prefer manager/delegation model when possible; otherwise invites.',
+    description: 'Reach customers on Bing, Yahoo, and Microsoft partner sites.',
+    iconName: 'fab fa-microsoft',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: false,
+    accessPatterns: [
+      { pattern: '1 (Partner Hub)', label: 'Manager Account', roles: ['Super Admin', 'Standard User', 'Viewer'] },
+      { pattern: '2 (Named Invites)', label: 'Direct Access', roles: ['Super Admin', 'Standard User', 'Viewer'] }
+    ]
+  },
+  { 
+    name: 'Shopify', 
+    domain: 'Ecommerce', 
+    accessPattern: '2 (Named Invites)', 
+    automationFeasibility: 'Medium', 
+    notes: 'Collaborator/staff access; treat store admin as privileged.',
+    description: 'All-in-one ecommerce platform to start, run, and grow your business.',
+    iconName: 'fab fa-shopify',
+    tier: 1,
+    clientFacing: true,
+    oauthSupported: false,
+    accessPatterns: [
+      { pattern: '2 (Named Invites)', label: 'Staff Access', roles: ['Staff', 'Collaborator'] }
+    ]
+  },
+
+  // TIER 2 PLATFORMS - Platform-level access
+  { 
+    name: 'Adobe Analytics', 
+    domain: 'Analytics', 
+    accessPattern: '2 (Named Invites)', 
+    automationFeasibility: 'Medium', 
+    notes: 'Govern via IGA approvals + periodic user export review.',
+    description: 'Enterprise analytics for understanding customer journeys across channels.',
+    iconName: 'fas fa-chart-line',
+    tier: 2,
+    clientFacing: true,
+    oauthSupported: false,
+    accessPatterns: [
+      { pattern: '2 (Named Invites)', label: 'User Access', roles: ['Admin', 'User'] }
+    ]
+  },
   { name: 'Adobe Creative Cloud', domain: 'Web / content / creative', accessPattern: '2 (Named Invites)', automationFeasibility: 'Low-Medium', notes: 'OAuth app not verified in some entries; Requests Google Workspace OAuth scopes; Validate OAuth app provenance before allowlisting' },
   { name: 'Amazon (Retail Media)', domain: 'Retail Media / Ads', accessPattern: '2 (Named Invites)', automationFeasibility: 'Low-Medium', notes: 'Client-managed access; enforce approvals + evidence capture.' },
   { name: 'Apollo', domain: 'CRM / RevOps / marketing automation', accessPattern: '2 (Named Invites)', automationFeasibility: 'Low-Medium', notes: 'Requests Google Workspace OAuth scopes' },
