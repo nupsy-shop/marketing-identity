@@ -604,42 +604,85 @@ export async function POST(request) {
     if (path === 'access-requests') {
       const { clientId, items } = body || {};
       
+      if (!clientId) {
+        return NextResponse.json(
+          { success: false, error: 'clientId is required' },
+          { status: 400 }
+        );
+      }
+
+      const client = getClientById(clientId);
+      if (!client) {
+        return NextResponse.json(
+          { success: false, error: 'Client not found' },
+          { status: 404 }
+        );
+      }
+      
       // Support both old format (platformIds) and new format (items)
       let requestItems = [];
       
       if (items && Array.isArray(items)) {
-        // New format: enhanced with pattern, role, assets
+        // New format: enhanced with pattern, role, Identity Taxonomy
         if (items.length === 0) {
           return NextResponse.json(
             { success: false, error: 'items array cannot be empty' },
             { status: 400 }
           );
         }
-        requestItems = items.map(item => ({
-          id: uuidv4(),
-          platformId: item.platformId,
-          accessPattern: item.accessPattern,
-          role: item.role,
-          assetName: item.assetName,
-          status: 'pending',
-          // Copy item subtype and PAM fields
-          itemType: item.itemType || 'NAMED_INVITE',
-          pamOwnership: item.pamOwnership || undefined,
-          pamGrantMethod: item.pamGrantMethod || undefined,
-          pamUsername: item.pamUsername || undefined,
-          pamAgencyIdentityEmail: item.pamAgencyIdentityEmail || undefined,
-          pamRoleTemplate: item.pamRoleTemplate || undefined,
-          // NEW: Agency data fields from Excel
-          agencyData: item.agencyData || undefined,
-          // NEW: Client instructions from Excel
-          clientInstructions: item.clientInstructions || undefined,
-          // Client-selected asset (populated during onboarding)
-          selectedAssetType: undefined,
-          selectedAssetId: undefined,
-          validationMode: item.pamOwnership === 'CLIENT_OWNED' ? 'AUTO'
-            : item.pamOwnership === 'AGENCY_OWNED' ? 'ATTESTATION'
-            : undefined
-        }));
+        
+        requestItems = items.map(item => {
+          const platform = getPlatformById(item.platformId);
+          
+          // Generate resolved identity for CLIENT_DEDICATED strategy
+          let resolvedIdentity = undefined;
+          if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.CLIENT_DEDICATED && item.namingTemplate) {
+            resolvedIdentity = generateClientDedicatedIdentity(item.namingTemplate, client, platform);
+          } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.AGENCY_GROUP) {
+            resolvedIdentity = item.agencyGroupEmail;
+          } else if (item.humanIdentityStrategy === HUMAN_IDENTITY_STRATEGY.INDIVIDUAL_USERS) {
+            // For INDIVIDUAL_USERS, the invitees should be in item.inviteeEmails
+            resolvedIdentity = item.inviteeEmails?.join(', ') || undefined;
+          } else if (item.agencyData?.agencyEmail) {
+            // Fallback to agencyData.agencyEmail for backward compatibility
+            resolvedIdentity = item.agencyData.agencyEmail;
+          }
+          
+          return {
+            id: uuidv4(),
+            platformId: item.platformId,
+            accessPattern: item.accessPattern,
+            role: item.role,
+            assetName: item.assetName,
+            status: 'pending',
+            // Item type and PAM fields
+            itemType: item.itemType || 'NAMED_INVITE',
+            pamOwnership: item.pamOwnership || undefined,
+            pamGrantMethod: item.pamGrantMethod || undefined,
+            pamUsername: item.pamUsername || undefined,
+            pamAgencyIdentityEmail: item.pamAgencyIdentityEmail || undefined,
+            pamRoleTemplate: item.pamRoleTemplate || undefined,
+            // Identity Taxonomy fields
+            identityPurpose: item.identityPurpose || IDENTITY_PURPOSE.HUMAN_INTERACTIVE,
+            humanIdentityStrategy: item.humanIdentityStrategy || undefined,
+            namingTemplate: item.namingTemplate || undefined,
+            agencyGroupEmail: item.agencyGroupEmail || undefined,
+            integrationIdentityId: item.integrationIdentityId || undefined,
+            inviteeEmails: item.inviteeEmails || undefined,
+            resolvedIdentity: resolvedIdentity,
+            // Agency data fields from Excel
+            agencyData: item.agencyData || undefined,
+            // Client instructions from Excel
+            clientInstructions: item.clientInstructions || undefined,
+            // Client-provided asset target (populated during onboarding)
+            clientProvidedTarget: undefined,
+            // Validation
+            validationMethod: item.validationMethod || 'ATTESTATION',
+            validationMode: item.pamOwnership === 'CLIENT_OWNED' ? 'AUTO'
+              : item.pamOwnership === 'AGENCY_OWNED' ? 'ATTESTATION'
+              : undefined
+          };
+        });
       } else if (body.platformIds && Array.isArray(body.platformIds)) {
         // Old format: just platformIds (backward compatibility)
         if (body.platformIds.length === 0) {
@@ -659,21 +702,6 @@ export async function POST(request) {
         return NextResponse.json(
           { success: false, error: 'items array or platformIds array is required' },
           { status: 400 }
-        );
-      }
-      
-      if (!clientId) {
-        return NextResponse.json(
-          { success: false, error: 'clientId is required' },
-          { status: 400 }
-        );
-      }
-
-      const client = getClientById(clientId);
-      if (!client) {
-        return NextResponse.json(
-          { success: false, error: 'Client not found' },
-          { status: 404 }
         );
       }
 
