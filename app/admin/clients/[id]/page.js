@@ -302,3 +302,158 @@ function AccessRequestCard({ request, platforms, onCopyLink, onRefresh }) {
     </Card>
   );
 }
+
+function ConfiguredPlatformsTab({ configuredApps, clientId, onUpdate, router }) {
+  const { toast } = useToast();
+
+  const toggleApp = async (appId) => {
+    try {
+      const response = await fetch(`/api/configured-apps/${appId}/toggle`, {
+        method: 'PATCH'
+      });
+      const result = await response.json();
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: 'Platform status updated'
+        });
+        onUpdate();
+      }
+    } catch (error) {
+      console.error('Failed to toggle app:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update platform status',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const removeApp = async (appId) => {
+    if (!confirm('Are you sure you want to remove this platform configuration?')) return;
+    
+    try {
+      const response = await fetch(`/api/configured-apps/${appId}`, {
+        method: 'DELETE'
+      });
+      const result = await response.json();
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: 'Platform removed successfully'
+        });
+        onUpdate();
+      }
+    } catch (error) {
+      console.error('Failed to remove app:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove platform',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  if (configuredApps.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center">
+            <i className="fas fa-cubes text-4xl text-muted-foreground mb-4"></i>
+            <h3 className="text-lg font-semibold mb-2">No platforms configured</h3>
+            <p className="text-muted-foreground mb-4">
+              Add platforms from the catalog to enable access request creation
+            </p>
+            <Button onClick={() => router.push('/admin/catalog')}>
+              <i className="fas fa-plus mr-2"></i>
+              Browse Platform Catalog
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Configured Platforms</h2>
+          <p className="text-muted-foreground">
+            Manage platform configurations for this client
+          </p>
+        </div>
+        <Button onClick={() => router.push('/admin/catalog')}>
+          <i className="fas fa-plus mr-2"></i>
+          Add from Catalog
+        </Button>
+      </div>
+
+      {configuredApps.map((app) => (
+        <Card key={app.id} className={!app.isActive ? 'opacity-60' : ''}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {app.platform?.iconName && (
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                    <i className={`${app.platform.iconName} text-2xl text-primary`}></i>
+                  </div>
+                )}
+                <div>
+                  <CardTitle className="text-xl">{app.platform?.name}</CardTitle>
+                  <CardDescription>{app.platform?.domain}</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge variant={app.platform?.tier === 1 ? 'default' : 'secondary'}>
+                  Tier {app.platform?.tier}
+                </Badge>
+                <Badge variant="outline">
+                  {app.items.length} item{app.items.length !== 1 ? 's' : ''}
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {app.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                  <Switch
+                    checked={app.isActive}
+                    onCheckedChange={() => toggleApp(app.id)}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeApp(app.id)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <i className="fas fa-trash"></i>
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {app.items.map((item) => (
+                <div key={item.id} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <i className="fas fa-check-circle text-green-500 mt-1"></i>
+                  <div className="flex-1">
+                    <p className="font-medium">{item.label}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.accessPattern} • {item.role}
+                    </p>
+                    {item.assetType && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Asset: {item.assetType}
+                        {item.assetId && ` (#${item.assetId})`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
