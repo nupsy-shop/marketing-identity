@@ -226,6 +226,7 @@ class BackendTester:
         # Test LinkedIn grant-access - should return 501 "not supported" (canGrantAccess=false)
         try:
             response = self.post("/api/oauth/linkedin/grant-access", {
+                "accessToken": "fake_token",
                 "target": {"adAccountId": "12345"},
                 "role": "admin",
                 "identity": "user@example.com", 
