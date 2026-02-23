@@ -220,14 +220,29 @@ export default function PlatformConfigPage() {
       if (platformData.success) {
         setAgencyPlatform(platformData.data);
         
-        // Fetch plugin manifest
+        // Fetch plugin manifest and security capabilities
         const platformKey = getPlatformKey(platformData.data.platform?.name);
         if (platformKey) {
           try {
             const pluginRes = await fetch(`/api/plugins/${platformKey}`);
             const pluginData = await pluginRes.json();
             if (pluginData.success) {
-              setPluginManifest(pluginData.data.manifest);
+              const manifest = pluginData.data.manifest;
+              setPluginManifest(manifest);
+              
+              // Extract security capabilities from manifest
+              if (manifest.securityCapabilities) {
+                setSecurityCapabilities(manifest.securityCapabilities);
+              }
+              
+              // Extract access item type metadata (new format)
+              if (manifest.supportedAccessItemTypes?.length > 0) {
+                const metadata = manifest.supportedAccessItemTypes;
+                // Check if it's the new format with type objects
+                if (typeof metadata[0] === 'object' && metadata[0].type) {
+                  setAccessItemTypeMetadata(metadata);
+                }
+              }
             }
           } catch (e) {
             console.log('Plugin not found for platform, using legacy mode');
