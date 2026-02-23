@@ -19,7 +19,13 @@ export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   pamRecommendation: 'break_glass_only', pamRationale: 'Salesforce has robust SSO and named-user licensing. PAM should only be used for emergency break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: true, apiVerificationSupported: true, automatedProvisioningSupported: true };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: true, 
+  apiVerificationSupported: true, 
+  automatedProvisioningSupported: true,
+  discoverTargetsSupported: true,
+  targetTypes: ['ORG'],
+};
 
 export const SALESFORCE_MANIFEST: PluginManifest = {
   platformKey: 'salesforce', displayName: 'Salesforce', pluginVersion: '2.1.0', category: 'CRM',
