@@ -79,7 +79,27 @@ function getClientInstructions(platformName, itemType, agencyData) {
 
 /**
  * Server-side validation for plugin-driven PAM governance rules
- * Enforces all rules from the plugin manifest
+ * Enforces all rules from the plugin manifest and strict PAM gating logic
+ * 
+ * ═══ STRICT PAM VALIDATION MATRIX ═══
+ * 
+ * RULE A: CLIENT_OWNED
+ *   - Must NOT contain: identityPurpose, pamIdentityStrategy, pamIdentityType,
+ *     pamNamingTemplate, pamCheckoutDurationMinutes, pamApprovalRequired,
+ *     agencyIdentityId, integrationIdentityId
+ *   - Client provides credentials during onboarding
+ * 
+ * RULE B: AGENCY_OWNED + HUMAN_INTERACTIVE
+ *   B1: STATIC_AGENCY_IDENTITY
+ *       - Must have: integrationIdentityId (agency identity from dropdown)
+ *       - Must NOT have: pamNamingTemplate, pamIdentityType, pamCheckoutDurationMinutes
+ *   B2: CLIENT_DEDICATED_IDENTITY
+ *       - Must have: pamIdentityType, pamNamingTemplate
+ *       - Checkout policy fields allowed ONLY for MAILBOX type
+ * 
+ * RULE C: AGENCY_OWNED + INTEGRATION_NON_HUMAN
+ *   - Must have: integrationIdentityId
+ *   - Must NOT have: pamNamingTemplate, checkout policy fields
  */
 function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, body) {
   const errors = [];
@@ -128,26 +148,117 @@ function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, b
     }
   }
   
-  // 3. For SHARED_ACCOUNT, enforce PAM governance rules
+  // 3. For SHARED_ACCOUNT, enforce STRICT PAM governance rules
   if (normalizedItemType === 'SHARED_ACCOUNT') {
     const secCaps = manifest.securityCapabilities;
+    const pamConfig = agencyConfig || body?.agencyConfigJson || {};
+    const pamOwnership = pamConfig.pamOwnership;
+    const identityPurpose = pamConfig.identityPurpose;
+    const identityStrategy = pamConfig.pamIdentityStrategy;
     
+    // ═══ RULE A: CLIENT_OWNED - Reject identity generation fields ═══
+    if (pamOwnership === 'CLIENT_OWNED') {
+      const forbiddenFields = [
+        'identityPurpose',
+        'pamIdentityStrategy',
+        'pamIdentityType',
+        'pamNamingTemplate',
+        'pamCheckoutDurationMinutes',
+        'pamApprovalRequired',
+        'agencyIdentityId',
+        'integrationIdentityId'
+      ];
+      
+      const foundForbiddenFields = forbiddenFields.filter(f => pamConfig[f] !== undefined && pamConfig[f] !== null && pamConfig[f] !== '');
+      if (foundForbiddenFields.length > 0) {
+        errors.push(`CLIENT_OWNED shared accounts must not specify identity generation fields. Found: ${foundForbiddenFields.join(', ')}. These are collected from the client during onboarding.`);
+      }
+    }
+    
+    // ═══ RULE B: AGENCY_OWNED - Require proper identity configuration ═══
+    if (pamOwnership === 'AGENCY_OWNED') {
+      // Must have identityPurpose
+      if (!identityPurpose) {
+        errors.push('AGENCY_OWNED shared accounts require an identityPurpose (HUMAN_INTERACTIVE or INTEGRATION_NON_HUMAN).');
+      }
+      
+      // ═══ RULE B1: INTEGRATION_NON_HUMAN ═══
+      if (identityPurpose === 'INTEGRATION_NON_HUMAN') {
+        // Must have integrationIdentityId
+        if (!pamConfig.integrationIdentityId) {
+          errors.push('INTEGRATION_NON_HUMAN identity purpose requires selecting an Integration Identity.');
+        }
+        
+        // Must NOT have naming template or checkout policy
+        const forbiddenFields = ['pamNamingTemplate', 'pamCheckoutDurationMinutes', 'pamApprovalRequired', 'pamIdentityType'];
+        const foundForbidden = forbiddenFields.filter(f => pamConfig[f] !== undefined && pamConfig[f] !== null && pamConfig[f] !== '');
+        if (foundForbidden.length > 0) {
+          errors.push(`INTEGRATION_NON_HUMAN identities do not use naming templates or checkout policies. Found: ${foundForbidden.join(', ')}`);
+        }
+      }
+      
+      // ═══ RULE B2: HUMAN_INTERACTIVE ═══
+      if (identityPurpose === 'HUMAN_INTERACTIVE') {
+        // Must have identity strategy
+        if (!identityStrategy) {
+          errors.push('HUMAN_INTERACTIVE identity purpose requires an identity strategy (STATIC_AGENCY_IDENTITY or CLIENT_DEDICATED_IDENTITY).');
+        }
+        
+        // ═══ RULE B2a: STATIC_AGENCY_IDENTITY ═══
+        if (identityStrategy === 'STATIC_AGENCY_IDENTITY') {
+          // Must have agency identity selected
+          if (!pamConfig.agencyIdentityId && !pamConfig.integrationIdentityId) {
+            errors.push('STATIC_AGENCY_IDENTITY strategy requires selecting a pre-configured Agency Identity.');
+          }
+          
+          // Must NOT have naming template or checkout policy
+          const forbiddenFields = ['pamNamingTemplate', 'pamIdentityType', 'pamCheckoutDurationMinutes', 'pamApprovalRequired'];
+          const foundForbidden = forbiddenFields.filter(f => pamConfig[f] !== undefined && pamConfig[f] !== null && pamConfig[f] !== '');
+          if (foundForbidden.length > 0) {
+            errors.push(`STATIC_AGENCY_IDENTITY does not use naming templates or checkout policies. Found: ${foundForbidden.join(', ')}`);
+          }
+        }
+        
+        // ═══ RULE B2b: CLIENT_DEDICATED_IDENTITY ═══
+        if (identityStrategy === 'CLIENT_DEDICATED_IDENTITY') {
+          // Must have identity type and naming template
+          if (!pamConfig.pamIdentityType) {
+            errors.push('CLIENT_DEDICATED_IDENTITY strategy requires an identity type (MAILBOX or GROUP).');
+          }
+          if (!pamConfig.pamNamingTemplate) {
+            errors.push('CLIENT_DEDICATED_IDENTITY strategy requires a naming template.');
+          }
+          
+          // Checkout policy fields ONLY allowed for MAILBOX type
+          if (pamConfig.pamIdentityType === 'GROUP') {
+            const mailboxOnlyFields = ['pamCheckoutDurationMinutes', 'pamApprovalRequired'];
+            const foundMailboxFields = mailboxOnlyFields.filter(f => pamConfig[f] !== undefined && pamConfig[f] !== null);
+            if (foundMailboxFields.length > 0) {
+              errors.push(`Checkout policy fields are only available for MAILBOX identity type. Found: ${foundMailboxFields.join(', ')}`);
+            }
+          }
+        }
+      }
+    }
+    
+    // Security capability checks (PAM recommendation)
     if (secCaps) {
       // If PAM is not_recommended or break_glass_only, require confirmation
       if (secCaps.pamRecommendation === 'not_recommended' || secCaps.pamRecommendation === 'break_glass_only') {
-        const pamConfig = agencyConfig || body?.agencyConfigJson || {};
-        
         // For agency-owned PAM with not_recommended, require confirmation
-        if (pamConfig.pamOwnership === 'AGENCY_OWNED' && !pamConfig.pamConfirmation) {
+        if (pamOwnership === 'AGENCY_OWNED' && !pamConfig.pamConfirmation) {
           errors.push('PAM confirmation is required. Please acknowledge the security implications before creating shared account access.');
         }
         
         // For break_glass_only, require justification
         if (secCaps.pamRecommendation === 'break_glass_only') {
-          if (!body?.pamJustification || body.pamJustification.length < 20) {
+          const justification = body?.pamJustification || pamConfig.pamJustification;
+          const reasonCode = body?.pamReasonCode || pamConfig.pamReasonCode;
+          
+          if (!justification || justification.length < 20) {
             errors.push('A justification (minimum 20 characters) is required for break-glass PAM access.');
           }
-          if (!body?.pamReasonCode) {
+          if (!reasonCode) {
             errors.push('A reason code is required for break-glass PAM access.');
           }
         }
