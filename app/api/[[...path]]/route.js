@@ -448,7 +448,7 @@ export async function GET(request, { params }) {
         return NextResponse.json({ success: false, error: 'Invalid onboarding token' }, { status: 404 });
       }
       
-      // Enhance items with plugin schemas and instructions
+      // Enhance items with plugin schemas, instructions, and capabilities
       const enhancedItems = await Promise.all((req.items || []).map(async (item) => {
         const platformName = item.platform?.name;
         if (!platformName) return item;
@@ -456,6 +456,9 @@ export async function GET(request, { params }) {
         // Get platform key
         const platformKey = getPlatformKeyFromName(platformName);
         if (!platformKey || !PluginRegistry.has(platformKey)) return item;
+        
+        // Get plugin to access manifest
+        const plugin = PluginRegistry.get(platformKey);
         
         // Get client target schema
         const clientTargetSchema = PluginRegistry.getClientTargetJsonSchema(platformKey, item.itemType);
@@ -469,11 +472,24 @@ export async function GET(request, { params }) {
           generatedIdentity: item.resolvedIdentity
         });
         
+        // Get access type capabilities from plugin manifest
+        const accessTypeCapabilities = plugin?.manifest?.accessTypeCapabilities?.[item.itemType] || {
+          clientOAuthSupported: false,
+          canGrantAccess: false,
+          canVerifyAccess: false,
+          requiresEvidenceUpload: true
+        };
+        
         return {
           ...item,
           clientTargetSchema,
           pluginInstructions: instructions,
-          verificationMode: PluginRegistry.getVerificationMode(platformKey, item.itemType)
+          verificationMode: PluginRegistry.getVerificationMode(platformKey, item.itemType),
+          accessTypeCapabilities,
+          platform: {
+            ...item.platform,
+            pluginKey: platformKey
+          }
         };
       }));
       
