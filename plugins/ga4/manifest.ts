@@ -4,7 +4,7 @@
  */
 
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 // ─── Access Item Type Definitions ────────────────────────────────────────────
@@ -60,9 +60,35 @@ export const SECURITY_CAPABILITIES: SecurityCapabilities = {
 // ─── Automation Capabilities ────────────────────────────────────────────────
 
 export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
-  oauthSupported: false,
+  oauthSupported: true,
   apiVerificationSupported: true,
-  automatedProvisioningSupported: true
+  automatedProvisioningSupported: true,
+  discoverTargetsSupported: true,
+  targetTypes: ['ACCOUNT', 'PROPERTY']
+};
+
+// ─── Access Type Capabilities ───────────────────────────────────────────────
+// Per-access-type connection and provisioning capabilities
+
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // GA Admin API supports adding users
+    canVerifyAccess: true,     // GA Admin API can list user links
+    requiresEvidenceUpload: false
+  },
+  GROUP_ACCESS: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // GA Admin API supports adding groups
+    canVerifyAccess: true,     // GA Admin API can list user links
+    requiresEvidenceUpload: false
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,  // PAM flows don't use OAuth
+    canGrantAccess: false,        // PAM credentials are shared manually
+    canVerifyAccess: false,       // No API verification for PAM
+    requiresEvidenceUpload: true  // Evidence required for PAM
+  }
 };
 
 // ─── Plugin Manifest ────────────────────────────────────────────────────────
@@ -71,7 +97,7 @@ export const GA4_MANIFEST: PluginManifest = {
   // Identity
   platformKey: 'ga4',
   displayName: 'Google Analytics / GA4',
-  pluginVersion: '2.1.0',
+  pluginVersion: '2.2.0',
 
   // Categorization
   category: 'Analytics',
@@ -88,6 +114,7 @@ export const GA4_MANIFEST: PluginManifest = {
   supportedAccessItemTypes: ACCESS_ITEM_TYPES,
   securityCapabilities: SECURITY_CAPABILITIES,
   automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 
   // Feature Flags
   supportsReporting: true,
