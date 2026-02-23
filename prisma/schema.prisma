@@ -262,6 +262,16 @@ model OAuthToken {
   id            String    @id @default(uuid())
   platformKey   String    // e.g., "linkedin", "hubspot", "salesforce", "snowflake"
   provider      String    // OAuth provider key (e.g., "linkedin", "hubspot")
+  
+  // Token scope: AGENCY (admin integration) vs CLIENT (onboarding)
+  scope         String    @default("AGENCY") // "AGENCY" | "CLIENT"
+  
+  // Tenant identification
+  // For AGENCY scope: null (agency-wide token)
+  // For CLIENT scope: clientId or accessRequestId
+  tenantId      String?
+  tenantType    String?   // "CLIENT" | "ACCESS_REQUEST" | null
+  
   accessToken   String    // Encrypted access token
   refreshToken  String?   // Encrypted refresh token
   tokenType     String    @default("Bearer")
@@ -277,6 +287,8 @@ model OAuthToken {
 
   @@index([platformKey])
   @@index([provider])
+  @@index([scope])
+  @@index([tenantId])
   @@index([isActive])
   @@map("oauth_tokens")
 }
