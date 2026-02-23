@@ -329,7 +329,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_forbidden = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test CLIENT_OWNED PAM Access",
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "CLIENT_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE"  # FORBIDDEN for CLIENT_OWNED
@@ -361,7 +361,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_forbidden2 = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test CLIENT_OWNED PAM Access",
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "CLIENT_OWNED",
                 "pamNamingTemplate": "{clientSlug}-test@agency.com"  # FORBIDDEN for CLIENT_OWNED
@@ -381,7 +381,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_clean = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Clean CLIENT_OWNED PAM Access",
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "CLIENT_OWNED"  # Only allowed field
             }
@@ -414,7 +414,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_no_identity = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Integration Non-Human Access",
-            "role": "admin", 
+            "role": "administrator", 
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "INTEGRATION_NON_HUMAN"
@@ -451,7 +451,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_with_identity = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Integration Non-Human Access",
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED", 
                 "identityPurpose": "INTEGRATION_NON_HUMAN",
@@ -486,7 +486,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_no_identity = {
             "itemType": "SHARED_ACCOUNT", 
             "label": "Test Static Agency Identity Access",
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE",
@@ -533,7 +533,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_with_identity = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Static Agency Identity Access", 
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE", 
@@ -555,7 +555,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_with_template = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Static Agency Identity with Template",
-            "role": "admin", 
+            "role": "administrator", 
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE",
@@ -587,7 +587,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_no_type = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Client Dedicated Identity",
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE", 
@@ -610,7 +610,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_no_template = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Client Dedicated Identity", 
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE",
@@ -633,7 +633,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_group_checkout = {
             "itemType": "SHARED_ACCOUNT", 
             "label": "Test Client Dedicated Group",
-            "role": "admin",
+            "role": "administrator",
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE",
@@ -657,7 +657,7 @@ class PAMStaticAgencyIdentityTester:
         item_data_mailbox_checkout = {
             "itemType": "SHARED_ACCOUNT",
             "label": "Test Client Dedicated Mailbox",
-            "role": "admin", 
+            "role": "administrator", 
             "agencyConfigJson": {
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE",
@@ -768,7 +768,7 @@ class PAMStaticAgencyIdentityTester:
             access_item_data = {
                 "itemType": "SHARED_ACCOUNT",
                 "label": "E2E Static Agency Identity Access",
-                "role": "admin",
+                "role": "administrator",
                 "agencyConfigJson": {
                     "pamOwnership": "AGENCY_OWNED",
                     "identityPurpose": "HUMAN_INTERACTIVE",
@@ -806,7 +806,7 @@ class PAMStaticAgencyIdentityTester:
                     "platformId": suitable_platform['id'],
                     "itemType": "SHARED_ACCOUNT",
                     "accessPattern": "PAM",
-                    "role": "admin",
+                    "role": "administrator",
                     "pamOwnership": "AGENCY_OWNED",
                     "pamIdentityStrategy": "STATIC_AGENCY_IDENTITY",
                     "pamAgencyIdentityEmail": "e2e-shared-ga4@agency.com"
