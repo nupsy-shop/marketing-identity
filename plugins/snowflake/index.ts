@@ -22,6 +22,8 @@ class SnowflakePlugin extends BasePlugin {
     category: 'Data',
     description: 'Cloud data platform for data warehousing and analytics',
     icon: 'fas fa-snowflake',
+    logoPath: '/logos/snowflake.svg',
+    brandColor: '#29B5E8',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.GROUP_SERVICE,
