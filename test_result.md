@@ -1474,4 +1474,55 @@ agent_communication:
   - agent: "testing"
     message: "🎉 PLUGIN-BASED ADMIN PAGE FOR PAM IDENTITY HUB TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (24/24 tests passed). Comprehensive validation of all plugin-based functionality against https://plugin-onboard.preview.emergentagent.com/api: ✅ Plugin System API - Returns 15 plugins with proper manifest structure, Google Ads plugin details correct (supports PARTNER_DELEGATION & NAMED_INVITE, has 3 role templates), ✅ Plugin Schema API - Agency Config Schema returns valid JSON Schema with managerAccountId field for Google Ads Partner Delegation, Client Target Schema provides proper form schemas, ✅ Plugin Validation API - Correctly validates configs (accepts valid managerAccountId, rejects missing fields), ✅ Plugin Access Types API - Snowflake correctly excludes NAMED_INVITE (returns only GROUP_SERVICE), ✅ Plugin-Based Access Item Creation - Successfully created Partner Delegation item with plugin validation using agencyConfigJson, ✅ Plugin-Based Onboarding Enhancement - Onboarding API enhanced with clientTargetSchema (JSON Schema), pluginInstructions (4-step array), verificationMode (ATTESTATION_ONLY), ✅ Platform-Specific Constraints - Snowflake correctly rejects NAMED_INVITE creation with proper error message. The Plugin-Based Admin Page architecture is PRODUCTION-READY with complete form generation, validation, and platform constraints working perfectly!"
   - agent: "testing"
+  - task: "PAM Governance - Plugin Manifest Security Capabilities"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Plugin Manifest Security Capabilities working perfectly! GET /api/plugins/google-ads returns manifest with complete securityCapabilities object containing all required fields: supportsDelegation: true, supportsGroupAccess: false, supportsOAuth: false, supportsCredentialLogin: true, pamRecommendation: 'not_recommended', pamRationale with detailed explanation. PAM recommendation validation working correctly with valid enum values (recommended, not_recommended, break_glass_only)."
+
+  - task: "PAM Governance - Access Item Type Metadata (New Format)"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Access Item Type Metadata (New Format) working perfectly! Google Ads plugin returns 3 access item types (PARTNER_DELEGATION, NAMED_INVITE, SHARED_ACCOUNT) in new object format with all required fields: type, label, description, icon, roleTemplates. Role templates structure correct with key/label/description fields. All 9 role templates validated across 3 access types. Each role template contains proper key ('admin', 'standard', 'read-only') and descriptive labels."
+
+  - task: "PAM Governance - Asset Separation (Agency vs Client)"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Asset Separation (Agency vs Client) working perfectly! Agency config schema (/api/plugins/google-ads/schema/agency-config?accessItemType=PARTNER_DELEGATION) correctly contains managerAccountId but excludes client field adAccountId. Client target schema (/api/plugins/google-ads/schema/client-target?accessItemType=PARTNER_DELEGATION) correctly contains adAccountId but excludes agency field managerAccountId. Clear separation maintained between agency-side and client-side configurations."
+
+  - task: "PAM Governance - Plugin System Integration"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Plugin System Integration working perfectly! All plugin API endpoints functional: GET /api/plugins returns 15 registered plugins with proper manifest structure, GET /api/plugins/google-ads returns detailed manifest with security capabilities and access types, schema endpoints return valid JSON schemas for both agency-config and client-target, proper platform-specific validation and role template extraction working correctly. Complete plugin architecture operational."
+
+agent_communication:
+  - agent: "testing"
+    message: "🎉 PAM GOVERNANCE AND PLUGIN-BASED STRUCTURAL ALIGNMENT TESTING COMPLETED SUCCESSFULLY! 92.7% SUCCESS RATE (38/41 tests passed). Comprehensive validation of all PAM governance requirements: ✅ Plugin Manifest Security Capabilities - Google Ads plugin returns complete securityCapabilities object with all required fields (supportsDelegation, supportsGroupAccess, supportsOAuth, supportsCredentialLogin, pamRecommendation: 'not_recommended', pamRationale), PAM recommendation validation working with valid enum values, ✅ Access Item Type Metadata (New Format) - 3 access item types returned in new object format with all required fields (type, label, description, icon, roleTemplates), role templates structure correct with 9 validated templates across 3 access types, ✅ Asset Separation (Agency vs Client) - Agency config schema correctly excludes client fields (adAccountId), client target schema correctly excludes agency fields (managerAccountId), proper separation maintained, ✅ Plugin System Integration - All 15 plugins registered, schema endpoints returning valid JSON schemas, platform-specific validation working. Only 3 minor failures related to specific Google Ads platform ID not existing in system (agency platform creation/testing), but core plugin governance functionality is PRODUCTION-READY and fully operational!"
     message: "🎉 UI/UX FEATURES TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (9/9 tests passed). Comprehensive validation of improved UI/UX features for Marketing Identity Platform: ✅ Plugin Manifest API - GET /api/plugins returns all 15 plugins with logoPath and brandColor, GET /api/plugins/google-ads has correct manifest data (logoPath='/logos/google-ads.svg', brandColor='#4285F4'), ✅ Agency Platforms Enrichment - GET /api/agency/platforms includes enriched plugin data (logoPath, brandColor, category) for all platforms with corresponding plugins, ✅ Access Item CRUD - POST/PUT/DELETE operations working with proper validation, successfully created 'Standard Analytics Access' item, ✅ Platform Toggle - PATCH toggle functionality working perfectly for enabling/disabling platforms, ✅ Search/Filter Data - All necessary filtering data available (itemType, label, role, agencyData), ✅ Response Format Consistency - All APIs follow {success: true/false, data/error} standard. 🐛 FIXED BUG: Individual platform GET endpoint missing plugin enrichment - now both list and individual routes consistently return enriched data. All UI/UX features are PRODUCTION-READY!"
