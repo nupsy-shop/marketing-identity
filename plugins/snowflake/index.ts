@@ -1,130 +1,228 @@
 /**
  * Snowflake Platform Plugin
+ * Updated with PAM governance from plugin metadata
  */
 
 import { z } from 'zod';
-import {
-  BasePlugin,
-  integrationIdentitySchema,
-} from '@/lib/plugins/base-plugin';
-import {
+import type {
+  PlatformPlugin,
   PluginManifest,
-  AccessItemType,
+  ValidationResult,
   VerificationMode,
+  VerificationResult,
   InstructionContext,
   InstructionStep,
-} from '@/lib/plugins/types';
+  VerificationContext,
+  AccessItemType,
+  AccessItemTypeMetadata,
+  SecurityCapabilities
+} from '../../lib/plugins/types';
 
-class SnowflakePlugin extends BasePlugin {
+// ─── Access Item Type Definitions ──────────────────────────────────────────────
+
+const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
+  {
+    type: 'GROUP_ACCESS' as AccessItemType,
+    label: 'Group Access',
+    description: 'SSO/SCIM role assignment',
+    icon: 'fas fa-users',
+    roleTemplates: [
+      { key: 'accountadmin', label: 'ACCOUNTADMIN', description: 'Full account administration' },
+      { key: 'sysadmin', label: 'SYSADMIN', description: 'System administration' },
+      { key: 'custom', label: 'Custom', description: 'Custom role (specify name)' }
+    ]
+  },
+  {
+    type: 'PROXY_TOKEN' as AccessItemType,
+    label: 'Proxy Token',
+    description: 'Service account access',
+    icon: 'fas fa-robot',
+    roleTemplates: [
+      { key: 'service_account', label: 'Service Account', description: 'Programmatic access' }
+    ]
+  },
+  {
+    type: 'SHARED_ACCOUNT' as AccessItemType,
+    label: 'Shared Account (PAM)',
+    description: 'Privileged access via credential vault',
+    icon: 'fas fa-key',
+    roleTemplates: [
+      { key: 'accountadmin', label: 'ACCOUNTADMIN', description: 'Full account administration' },
+      { key: 'sysadmin', label: 'SYSADMIN', description: 'System administration' }
+    ]
+  }
+];
+
+// ─── Security Capabilities (PAM Governance) ────────────────────────────────────
+
+const SECURITY_CAPABILITIES: SecurityCapabilities = {
+  supportsDelegation: false,
+  supportsGroupAccess: true,
+  supportsOAuth: false,
+  supportsCredentialLogin: true,
+  pamRecommendation: 'not_recommended',
+  pamRationale: 'Snowflake supports group/SSO-based access. Shared credentials (PAM) should be used only for break-glass, legacy constraints, or client-mandated shared logins; prefer the native delegation/RBAC options.'
+};
+
+// ─── Agency Config Schemas ─────────────────────────────────────────────────────
+
+const GroupAccessAgencySchema = z.object({
+  ssoGroupName: z.string().min(1, 'SSO Group Name is required').describe('SSO group name for access'),
+  customRoleName: z.string().optional().describe('Custom role name (if using custom role)'),
+});
+
+const ProxyTokenAgencySchema = z.object({
+  serviceAccountEmail: z.string().email('Must be a valid email').describe('Service account email'),
+});
+
+const SharedAccountAgencySchema = z.object({
+  pamOwnership: z.enum(['AGENCY_OWNED', 'CLIENT_OWNED']).describe('Who owns the credentials'),
+  pamIdentityStrategy: z.enum(['STATIC_AGENCY_IDENTITY', 'CLIENT_DEDICATED_IDENTITY']).optional().describe('Identity strategy'),
+  pamIdentityType: z.enum(['GROUP', 'MAILBOX']).optional().describe('Identity type'),
+  pamNamingTemplate: z.string().optional().describe('Naming template'),
+  pamCheckoutDurationMinutes: z.number().min(5).max(480).optional().describe('Checkout duration'),
+  pamApprovalRequired: z.boolean().optional().describe('Approval required'),
+  pamConfirmation: z.boolean().optional().describe('PAM confirmation'),
+});
+
+// ─── Client Target Schemas ─────────────────────────────────────────────────────
+
+const GroupAccessClientSchema = z.object({
+  accountLocator: z.string().min(1, 'Account locator is required').describe('Snowflake account locator'),
+  warehouseId: z.string().optional().describe('Warehouse ID'),
+  databaseId: z.string().optional().describe('Database ID'),
+});
+
+const ProxyTokenClientSchema = z.object({
+  accountLocator: z.string().min(1, 'Account locator is required').describe('Snowflake account locator'),
+  warehouseId: z.string().optional().describe('Warehouse ID'),
+});
+
+const SharedAccountClientSchema = z.object({
+  accountLocator: z.string().min(1, 'Account locator is required').describe('Snowflake account locator'),
+  accountUsername: z.string().optional().describe('Account username (for CLIENT_OWNED PAM)'),
+  accountPassword: z.string().optional().describe('Account password (for CLIENT_OWNED PAM)'),
+});
+
+// ─── Plugin Implementation ─────────────────────────────────────────────────────
+
+class SnowflakePlugin implements PlatformPlugin {
   manifest: PluginManifest = {
     platformKey: 'snowflake',
     displayName: 'Snowflake',
-    category: 'Data',
-    description: 'Cloud data platform for data warehousing and analytics',
+    category: 'Data Warehouse',
+    description: 'Snowflake data warehouse',
     icon: 'fas fa-snowflake',
     logoPath: '/logos/snowflake.svg',
     brandColor: '#29B5E8',
-    tier: 2,
-    supportedAccessItemTypes: [
-      AccessItemType.GROUP_SERVICE,
-      // Note: Snowflake does NOT support Named Invite - access is via roles/service accounts
-    ],
-    supportedRoleTemplates: [
-      { key: 'accountadmin', label: 'Account Admin', description: 'Full account administration' },
-      { key: 'sysadmin', label: 'Sys Admin', description: 'Create and manage warehouses and databases' },
-      { key: 'securityadmin', label: 'Security Admin', description: 'Manage grants and users' },
-      { key: 'analyst', label: 'Analyst', description: 'Read-only access to specified databases' },
-      { key: 'custom', label: 'Custom Role', description: 'Custom role defined by client' },
-    ],
+    tier: 1,
+    clientFacing: true,
+    supportedAccessItemTypes: ACCESS_ITEM_TYPES,
+    securityCapabilities: SECURITY_CAPABILITIES,
     automationCapabilities: {
       oauthSupported: false,
-      apiVerificationSupported: false,
-      automatedProvisioningSupported: false,
+      apiVerificationSupported: true,
+      automatedProvisioningSupported: true
     },
-    pluginVersion: '1.0.0',
+    pluginVersion: '2.0.0'
   };
 
   getAgencyConfigSchema(accessItemType: AccessItemType): z.ZodType<unknown> {
     switch (accessItemType) {
-      case AccessItemType.GROUP_SERVICE:
-        return z.object({
-          identityPurpose: z.enum(['HUMAN_INTERACTIVE', 'INTEGRATION_NON_HUMAN']).describe('Purpose of the identity'),
-          ssoGroupName: z.string().optional().describe('SSO group name to assign (for human access)'),
-          integrationIdentityId: z.string().uuid().optional().describe('Integration identity reference'),
-          serviceAccountName: z.string().optional().describe('Service account name in Snowflake'),
-        });
-
+      case 'GROUP_ACCESS':
+        return GroupAccessAgencySchema;
+      case 'PROXY_TOKEN':
+        return ProxyTokenAgencySchema;
+      case 'SHARED_ACCOUNT':
+        return SharedAccountAgencySchema;
       default:
         return z.object({});
     }
   }
 
   getClientTargetSchema(accessItemType: AccessItemType): z.ZodType<unknown> {
-    return z.object({
-      accountIdentifier: z.string().min(1).describe('Snowflake Account Identifier (e.g., xy12345.us-east-1)'),
-      warehouseName: z.string().optional().describe('Warehouse name to grant access to'),
-      databaseName: z.string().optional().describe('Database name to grant access to'),
-      schemaName: z.string().optional().describe('Schema name to grant access to'),
-      roleName: z.string().optional().describe('Snowflake role to assign'),
-    });
+    switch (accessItemType) {
+      case 'GROUP_ACCESS':
+        return GroupAccessClientSchema;
+      case 'PROXY_TOKEN':
+        return ProxyTokenClientSchema;
+      case 'SHARED_ACCOUNT':
+        return SharedAccountClientSchema;
+      default:
+        return z.object({});
+    }
+  }
+
+  validateAgencyConfig(accessItemType: AccessItemType, config: Record<string, unknown>): ValidationResult {
+    const schema = this.getAgencyConfigSchema(accessItemType);
+    const result = schema.safeParse(config);
+    
+    if (result.success) {
+      if (accessItemType === 'SHARED_ACCOUNT') {
+        const pamConfig = config as { pamOwnership?: string; pamConfirmation?: boolean };
+        if (SECURITY_CAPABILITIES.pamRecommendation === 'not_recommended' && 
+            pamConfig.pamOwnership === 'AGENCY_OWNED' && !pamConfig.pamConfirmation) {
+          return { valid: false, errors: ['PAM confirmation is required.'] };
+        }
+      }
+      return { valid: true, errors: [] };
+    }
+    
+    return { valid: false, errors: result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) };
+  }
+
+  validateClientTarget(accessItemType: AccessItemType, target: Record<string, unknown>): ValidationResult {
+    const schema = this.getClientTargetSchema(accessItemType);
+    const result = schema.safeParse(target);
+    if (result.success) return { valid: true, errors: [] };
+    return { valid: false, errors: result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`) };
   }
 
   buildClientInstructions(context: InstructionContext): InstructionStep[] {
-    const { agencyConfig, roleTemplate } = context;
-    const config = agencyConfig as { ssoGroupName?: string; serviceAccountName?: string; identityPurpose?: string };
-
-    if (config.identityPurpose === 'INTEGRATION_NON_HUMAN') {
-      return [
-        {
-          step: 1,
-          title: 'Open Snowflake Console',
-          description: 'Log in to your Snowflake account with ACCOUNTADMIN privileges.',
-        },
-        {
-          step: 2,
-          title: 'Create Service Account User',
-          description: `Run the following SQL to create a service account:\nCREATE USER ${config.serviceAccountName || 'agency_service_account'} TYPE = SERVICE;`,
-        },
-        {
-          step: 3,
-          title: 'Assign Role',
-          description: `Grant the appropriate role:\nGRANT ROLE ${this.formatRoleTemplate(roleTemplate)} TO USER ${config.serviceAccountName || 'agency_service_account'};`,
-        },
-        {
-          step: 4,
-          title: 'Configure Key-Pair Authentication',
-          description: 'Set up key-pair authentication for the service account and share the public key.',
-        },
-      ];
+    const { accessItemType, agencyConfig, roleTemplate } = context;
+    
+    switch (accessItemType) {
+      case 'GROUP_ACCESS':
+        return [
+          { step: 1, title: 'Sign in to Snowflake', description: 'Go to your Snowflake account and sign in as an admin.', link: { url: 'https://app.snowflake.com', label: 'Open Snowflake' } },
+          { step: 2, title: 'Go to Admin', description: 'Navigate to Admin > Security > Federated Authentication.' },
+          { step: 3, title: 'Configure SSO', description: 'Set up SSO integration if not already done.' },
+          { step: 4, title: 'Assign Role', description: `Grant the "${roleTemplate}" role to the SSO group.` }
+        ];
+      
+      case 'PROXY_TOKEN':
+        return [
+          { step: 1, title: 'Sign in to Snowflake', description: 'Go to your Snowflake account and sign in as an admin.', link: { url: 'https://app.snowflake.com', label: 'Open Snowflake' } },
+          { step: 2, title: 'Create Service Account', description: 'Create a user for the service account.' },
+          { step: 3, title: 'Grant Role', description: 'Grant the appropriate role to the service account.' },
+          { step: 4, title: 'Generate Key', description: 'Generate an RSA key pair for authentication.' }
+        ];
+      
+      case 'SHARED_ACCOUNT':
+        const pamConfig = agencyConfig as { pamOwnership?: string };
+        if (pamConfig.pamOwnership === 'CLIENT_OWNED') {
+          return [
+            { step: 1, title: 'Provide Credentials', description: 'Enter the Snowflake username and password.' },
+            { step: 2, title: 'Enable MFA', description: 'Ensure multi-factor authentication is enabled.' },
+            { step: 3, title: 'Credentials Stored', description: 'Credentials will be encrypted in the PAM vault.' }
+          ];
+        }
+        return [
+          { step: 1, title: 'Agency-Managed Access', description: 'The agency will manage a dedicated identity.' },
+          { step: 2, title: 'Grant Access', description: 'Grant the required role to the agency identity.' }
+        ];
+      
+      default:
+        return [];
     }
-
-    // Human/SSO access
-    return [
-      {
-        step: 1,
-        title: 'Open Snowflake Console',
-        description: 'Log in to your Snowflake account with SECURITYADMIN privileges.',
-      },
-      {
-        step: 2,
-        title: 'Configure SSO Group Mapping',
-        description: `Map the SSO group "${config.ssoGroupName}" to a Snowflake role.`,
-      },
-      {
-        step: 3,
-        title: 'Grant Role Permissions',
-        description: `Ensure the role "${this.formatRoleTemplate(roleTemplate)}" has appropriate access to the required databases and warehouses.`,
-      },
-      {
-        step: 4,
-        title: 'Confirm Access',
-        description: 'Test that SSO users in the mapped group can access Snowflake with the expected permissions.',
-      },
-    ];
   }
 
   getVerificationMode(accessItemType: AccessItemType): VerificationMode {
-    return VerificationMode.ATTESTATION_ONLY;
+    return accessItemType === 'SHARED_ACCOUNT' ? 'EVIDENCE_REQUIRED' : 'ATTESTATION_ONLY';
+  }
+
+  async verifyGrant(context: VerificationContext): Promise<VerificationResult> {
+    return { status: 'PENDING', mode: this.getVerificationMode(context.accessItemType), message: 'Manual verification required' };
   }
 }
 
