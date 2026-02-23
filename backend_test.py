@@ -89,7 +89,9 @@ def main():
     # Test LinkedIn plugin manifest
     status, data = test_get_request(f"{API_BASE}/plugins/linkedin", "LinkedIn Plugin Manifest")
     if status == 200 and isinstance(data, dict):
-        automation_caps = data.get('automationCapabilities', {})
+        # Handle API response wrapper
+        manifest_data = data.get('data', {}).get('manifest', data)
+        automation_caps = manifest_data.get('automationCapabilities', {})
         discover_supported = automation_caps.get('discoverTargetsSupported', False)
         target_types = automation_caps.get('targetTypes', [])
         
@@ -97,7 +99,7 @@ def main():
             print("✅ LinkedIn: discoverTargetsSupported=true, targetTypes includes AD_ACCOUNT")
             test_results["plugin_manifest_updates"].append("LinkedIn: PASS")
         else:
-            print("❌ LinkedIn: Missing discoverTargetsSupported or AD_ACCOUNT in targetTypes")
+            print(f"❌ LinkedIn: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
             test_results["plugin_manifest_updates"].append("LinkedIn: FAIL")
     else:
         print("❌ LinkedIn: Failed to get plugin manifest")
