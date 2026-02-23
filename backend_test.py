@@ -223,8 +223,12 @@ class PluginValidationTester:
                 "itemType": "PARTNER_DELEGATION",
                 "label": "Test Asset Separation",
                 "role": "admin",
+                "agencyData": {
+                    "businessManagerId": "123456789012345",
+                    "clientAccountId": "client-account-123"  # This should be rejected
+                },
                 "agencyConfigJson": {
-                    "businessManagerId": "123456789012345",  # Use longer ID 
+                    "businessManagerId": "123456789012345",  
                     "clientAccountId": "client-account-123"  # This should be rejected
                 }
             }
