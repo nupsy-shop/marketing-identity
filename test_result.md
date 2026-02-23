@@ -1050,6 +1050,9 @@ agent_communication:
       - working: true
         agent: "testing"
         comment: "✅ PAM Strict Server Validation PARTIALLY WORKING! Successfully tested rejection validation rules: (1) RULE A - CLIENT_OWNED correctly rejects forbidden identity generation fields (identityPurpose, pamNamingTemplate), (2) RULE B1 - INTEGRATION_NON_HUMAN correctly rejects missing integrationIdentityId, (3) RULE B2a - STATIC_AGENCY_IDENTITY correctly rejects missing agencyIdentityId, (4) All validation error messages are appropriate and descriptive. NOTE: Server validation rules working for rejection cases, but server experiencing 520 errors when trying to create valid access items - this indicates the validation logic is working but there may be a server stability issue under load. Core validation functionality is production-ready."
+      - working: true
+        agent: "main"
+        comment: "✅ FIXED DB COLUMN ISSUE AND VERIFIED ALL 7 PAM VALIDATION RULES: Fixed createAccessItem function that was referencing removed columns. Manually verified all validation rules with curl: (1) CLIENT_OWNED + identityPurpose → REJECTED ✓, (2) CLIENT_OWNED clean → ACCEPTED ✓, (3) STATIC_AGENCY_IDENTITY without agencyIdentityId → REJECTED ✓, (4) STATIC_AGENCY_IDENTITY with agencyIdentityId → ACCEPTED ✓, (5) CLIENT_DEDICATED without pamIdentityType → REJECTED ✓, (6) CLIENT_DEDICATED without pamNamingTemplate → REJECTED ✓, (7) CLIENT_DEDICATED MAILBOX valid → ACCEPTED ✓. All PAM validation rules are now PRODUCTION-READY."
 
 
   - task: "Plugin-Driven Onboarding Page - Schema-Driven Form and Instructions"
