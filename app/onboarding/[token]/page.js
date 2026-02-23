@@ -142,9 +142,24 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   
+  // OAuth and capability-driven state
+  const [clientToken, setClientToken] = useState(null);
+  const [oauthConnecting, setOauthConnecting] = useState(false);
+  const [discoveredTargets, setDiscoveredTargets] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [discoveringTargets, setDiscoveringTargets] = useState(false);
+  const [grantingAccess, setGrantingAccess] = useState(false);
+  const [verifyingAccess, setVerifyingAccess] = useState(false);
+  
   const platform = item.platform;
   const isPAM = item.itemType === 'SHARED_ACCOUNT_PAM';
   const isClientOwnedPAM = isPAM && (item.pamConfig?.ownership === 'CLIENT_OWNED' || item.pamOwnership === 'CLIENT_OWNED');
+  
+  // Get capabilities from plugin manifest
+  const capabilities = item.accessTypeCapabilities || {};
+  const canUseOAuth = capabilities.clientOAuthSupported === true && !isPAM;
+  const canGrantAccess = capabilities.canGrantAccess === true && !isPAM;
+  const canVerifyAccess = capabilities.canVerifyAccess === true && !isPAM;
   
   // Get identity to display in instructions
   const getIdentityToAdd = () => {
