@@ -81,6 +81,10 @@ export interface AutomationCapabilities {
   oauthSupported: boolean;
   apiVerificationSupported: boolean;
   automatedProvisioningSupported: boolean;
+  /** Whether this plugin supports target discovery after OAuth */
+  discoverTargetsSupported?: boolean;
+  /** Types of targets this plugin can discover */
+  targetTypes?: ('ACCOUNT' | 'PROPERTY' | 'ORG' | 'WORKSPACE' | 'AD_ACCOUNT' | 'SITE' | 'PROJECT' | 'PORTAL' | 'BUSINESS' | 'CONTAINER' | 'WAREHOUSE' | 'DATABASE')[];
 }
 
 // ─── Security Capabilities (PAM Governance) ────────────────────────────────────
