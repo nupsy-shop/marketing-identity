@@ -77,6 +77,111 @@ function getClientInstructions(platformName, itemType, agencyData) {
   return defaultInstructions[itemType] || `Grant the requested access in your ${platformName} account.`;
 }
 
+/**
+ * Server-side validation for plugin-driven PAM governance rules
+ * Enforces all rules from the plugin manifest
+ */
+function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, body) {
+  const errors = [];
+  
+  if (!platformKey || !PluginRegistry.has(platformKey)) {
+    return { valid: true, errors: [] }; // No plugin, skip validation
+  }
+  
+  const plugin = PluginRegistry.get(platformKey);
+  const manifest = plugin?.manifest;
+  
+  if (!manifest) {
+    return { valid: true, errors: [] };
+  }
+  
+  // Normalize item type for comparison
+  const normalizeType = (t) => {
+    if (!t) return '';
+    return t.replace(/_PAM$/i, '').replace('PAM_', '').toUpperCase();
+  };
+  const normalizedItemType = normalizeType(itemType);
+  
+  // 1. Validate itemType is supported by plugin
+  const supportedTypes = manifest.supportedAccessItemTypes || [];
+  if (supportedTypes.length > 0) {
+    const typeNames = supportedTypes.map(t => typeof t === 'string' ? t : (t.type || '')).map(normalizeType);
+    if (!typeNames.includes(normalizedItemType)) {
+      errors.push(`Item type "${itemType}" is not supported by this platform. Supported: ${typeNames.join(', ')}`);
+    }
+  }
+  
+  // 2. Validate role is allowed for the item type
+  const typeMetadata = supportedTypes.find(t => {
+    const typeName = typeof t === 'string' ? t : (t.type || '');
+    return normalizeType(typeName) === normalizedItemType;
+  });
+  
+  if (typeMetadata && typeof typeMetadata !== 'string' && typeMetadata.roleTemplates) {
+    const allowedRoles = typeMetadata.roleTemplates.map(r => r.key?.toLowerCase() || r.toLowerCase());
+    const submittedRole = (role || '').toLowerCase();
+    
+    // Allow if role matches any allowed role key OR if there's a custom role template
+    const hasCustomRole = allowedRoles.includes('custom');
+    if (!allowedRoles.includes(submittedRole) && !hasCustomRole) {
+      errors.push(`Role "${role}" is not allowed for ${itemType}. Allowed roles: ${typeMetadata.roleTemplates.map(r => r.label || r.key).join(', ')}`);
+    }
+  }
+  
+  // 3. For SHARED_ACCOUNT, enforce PAM governance rules
+  if (normalizedItemType === 'SHARED_ACCOUNT') {
+    const secCaps = manifest.securityCapabilities;
+    
+    if (secCaps) {
+      // If PAM is not_recommended or break_glass_only, require confirmation
+      if (secCaps.pamRecommendation === 'not_recommended' || secCaps.pamRecommendation === 'break_glass_only') {
+        const pamConfig = agencyConfig || body?.agencyConfigJson || {};
+        
+        // For agency-owned PAM with not_recommended, require confirmation
+        if (pamConfig.pamOwnership === 'AGENCY_OWNED' && !pamConfig.pamConfirmation) {
+          errors.push('PAM confirmation is required. Please acknowledge the security implications before creating shared account access.');
+        }
+        
+        // For break_glass_only, require justification
+        if (secCaps.pamRecommendation === 'break_glass_only') {
+          if (!body?.pamJustification || body.pamJustification.length < 20) {
+            errors.push('A justification (minimum 20 characters) is required for break-glass PAM access.');
+          }
+          if (!body?.pamReasonCode) {
+            errors.push('A reason code is required for break-glass PAM access.');
+          }
+        }
+      }
+      
+      // If platform doesn't support credential login, reject SHARED_ACCOUNT
+      if (secCaps.supportsCredentialLogin === false) {
+        errors.push(`${manifest.displayName} does not support credential-based login. Shared account access is not available.`);
+      }
+    }
+  }
+  
+  // 4. Reject agencyConfig containing client-side asset IDs (enforce asset separation)
+  const clientAssetIdPatterns = ['clientAssetId', 'clientAccountId', 'clientPropertyId', 'clientAdAccountId'];
+  if (agencyConfig && typeof agencyConfig === 'object') {
+    for (const key of Object.keys(agencyConfig)) {
+      if (clientAssetIdPatterns.some(pattern => key.toLowerCase().includes(pattern.toLowerCase()))) {
+        errors.push(`Agency configuration must not contain client-side asset IDs. Found: "${key}". Client assets should only be provided during onboarding.`);
+      }
+    }
+  }
+  
+  // 5. Reject if accessPattern is manually specified (it must be derived from itemType)
+  if (body?.accessPattern && body.accessPattern !== ITEM_TYPE_TO_PATTERN[itemType]) {
+    // Just ignore it - we'll override with the derived pattern
+    console.warn(`accessPattern "${body.accessPattern}" will be ignored and derived from itemType "${itemType}"`);
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
 export async function GET(request, { params }) {
   const resolvedParams = await params;
   const path = resolvedParams.path?.join('/') || '';
