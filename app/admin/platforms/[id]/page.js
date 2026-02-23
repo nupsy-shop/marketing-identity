@@ -332,13 +332,24 @@ export default function PlatformConfigPage() {
 
   // Validate and save
   const handleSave = async () => {
-    if (!formLabel.trim()) {
-      toast({ title: 'Validation Error', description: 'Label is required', variant: 'destructive' });
+    // Validate label with naming conventions
+    const labelValidation = validateAccessItemLabel(formLabel);
+    if (!labelValidation.valid) {
+      setLabelError(labelValidation.errors[0]);
+      toast({ 
+        title: 'Validation Error', 
+        description: labelValidation.errors[0], 
+        variant: 'destructive' 
+      });
       return;
     }
+    setLabelError('');
+    
+    // Use formatted label
+    const formattedLabel = labelValidation.formatted;
     
     if (!selectedRole) {
-      toast({ title: 'Validation Error', description: 'Role is required', variant: 'destructive' });
+      toast({ title: 'Validation Error', description: 'Please select a role for this access item', variant: 'destructive' });
       return;
     }
     
@@ -366,8 +377,8 @@ export default function PlatformConfigPage() {
           });
           setValidationErrors(errors);
           toast({ 
-            title: 'Validation Error', 
-            description: validateData.data?.errors?.join(', ') || 'Invalid configuration', 
+            title: 'Configuration Error', 
+            description: validateData.data?.errors?.join(', ') || 'Please check your configuration', 
             variant: 'destructive' 
           });
           return;
@@ -384,7 +395,7 @@ export default function PlatformConfigPage() {
       
       const payload = {
         itemType: selectedItemType,
-        label: formLabel,
+        label: formattedLabel,
         role: selectedRole,
         notes: formNotes,
         agencyConfigJson: agencyConfig,
