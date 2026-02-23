@@ -8,6 +8,12 @@ import {
   generateClientDedicatedIdentity
 } from '@/lib/data/field-policy';
 import { initializePlugins, PluginRegistry } from '@/lib/plugins/loader';
+import {
+  getProviderForPlatform,
+  getProviderConfig,
+  isProviderConfigured,
+  OAuthNotConfiguredError
+} from '@/plugins/common/oauth-config';
 
 // Initialize plugins on module load
 initializePlugins();
