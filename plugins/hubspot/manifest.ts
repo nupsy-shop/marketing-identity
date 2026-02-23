@@ -19,7 +19,13 @@ export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   pamRecommendation: 'not_recommended', pamRationale: 'HubSpot supports named-user and partner access. Use PAM only for break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: true, apiVerificationSupported: false, automatedProvisioningSupported: false };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: true, 
+  apiVerificationSupported: false, 
+  automatedProvisioningSupported: false,
+  discoverTargetsSupported: true,
+  targetTypes: ['PORTAL'],
+};
 
 export const HUBSPOT_MANIFEST: PluginManifest = {
   platformKey: 'hubspot', displayName: 'HubSpot', pluginVersion: '2.1.0', category: 'CRM',
