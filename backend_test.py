@@ -191,10 +191,13 @@ class BackendTester:
         self.log("=== TESTING ACCESS GRANT ENDPOINT ===")
         
         try:
-            response = self.post("/api/access/grant", {
-                "platformKey": "ga4",
-                "accessRequestId": "test",
-                "targetId": "test"
+            # The actual endpoint is /api/oauth/:platformKey/grant-access
+            response = self.post("/api/oauth/ga4/grant-access", {
+                "accessToken": "test_token",
+                "target": {"propertyId": "123456789"},
+                "role": "administrator",
+                "identity": "test@example.com",
+                "accessItemType": "NAMED_INVITE"
             })
             
             if response.status_code == 501:
