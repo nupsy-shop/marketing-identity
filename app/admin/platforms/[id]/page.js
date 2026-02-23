@@ -1338,61 +1338,237 @@ export default function PlatformConfigPage() {
                     </div>
                   </div>
                   
-                  {/* PAM Confirmation Checkbox (for not_recommended or break_glass_only) */}
-                  {shouldShowPamWarning(selectedItemType) && (
-                    <div className="p-4 border rounded-lg bg-slate-50 space-y-4">
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          id="pam-confirmation"
-                          checked={pamConfirmation}
-                          onChange={(e) => setPamConfirmation(e.target.checked)}
-                          className="mt-1 w-4 h-4"
-                        />
-                        <div className="flex-1">
-                          <Label htmlFor="pam-confirmation" className="font-medium">
-                            I understand the security implications
-                          </Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            By checking this box, I acknowledge that shared account (PAM) access is {securityCapabilities?.pamRecommendation === 'break_glass_only' ? 'only for emergency break-glass use' : 'not the recommended method for this platform'} and I have valid reasons for using it.
-                          </p>
-                        </div>
+                  {/* PAM Configuration Section (for SHARED_ACCOUNT type) */}
+                  {normalizeItemType(selectedItemType) === 'SHARED_ACCOUNT' && (
+                    <div className="space-y-4 p-4 border-2 border-amber-200 rounded-lg bg-amber-50/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <i className="fas fa-key text-amber-600" aria-hidden="true"></i>
+                        <h4 className="font-semibold text-amber-800">PAM Configuration</h4>
                       </div>
                       
-                      {/* Justification field for break-glass only */}
-                      {securityCapabilities?.pamRecommendation === 'break_glass_only' && (
+                      {/* PAM Ownership */}
+                      <div>
+                        <Label htmlFor="pam-ownership" className="text-sm font-medium">
+                          Credential Ownership <span className="text-destructive">*</span>
+                        </Label>
+                        <select
+                          id="pam-ownership"
+                          className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                          value={agencyConfig.pamOwnership || ''}
+                          onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamOwnership: e.target.value }))}
+                        >
+                          <option value="">Select ownership...</option>
+                          <option value="CLIENT_OWNED">Client-Owned (client provides credentials)</option>
+                          <option value="AGENCY_OWNED">Agency-Owned (agency manages identity)</option>
+                        </select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Determines who owns and controls the shared account credentials
+                        </p>
+                      </div>
+                      
+                      {/* Agency-Owned specific fields */}
+                      {agencyConfig.pamOwnership === 'AGENCY_OWNED' && (
                         <>
+                          {/* Identity Purpose */}
                           <div>
-                            <Label htmlFor="pam-reason" className="text-sm font-medium">
-                              Reason Code <span className="text-destructive">*</span>
+                            <Label htmlFor="identity-purpose" className="text-sm font-medium">
+                              Identity Purpose <span className="text-destructive">*</span>
                             </Label>
                             <select
-                              id="pam-reason"
+                              id="identity-purpose"
                               className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
-                              value={pamReasonCode}
-                              onChange={(e) => setPamReasonCode(e.target.value)}
+                              value={agencyConfig.identityPurpose || ''}
+                              onChange={(e) => setAgencyConfig(prev => ({ ...prev, identityPurpose: e.target.value }))}
                             >
-                              <option value="">Select reason...</option>
-                              <option value="legacy_system">Legacy System Requirement</option>
-                              <option value="client_mandate">Client Mandate</option>
-                              <option value="emergency_access">Emergency Break-Glass</option>
-                              <option value="no_alternative">No Alternative Available</option>
-                              <option value="audit_requirement">Audit/Compliance Requirement</option>
+                              <option value="">Select purpose...</option>
+                              <option value="HUMAN_INTERACTIVE">Human Interactive (users log in)</option>
+                              <option value="INTEGRATION_NON_HUMAN">Integration / Non-Human (service accounts, APIs)</option>
                             </select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Is this identity for human users or automated systems?
+                            </p>
                           </div>
-                          <div>
-                            <Label htmlFor="pam-justification" className="text-sm font-medium">
-                              Justification <span className="text-destructive">*</span>
-                            </Label>
-                            <textarea
-                              id="pam-justification"
-                              className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm min-h-[80px]"
-                              value={pamJustification}
-                              onChange={(e) => setPamJustification(e.target.value)}
-                              placeholder="Explain why PAM access is required..."
-                            />
-                          </div>
+                          
+                          {/* Human Interactive specific fields */}
+                          {agencyConfig.identityPurpose === 'HUMAN_INTERACTIVE' && (
+                            <>
+                              {/* Identity Strategy */}
+                              <div>
+                                <Label htmlFor="identity-strategy" className="text-sm font-medium">
+                                  Identity Strategy <span className="text-destructive">*</span>
+                                </Label>
+                                <select
+                                  id="identity-strategy"
+                                  className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                                  value={agencyConfig.pamIdentityStrategy || ''}
+                                  onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamIdentityStrategy: e.target.value }))}
+                                >
+                                  <option value="">Select strategy...</option>
+                                  <option value="STATIC_AGENCY_IDENTITY">Static Agency Identity (single shared email)</option>
+                                  <option value="CLIENT_DEDICATED_IDENTITY">Client-Dedicated Identity (unique per client)</option>
+                                </select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  How will the agency identity be managed?
+                                </p>
+                              </div>
+                              
+                              {/* Client-Dedicated Identity fields */}
+                              {agencyConfig.pamIdentityStrategy === 'CLIENT_DEDICATED_IDENTITY' && (
+                                <>
+                                  <div>
+                                    <Label htmlFor="pam-identity-type" className="text-sm font-medium">
+                                      Identity Type <span className="text-destructive">*</span>
+                                    </Label>
+                                    <select
+                                      id="pam-identity-type"
+                                      className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                                      value={agencyConfig.pamIdentityType || ''}
+                                      onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamIdentityType: e.target.value }))}
+                                    >
+                                      <option value="">Select type...</option>
+                                      <option value="MAILBOX">Mailbox (dedicated email account)</option>
+                                      <option value="GROUP">Group (Google/M365 group alias)</option>
+                                    </select>
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="pam-naming-template" className="text-sm font-medium">
+                                      Naming Template
+                                    </Label>
+                                    <Input
+                                      id="pam-naming-template"
+                                      value={agencyConfig.pamNamingTemplate || ''}
+                                      onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamNamingTemplate: e.target.value }))}
+                                      placeholder="e.g., {client}-ads@agency.com"
+                                      className="mt-1 font-mono text-sm"
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Template for generating dedicated identity names. Use {'{client}'} as placeholder.
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                              
+                              {/* Checkout Policy */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+                                <div>
+                                  <Label htmlFor="checkout-duration" className="text-sm font-medium">
+                                    Max Checkout Duration (minutes)
+                                  </Label>
+                                  <Input
+                                    id="checkout-duration"
+                                    type="number"
+                                    min="5"
+                                    max="480"
+                                    value={agencyConfig.pamCheckoutDurationMinutes || 60}
+                                    onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamCheckoutDurationMinutes: parseInt(e.target.value) || 60 }))}
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-3 pt-6">
+                                  <input
+                                    type="checkbox"
+                                    id="approval-required"
+                                    checked={agencyConfig.pamApprovalRequired || false}
+                                    onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamApprovalRequired: e.target.checked }))}
+                                    className="w-4 h-4"
+                                  />
+                                  <Label htmlFor="approval-required" className="text-sm">
+                                    Require approval for checkout
+                                  </Label>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          
+                          {/* Integration Non-Human specific fields */}
+                          {agencyConfig.identityPurpose === 'INTEGRATION_NON_HUMAN' && (
+                            <div>
+                              <Label htmlFor="integration-identity" className="text-sm font-medium">
+                                Integration Identity
+                              </Label>
+                              <select
+                                id="integration-identity"
+                                className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                                value={agencyConfig.integrationIdentityId || ''}
+                                onChange={(e) => setAgencyConfig(prev => ({ ...prev, integrationIdentityId: e.target.value }))}
+                              >
+                                <option value="">Select or create identity...</option>
+                                {integrationIdentities.map(identity => (
+                                  <option key={identity.id} value={identity.id}>
+                                    {identity.name} ({identity.type})
+                                  </option>
+                                ))}
+                                <option value="__create_new__">+ Create New Integration Identity</option>
+                              </select>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Service account or integration identity to use for this PAM access
+                              </p>
+                            </div>
+                          )}
                         </>
+                      )}
+                      
+                      {/* PAM Confirmation & Justification */}
+                      {shouldShowPamWarning(selectedItemType) && (
+                        <div className="pt-4 border-t space-y-4">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              id="pam-confirmation"
+                              checked={pamConfirmation}
+                              onChange={(e) => setPamConfirmation(e.target.checked)}
+                              className="mt-1 w-4 h-4"
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor="pam-confirmation" className="font-medium">
+                                I understand the security implications
+                              </Label>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                By checking this box, I acknowledge that shared account (PAM) access is {securityCapabilities?.pamRecommendation === 'break_glass_only' ? 'only for emergency break-glass use' : 'not the recommended method for this platform'} and I have valid reasons for using it.
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Justification field for break-glass only */}
+                          {securityCapabilities?.pamRecommendation === 'break_glass_only' && (
+                            <>
+                              <div>
+                                <Label htmlFor="pam-reason" className="text-sm font-medium">
+                                  Reason Code <span className="text-destructive">*</span>
+                                </Label>
+                                <select
+                                  id="pam-reason"
+                                  className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                                  value={pamReasonCode}
+                                  onChange={(e) => setPamReasonCode(e.target.value)}
+                                >
+                                  <option value="">Select reason...</option>
+                                  <option value="legacy_system">Legacy System Requirement</option>
+                                  <option value="client_mandate">Client Mandate</option>
+                                  <option value="emergency_access">Emergency Break-Glass</option>
+                                  <option value="no_alternative">No Alternative Available</option>
+                                  <option value="audit_requirement">Audit/Compliance Requirement</option>
+                                </select>
+                              </div>
+                              <div>
+                                <Label htmlFor="pam-justification" className="text-sm font-medium">
+                                  Justification <span className="text-destructive">*</span>
+                                </Label>
+                                <textarea
+                                  id="pam-justification"
+                                  className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm min-h-[80px]"
+                                  value={pamJustification}
+                                  onChange={(e) => setPamJustification(e.target.value)}
+                                  placeholder="Explain why PAM access is required..."
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Minimum 20 characters required
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
