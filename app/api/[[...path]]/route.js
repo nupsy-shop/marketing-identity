@@ -141,7 +141,40 @@ export async function GET(request, { params }) {
       if (!req) {
         return NextResponse.json({ success: false, error: 'Invalid onboarding token' }, { status: 404 });
       }
-      return NextResponse.json({ success: true, data: req });
+      
+      // Enhance items with plugin schemas and instructions
+      const enhancedItems = await Promise.all((req.items || []).map(async (item) => {
+        const platformName = item.platform?.name;
+        if (!platformName) return item;
+        
+        // Get platform key
+        const platformKey = getPlatformKeyFromName(platformName);
+        if (!platformKey || !PluginRegistry.has(platformKey)) return item;
+        
+        // Get client target schema
+        const clientTargetSchema = PluginRegistry.getClientTargetJsonSchema(platformKey, item.itemType);
+        
+        // Build instructions using plugin
+        const instructions = PluginRegistry.buildInstructions(platformKey, {
+          accessItemType: item.itemType,
+          agencyConfig: item.agencyConfigJson || item.agencyData || {},
+          roleTemplate: item.role,
+          clientName: req.client?.name,
+          generatedIdentity: item.resolvedIdentity
+        });
+        
+        return {
+          ...item,
+          clientTargetSchema,
+          pluginInstructions: instructions,
+          verificationMode: PluginRegistry.getVerificationMode(platformKey, item.itemType)
+        };
+      }));
+      
+      return NextResponse.json({ 
+        success: true, 
+        data: { ...req, items: enhancedItems }
+      });
     }
 
     // GET /api/integration-identities - List all integration identities
