@@ -246,6 +246,48 @@ export function getRoleTemplatesForItemType(
   return itemMeta?.roleTemplates || [];
 }
 
+/**
+ * Get access type capabilities for a specific item type.
+ * Returns defaults if not explicitly defined in manifest.
+ */
+export function getAccessTypeCapability(
+  manifest: PluginManifest,
+  itemType: AccessItemType
+): AccessTypeCapability {
+  // Default capabilities - manual flow with evidence upload
+  const defaults: AccessTypeCapability = {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true,
+  };
+
+  // SHARED_ACCOUNT (PAM) always has manual flow
+  if (itemType === AccessItemType.SHARED_ACCOUNT) {
+    return {
+      clientOAuthSupported: false,
+      canGrantAccess: false,
+      canVerifyAccess: false,
+      requiresEvidenceUpload: true,
+    };
+  }
+
+  // Return explicit capabilities or defaults
+  return manifest.accessTypeCapabilities?.[itemType] || defaults;
+}
+
+/**
+ * Check if a plugin supports a specific capability for an access type
+ */
+export function pluginSupportsCapability(
+  manifest: PluginManifest,
+  itemType: AccessItemType,
+  capability: keyof AccessTypeCapability
+): boolean {
+  const caps = getAccessTypeCapability(manifest, itemType);
+  return caps[capability] === true;
+}
+
 // ─── Validation Result ─────────────────────────────────────────────────────────
 
 export interface ValidationResult {
