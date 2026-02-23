@@ -23,6 +23,8 @@ class SalesforcePlugin extends BasePlugin {
     category: 'CRM',
     description: 'Salesforce CRM and Sales Cloud',
     icon: 'fab fa-salesforce',
+    logoPath: '/logos/salesforce.svg',
+    brandColor: '#00A1E0',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.NAMED_INVITE,
