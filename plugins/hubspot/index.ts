@@ -23,6 +23,8 @@ class HubSpotPlugin extends BasePlugin {
     category: 'Martech',
     description: 'HubSpot CRM and marketing automation platform',
     icon: 'fab fa-hubspot',
+    logoPath: '/logos/hubspot.svg',
+    brandColor: '#FF7A59',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.NAMED_INVITE,
