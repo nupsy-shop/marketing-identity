@@ -1,14 +1,16 @@
 /**
  * Google Analytics 4 Plugin - Authentication
  * Google OAuth logic for GA4 Admin API and Data API
+ * 
+ * Uses per-platform OAuth credentials (Option B: Multiple OAuth Clients)
  */
 
 import type { AuthParams, AuthResult } from '../common/types';
 import { buildAuthorizationUrl, exchangeCodeForTokens, refreshAccessToken, generateState, type OAuthConfig } from '../common/utils/auth';
 
-// ─── Google OAuth Configuration ─────────────────────────────────────────────
+// ─── GA4-Specific OAuth Configuration ─────────────────────────────────────────
 
-const GOOGLE_OAUTH_CONFIG: Omit<OAuthConfig, 'clientId' | 'clientSecret' | 'redirectUri'> = {
+const GA4_OAUTH_CONFIG: Omit<OAuthConfig, 'clientId' | 'clientSecret' | 'redirectUri'> = {
   authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenUrl: 'https://oauth2.googleapis.com/token',
   scopes: [
@@ -17,23 +19,70 @@ const GOOGLE_OAUTH_CONFIG: Omit<OAuthConfig, 'clientId' | 'clientSecret' | 'redi
   ],
 };
 
+// Environment variable names for GA4 OAuth
+const ENV_VARS = {
+  clientId: 'GOOGLE_GA4_CLIENT_ID',
+  clientSecret: 'GOOGLE_GA4_CLIENT_SECRET',
+};
+
 /**
- * Get OAuth configuration with environment credentials
+ * Check if a value is a placeholder
+ */
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  return value.startsWith('PLACEHOLDER_') || value === '';
+}
+
+/**
+ * Check if GA4 OAuth is configured
+ */
+export function isGA4OAuthConfigured(): boolean {
+  const clientId = process.env[ENV_VARS.clientId];
+  const clientSecret = process.env[ENV_VARS.clientSecret];
+  return !isPlaceholder(clientId) && !isPlaceholder(clientSecret);
+}
+
+/**
+ * Get OAuth configuration with GA4-specific credentials
+ * Fails fast with clear error message if not configured
  */
 export function getOAuthConfig(redirectUri: string): OAuthConfig {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const clientId = process.env[ENV_VARS.clientId];
+  const clientSecret = process.env[ENV_VARS.clientSecret];
 
-  if (!clientId || !clientSecret) {
-    throw new Error('Google OAuth credentials not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.');
+  if (isPlaceholder(clientId) || isPlaceholder(clientSecret)) {
+    throw new GA4OAuthNotConfiguredError();
   }
 
   return {
-    ...GOOGLE_OAUTH_CONFIG,
-    clientId,
-    clientSecret,
+    ...GA4_OAUTH_CONFIG,
+    clientId: clientId!,
+    clientSecret: clientSecret!,
     redirectUri,
   };
+}
+
+/**
+ * Custom error for GA4 OAuth not configured
+ */
+export class GA4OAuthNotConfiguredError extends Error {
+  public platformKey = 'ga4';
+  public developerPortalUrl = 'https://console.cloud.google.com/apis/credentials';
+  public requiredEnvVars = [ENV_VARS.clientId, ENV_VARS.clientSecret];
+
+  constructor() {
+    super(`Google Analytics 4 OAuth is not configured. Set ${ENV_VARS.clientId} and ${ENV_VARS.clientSecret} environment variables with real credentials.`);
+    this.name = 'GA4OAuthNotConfiguredError';
+  }
+
+  toJSON() {
+    return {
+      platformKey: this.platformKey,
+      message: this.message,
+      developerPortalUrl: this.developerPortalUrl,
+      requiredEnvVars: this.requiredEnvVars,
+    };
+  }
 }
 
 /**
