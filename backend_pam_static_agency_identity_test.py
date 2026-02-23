@@ -720,10 +720,17 @@ class PAMStaticAgencyIdentityTester:
             
             # Look for a platform that likely supports SHARED_ACCOUNT (GA4, Google Ads, etc.)
             for platform in platforms:
-                name = platform.get('name', '').lower()
-                if any(keyword in name for keyword in ['google analytics', 'ga4', 'google ads', 'meta']):
+                supported_types = platform.get('supportedItemTypes', [])
+                if 'SHARED_ACCOUNT_PAM' in supported_types:
                     suitable_platform = platform
                     break
+                    
+            if not suitable_platform:
+                # Fallback: look for Google Analytics / GA4 specifically  
+                for platform in platforms:
+                    if 'google analytics' in platform.get('name', '').lower() or 'ga4' in platform.get('name', '').lower():
+                        suitable_platform = platform
+                        break
                     
             if not suitable_platform:
                 suitable_platform = platforms[0] if platforms else None
