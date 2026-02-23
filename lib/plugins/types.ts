@@ -220,6 +220,13 @@ export interface PluginManifest {
   // Automation capabilities
   automationCapabilities: AutomationCapabilities;
   
+  /**
+   * Per-access-type connection and provisioning capabilities.
+   * Drives the entire onboarding flow UI and backend logic.
+   * If not specified for an access type, defaults to manual flow with evidence upload.
+   */
+  accessTypeCapabilities?: AccessTypeCapabilities;
+  
   pluginVersion: string;
 }
 
