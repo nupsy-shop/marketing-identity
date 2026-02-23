@@ -293,13 +293,14 @@ def main():
         if isinstance(data, list) and len(data) == 0:
             print("✅ OAuth Tokens: Returns empty array initially")
             test_results["token_storage_endpoints"].append("Tokens List: PASS")
-        elif isinstance(data, dict) and data.get('tokens') is not None:
-            tokens = data.get('tokens', [])
-            if len(tokens) == 0:
+        elif isinstance(data, dict):
+            # Handle API response wrapper
+            tokens_data = data.get('data', [])
+            if isinstance(tokens_data, list) and len(tokens_data) == 0:
                 print("✅ OAuth Tokens: Returns empty tokens array initially")
                 test_results["token_storage_endpoints"].append("Tokens List: PASS")
             else:
-                print(f"⚠️ OAuth Tokens: Found {len(tokens)} existing tokens")
+                print(f"⚠️ OAuth Tokens: Found {len(tokens_data)} existing tokens")
                 test_results["token_storage_endpoints"].append("Tokens List: PASS (with data)")
         else:
             print(f"❌ OAuth Tokens: Unexpected response format: {type(data)}")
