@@ -724,26 +724,66 @@ export default function PlatformConfigPage() {
         {/* Role Templates */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <i className="fas fa-user-tag text-primary"></i>
-              Supported Role Templates
-            </CardTitle>
-            <CardDescription>
-              {pluginManifest ? 'Roles defined by platform plugin' : 'Available roles for this platform'}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <i className="fas fa-user-tag text-primary" aria-hidden="true"></i>
+                  Supported Role Templates
+                </CardTitle>
+                <CardDescription>
+                  {pluginManifest ? 'Roles defined by platform plugin' : 'Available roles for this platform'}
+                </CardDescription>
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setCustomRoleDialog({ open: true, editingRole: null })}
+                  >
+                    <i className="fas fa-plus mr-2" aria-hidden="true"></i>
+                    Custom Role
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Create a custom role with specific permissions</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {roleTemplates.map(role => (
-                <Badge key={role.key} variant="secondary" className="px-3 py-1.5">
-                  <i className="fas fa-shield-halved mr-2 text-xs"></i>
+                <Tooltip key={role.key}>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="px-3 py-1.5 cursor-help">
+                      <i className="fas fa-shield-halved mr-2 text-xs" aria-hidden="true"></i>
+                      {role.label}
+                      {role.description && (
+                        <span className="ml-2 text-xs opacity-70">- {role.description}</span>
+                      )}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">{role.description || `${role.label} access level`}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+              {customRoles.map(role => (
+                <Badge 
+                  key={role.key} 
+                  className="px-3 py-1.5 bg-primary/10 text-primary border-primary/20 cursor-pointer hover:bg-primary/20"
+                  onClick={() => setCustomRoleDialog({ open: true, editingRole: role })}
+                >
+                  <i className="fas fa-user-shield mr-2 text-xs" aria-hidden="true"></i>
                   {role.label}
-                  {role.description && (
-                    <span className="ml-2 text-xs opacity-70">- {role.description}</span>
-                  )}
+                  <span className="ml-2 text-xs opacity-70">(Custom)</span>
                 </Badge>
               ))}
             </div>
+            {(roleTemplates.length === 0 && customRoles.length === 0) && (
+              <p className="text-sm text-muted-foreground">No roles defined. Create a custom role to get started.</p>
+            )}
           </CardContent>
         </Card>
 
