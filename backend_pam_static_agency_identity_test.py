@@ -359,7 +359,7 @@ class PAMStaticAgencyIdentityTester:
         
         # Test 2: CLIENT_OWNED with pamNamingTemplate - should be REJECTED  
         item_data_forbidden2 = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test CLIENT_OWNED PAM Access",
             "role": "admin",
             "agencyConfigJson": {
