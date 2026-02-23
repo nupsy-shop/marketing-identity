@@ -26,7 +26,8 @@ def test_oauth_support_verification():
             
             if response.status_code == 200:
                 data = response.json()
-                oauth_supported = data.get('automationCapabilities', {}).get('oauthSupported', False)
+                manifest = data.get('data', {}).get('manifest', {})
+                oauth_supported = manifest.get('automationCapabilities', {}).get('oauthSupported', False)
                 
                 if oauth_supported:
                     print(f"  ✅ {platform}: OAuth support VERIFIED (oauthSupported: {oauth_supported})")
@@ -49,7 +50,8 @@ def test_oauth_support_verification():
             
             if response.status_code == 200:
                 data = response.json()
-                oauth_supported = data.get('automationCapabilities', {}).get('oauthSupported', False)
+                manifest = data.get('data', {}).get('manifest', {})
+                oauth_supported = manifest.get('automationCapabilities', {}).get('oauthSupported', False)
                 
                 if not oauth_supported:
                     print(f"  ✅ {platform}: OAuth correctly DISABLED (oauthSupported: {oauth_supported})")
