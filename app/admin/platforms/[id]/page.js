@@ -129,6 +129,16 @@ export default function PlatformConfigPage() {
     open: false,
     item: null,
   });
+  
+  // Custom role dialog state
+  const [customRoleDialog, setCustomRoleDialog] = useState({
+    open: false,
+    editingRole: null,
+  });
+  const [customRoles, setCustomRoles] = useState([]);
+  
+  // Label validation state
+  const [labelError, setLabelError] = useState('');
 
   // Get platform key from name
   const getPlatformKey = useCallback((name) => {
