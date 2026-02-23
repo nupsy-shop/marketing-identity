@@ -221,7 +221,7 @@ class PluginValidationTester:
                 "label": "Test Asset Separation",
                 "role": "admin",
                 "agencyConfigJson": {
-                    "businessManagerId": "123456789",
+                    "businessManagerId": "123456789012345",  # Use longer ID 
                     "clientAccountId": "client-account-123"  # This should be rejected
                 }
             }
