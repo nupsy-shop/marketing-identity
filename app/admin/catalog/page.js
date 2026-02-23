@@ -53,6 +53,7 @@ function AppCatalogContent() {
   const { toast } = useToast();
   const [platforms, setPlatforms] = useState([]);
   const [agencyPlatforms, setAgencyPlatforms] = useState([]); // platforms already added to agency
+  const [pluginManifests, setPluginManifests] = useState({}); // plugin manifests by key
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(null); // platformId being added
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,14 +67,28 @@ function AppCatalogContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [platformsRes, agencyRes] = await Promise.all([
+      const [platformsRes, agencyRes, pluginsRes] = await Promise.all([
         fetch('/api/platforms?clientFacing=true'),
-        fetch('/api/agency/platforms')
+        fetch('/api/agency/platforms'),
+        fetch('/api/plugins')
       ]);
       const platformsData = await platformsRes.json();
       const agencyData = await agencyRes.json();
+      const pluginsData = await pluginsRes.json();
+      
       if (platformsData.success) setPlatforms(platformsData.data);
       if (agencyData.success) setAgencyPlatforms(agencyData.data);
+      
+      // Build a map of plugin manifests by key
+      if (pluginsData.success && pluginsData.data) {
+        const manifestMap = {};
+        pluginsData.data.forEach(plugin => {
+          if (plugin.manifest) {
+            manifestMap[plugin.manifest.platformKey] = plugin.manifest;
+          }
+        });
+        setPluginManifests(manifestMap);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
