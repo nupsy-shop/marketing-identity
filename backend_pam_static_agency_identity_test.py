@@ -327,7 +327,7 @@ class PAMStaticAgencyIdentityTester:
         
         # Test 1: CLIENT_OWNED with forbidden identityPurpose field - should be REJECTED
         item_data_forbidden = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test CLIENT_OWNED PAM Access",
             "role": "admin",
             "agencyConfigJson": {
