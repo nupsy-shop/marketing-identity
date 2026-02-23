@@ -173,6 +173,27 @@ export async function GET(request, { params }) {
       if (!ap) {
         return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
+      
+      // Enrich with plugin manifest data (logoPath, brandColor, etc.)
+      const platformKey = getPlatformKeyFromName(ap.platform?.name);
+      if (platformKey && PluginRegistry.has(platformKey)) {
+        const plugin = PluginRegistry.get(platformKey);
+        if (plugin && plugin.manifest) {
+          const enrichedAp = {
+            ...ap,
+            platform: {
+              ...ap.platform,
+              platformKey: plugin.manifest.platformKey,
+              displayName: plugin.manifest.displayName,
+              logoPath: plugin.manifest.logoPath,
+              brandColor: plugin.manifest.brandColor,
+              category: plugin.manifest.category,
+            }
+          };
+          return NextResponse.json({ success: true, data: enrichedAp });
+        }
+      }
+      
       return NextResponse.json({ success: true, data: ap });
     }
 
