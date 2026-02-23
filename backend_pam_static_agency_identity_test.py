@@ -666,7 +666,8 @@ class PAMStaticAgencyIdentityTester:
                 "pamIdentityStrategy": "CLIENT_DEDICATED_IDENTITY",
                 "pamIdentityType": "MAILBOX",
                 "pamNamingTemplate": "{clientSlug}-mailbox@agency.com",
-                "pamCheckoutDurationMinutes": 120  # ALLOWED for MAILBOX type
+                "pamCheckoutDurationMinutes": 120,  # ALLOWED for MAILBOX type
+                "pamConfirmation": True
             }
         }
         
