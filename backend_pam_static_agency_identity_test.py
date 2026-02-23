@@ -58,26 +58,35 @@ class PAMStaticAgencyIdentityTester:
     def setup_test_data(self) -> bool:
         """Set up required test data"""
         try:
-            # 1. Get a platform that supports SHARED_ACCOUNT
+            # 1. Get a platform that supports SHARED_ACCOUNT_PAM (required for PAM validation tests)
             platforms_response = self.session.get(f"{self.base_url}/api/platforms?clientFacing=true")
             if platforms_response.status_code != 200:
                 print("Failed to get platforms")
                 return False
                 
             platforms = platforms_response.json().get('data', [])
-            # Find a platform (preferably one that supports SHARED_ACCOUNT)
+            # Find a platform that supports SHARED_ACCOUNT_PAM
+            pam_platform = None
             for platform in platforms:
-                if platform.get('name', '').lower() in ['google analytics', 'ga4', 'google ads', 'meta']:
-                    self.test_platform_id = platform['id']
-                    self.log(f"Using platform: {platform['name']} ({platform['id']})")
+                supported_types = platform.get('supportedItemTypes', [])
+                if 'SHARED_ACCOUNT_PAM' in supported_types:
+                    pam_platform = platform
                     break
                     
-            if not self.test_platform_id:
-                self.test_platform_id = platforms[0]['id'] if platforms else None
-                
-            if not self.test_platform_id:
-                print("No platforms available for testing")
+            if not pam_platform:
+                # Fallback: look for Google Analytics / GA4 specifically
+                for platform in platforms:
+                    if 'google analytics' in platform.get('name', '').lower() or 'ga4' in platform.get('name', '').lower():
+                        pam_platform = platform
+                        break
+                        
+            if not pam_platform:
+                print("No platform supporting SHARED_ACCOUNT_PAM found for testing")
                 return False
+                
+            self.test_platform_id = pam_platform['id']
+            self.log(f"Using PAM-capable platform: {pam_platform['name']} ({pam_platform['id']})")
+            self.log(f"Platform supports: {pam_platform.get('supportedItemTypes', [])}")
                 
             # 2. Create test client
             client_data = {
