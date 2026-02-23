@@ -993,6 +993,44 @@ agent_communication:
         agent: "testing"
         comment: "✅ PAM access type visibility testing completed successfully across all platforms. VERIFIED: (1) Meta Business Manager shows 3 access types: Partner Delegation, Named Invite, Shared Account (PAM) with 'Not Recommended' badge, (2) Snowflake shows 3 access types: Group/Service Account, API/Integration Token, Shared Account (PAM) with 'Not Recommended' badge, (3) Google Analytics GA4 shows 3 access types: Named Invite, Group/Service Account, Shared Account (PAM) with 'Not Recommended' badge, (4) PAM Configuration UI working with Credential Ownership dropdown, Identity Purpose dropdown, Identity Strategy dropdown, security confirmation checkbox. All platforms correctly display PAM option - API manifest fix successful."
 
+
+  - task: "PAM Static Agency Identity - Agency Identities API and Dropdown"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented complete PAM Static Agency Identity flow: (1) Added platformId column to integration_identities table, (2) Created GET /api/agency-identities endpoint for SHARED_CREDENTIAL type identities, (3) Updated integration-identities endpoint with platformId filtering, (4) Implemented STRICT server validation in validateAgainstPluginRules for CLIENT_OWNED (reject identity generation fields), STATIC_AGENCY_IDENTITY (require agencyIdentityId), CLIENT_DEDICATED_IDENTITY (require identityType + namingTemplate), (5) Created /admin/identities page for managing agency identities with platform assignment, (6) Updated PAM form with 'Manage Identities' link and empty state handling, (7) Added frontend validation for all PAM field requirements. Needs backend testing."
+
+  - task: "PAM Static Agency Identity - Frontend Gating Logic"
+    implemented: true
+    working: "NA"
+    file: "/app/app/admin/platforms/[id]/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed PAM form conditional rendering: (A) CLIENT_OWNED shows info box only, hides all identity generation fields, (B1) INTEGRATION_NON_HUMAN requires integrationIdentityId dropdown, (B2a) STATIC_AGENCY_IDENTITY shows agencyIdentityId dropdown with 'Manage Identities' link and empty state handling, (B2b) CLIENT_DEDICATED_IDENTITY shows identityType + namingTemplate + checkout policy (MAILBOX only). All logic is global - no platformKey branching. Needs frontend testing."
+
+  - task: "PAM Strict Server Validation Matrix"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented strict PAM validation in validateAgainstPluginRules: RULE A - CLIENT_OWNED rejects identity generation fields (identityPurpose, pamIdentityStrategy, pamIdentityType, pamNamingTemplate, checkout policy, agencyIdentityId, integrationIdentityId), RULE B1 - INTEGRATION_NON_HUMAN requires integrationIdentityId and rejects naming/checkout fields, RULE B2a - STATIC_AGENCY_IDENTITY requires agencyIdentityId and rejects namingTemplate/checkout fields, RULE B2b - CLIENT_DEDICATED_IDENTITY requires pamIdentityType + pamNamingTemplate, checkout fields only for MAILBOX type. Needs backend testing."
+
+
   - task: "Plugin-Driven Onboarding Page - Schema-Driven Form and Instructions"
     implemented: true
     working: true
