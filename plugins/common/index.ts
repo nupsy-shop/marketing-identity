@@ -40,11 +40,11 @@ export { PluginError, AuthenticationError, RateLimitError } from './types';
 // Utilities
 export { HttpClient as HttpClientImpl, HttpError, createPlatformClient } from './utils/httpClient';
 export {
-  buildAuthorizationUrl,
-  exchangeCodeForTokens,
-  refreshAccessToken,
+  buildAuthorizationUrl as buildAuthUrl,
+  exchangeCodeForTokens as exchangeCode,
+  refreshAccessToken as refreshToken,
   isTokenExpired,
-  generateState,
+  generateState as generateOAuthState,
   validateState,
   type OAuthConfig,
 } from './utils/auth';
@@ -59,3 +59,25 @@ export {
   getNestedValue,
   parseNumericValues,
 } from './utils/mappers';
+
+// Centralized OAuth Configuration
+export {
+  OAUTH_PROVIDERS,
+  PLATFORM_TO_PROVIDER,
+  getProviderForPlatform,
+  getProviderConfig,
+  isProviderConfigured,
+  getProviderCredentials,
+  getCredentialsForPlatform,
+  generateState,
+  buildAuthorizationUrl,
+  exchangeCodeForTokens,
+  refreshAccessToken,
+  getConfiguredProviders,
+  getProvidersStatus,
+  OAuthNotConfiguredError,
+  type OAuthProviderConfig,
+  type OAuthCredentials,
+  type OAuthStartResult,
+  type OAuthConfigError,
+} from './oauth-config';
