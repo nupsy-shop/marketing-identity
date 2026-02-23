@@ -1273,11 +1273,14 @@ export default function PlatformConfigPage() {
                         aria-describedby="role-hint"
                       >
                         <option value="">Select role...</option>
-                        <optgroup label="Platform Roles">
-                          {roleTemplates.map(role => (
-                            <option key={role.key} value={role.key}>{role.label}</option>
-                          ))}
-                        </optgroup>
+                        {/* Role templates specific to the selected item type from plugin */}
+                        {getRoleTemplatesForType(selectedItemType).map(role => (
+                          <option key={role.key} value={role.key}>
+                            {role.label}
+                            {role.description ? ` - ${role.description}` : ''}
+                          </option>
+                        ))}
+                        {/* Custom roles (if allowed by plugin) */}
                         {customRoles.length > 0 && (
                           <optgroup label="Custom Roles">
                             {customRoles.map(role => (
@@ -1286,9 +1289,70 @@ export default function PlatformConfigPage() {
                           </optgroup>
                         )}
                       </select>
-                      <p id="role-hint" className="text-xs text-muted-foreground mt-1">Permission level to request</p>
+                      <p id="role-hint" className="text-xs text-muted-foreground mt-1">
+                        Role templates defined by plugin for {ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.label || 'this access type'}
+                      </p>
                     </div>
                   </div>
+                  
+                  {/* PAM Confirmation Checkbox (for not_recommended or break_glass_only) */}
+                  {shouldShowPamWarning(selectedItemType) && (
+                    <div className="p-4 border rounded-lg bg-slate-50 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="pam-confirmation"
+                          checked={pamConfirmation}
+                          onChange={(e) => setPamConfirmation(e.target.checked)}
+                          className="mt-1 w-4 h-4"
+                        />
+                        <div className="flex-1">
+                          <Label htmlFor="pam-confirmation" className="font-medium">
+                            I understand the security implications
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            By checking this box, I acknowledge that shared account (PAM) access is {securityCapabilities?.pamRecommendation === 'break_glass_only' ? 'only for emergency break-glass use' : 'not the recommended method for this platform'} and I have valid reasons for using it.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Justification field for break-glass only */}
+                      {securityCapabilities?.pamRecommendation === 'break_glass_only' && (
+                        <>
+                          <div>
+                            <Label htmlFor="pam-reason" className="text-sm font-medium">
+                              Reason Code <span className="text-destructive">*</span>
+                            </Label>
+                            <select
+                              id="pam-reason"
+                              className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                              value={pamReasonCode}
+                              onChange={(e) => setPamReasonCode(e.target.value)}
+                            >
+                              <option value="">Select reason...</option>
+                              <option value="legacy_system">Legacy System Requirement</option>
+                              <option value="client_mandate">Client Mandate</option>
+                              <option value="emergency_access">Emergency Break-Glass</option>
+                              <option value="no_alternative">No Alternative Available</option>
+                              <option value="audit_requirement">Audit/Compliance Requirement</option>
+                            </select>
+                          </div>
+                          <div>
+                            <Label htmlFor="pam-justification" className="text-sm font-medium">
+                              Justification <span className="text-destructive">*</span>
+                            </Label>
+                            <textarea
+                              id="pam-justification"
+                              className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm min-h-[80px]"
+                              value={pamJustification}
+                              onChange={(e) => setPamJustification(e.target.value)}
+                              placeholder="Explain why PAM access is required..."
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {/* Notes */}
                   <div>
@@ -1309,7 +1373,7 @@ export default function PlatformConfigPage() {
                       value={agencyConfig}
                       onChange={setAgencyConfig}
                       title="Agency Configuration"
-                      description="Platform-specific fields defined by plugin schema"
+                      description="Platform-specific fields defined by plugin schema (no client asset IDs)"
                       errors={validationErrors}
                     />
                   ) : (
