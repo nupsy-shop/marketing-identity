@@ -83,6 +83,27 @@ export interface AutomationCapabilities {
   automatedProvisioningSupported: boolean;
 }
 
+// ─── Security Capabilities (PAM Governance) ────────────────────────────────────
+
+export interface SecurityCapabilities {
+  supportsDelegation: boolean;
+  supportsGroupAccess: boolean;
+  supportsOAuth: boolean;
+  supportsCredentialLogin: boolean;
+  pamRecommendation: PamRecommendation;
+  pamRationale: string;
+}
+
+// ─── Access Item Type Metadata ─────────────────────────────────────────────────
+
+export interface AccessItemTypeMetadata {
+  type: AccessItemType;
+  label: string;
+  description: string;
+  icon: string;
+  roleTemplates: RoleTemplate[];
+}
+
 // ─── Plugin Manifest ───────────────────────────────────────────────────────────
 
 export interface PluginManifest {
