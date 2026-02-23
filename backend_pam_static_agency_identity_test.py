@@ -453,9 +453,10 @@ class PAMStaticAgencyIdentityTester:
             "label": "Test Integration Non-Human Access",
             "role": "administrator",
             "agencyConfigJson": {
-                "pamOwnership": "AGENCY_OWNED", 
+                "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "INTEGRATION_NON_HUMAN",
-                "integrationIdentityId": self.test_integration_identity_id
+                "integrationIdentityId": self.test_integration_identity_id,
+                "pamConfirmation": True
             }
         }
         
