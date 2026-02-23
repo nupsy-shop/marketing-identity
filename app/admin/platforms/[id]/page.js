@@ -123,6 +123,8 @@ export default function PlatformConfigPage() {
   // State
   const [agencyPlatform, setAgencyPlatform] = useState(null);
   const [pluginManifest, setPluginManifest] = useState(null);
+  const [securityCapabilities, setSecurityCapabilities] = useState(null);
+  const [accessItemTypeMetadata, setAccessItemTypeMetadata] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -137,6 +139,11 @@ export default function PlatformConfigPage() {
   const [formNotes, setFormNotes] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  
+  // PAM-specific form state
+  const [pamConfirmation, setPamConfirmation] = useState(false);
+  const [pamJustification, setPamJustification] = useState('');
+  const [pamReasonCode, setPamReasonCode] = useState('');
   
   // Search and filter state for access items
   const [itemSearchQuery, setItemSearchQuery] = useState('');
