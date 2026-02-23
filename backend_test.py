@@ -326,7 +326,7 @@ class BackendTester:
                 self.add_result(
                     "LinkedIn verify-access returns 501", 
                     False, 
-                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]"
+                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
                 )
         except Exception as e:
             self.add_result("LinkedIn verify-access returns 501", False, f"Exception: {str(e)}")
