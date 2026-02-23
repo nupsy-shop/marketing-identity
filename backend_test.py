@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Backend Testing Script for Phase 1-3 Capability-Driven Access Grant and Verification Flows
-Tests the plugin capabilities endpoints, grant/verify enforcement, and OAuth token schema.
+Backend Testing Script for Phase 4 - UI Components and OAuth Token Filtering
+Tests OAuth token filtering endpoints, PATCH updates, capability endpoints, and agency platform API with manifests.
 """
 
 import requests
