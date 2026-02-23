@@ -478,7 +478,31 @@ export async function GET(request, { params }) {
 
     // GET /api/integration-identities - List all integration identities
     if (path === 'integration-identities') {
-      const identities = await db.getAllIntegrationIdentities();
+      const platformId = url.searchParams.get('platformId');
+      const type = url.searchParams.get('type');
+      const isActive = url.searchParams.get('isActive');
+      
+      const filters = {};
+      if (platformId) filters.platformId = platformId;
+      if (type) filters.type = type;
+      if (isActive !== null && isActive !== undefined) filters.isActive = isActive === 'true';
+      
+      const identities = await db.getAllIntegrationIdentities(filters);
+      return NextResponse.json({ success: true, data: identities });
+    }
+
+    // GET /api/agency-identities - Get agency identities for the "Agency Identity" dropdown
+    // Returns SHARED_CREDENTIAL and SERVICE_ACCOUNT type identities that can be used for STATIC_AGENCY_IDENTITY
+    if (path === 'agency-identities') {
+      const platformId = url.searchParams.get('platformId');
+      const isActive = url.searchParams.get('isActive');
+      
+      const filters = {};
+      if (platformId) filters.platformId = platformId;
+      // Default to active identities only unless explicitly requested otherwise
+      filters.isActive = isActive === 'false' ? false : true;
+      
+      const identities = await db.getAgencyIdentities(filters);
       return NextResponse.json({ success: true, data: identities });
     }
 
