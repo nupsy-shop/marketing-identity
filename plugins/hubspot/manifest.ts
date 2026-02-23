@@ -2,7 +2,7 @@
  * HubSpot Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -27,10 +27,33 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
   targetTypes: ['PORTAL'],
 };
 
+// HubSpot does not have public APIs for user management
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: false,     // No public API for user provisioning
+    canVerifyAccess: false,    // No API to verify user access
+    requiresEvidenceUpload: true
+  },
+  PARTNER_DELEGATION: {
+    clientOAuthSupported: true,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
+
 export const HUBSPOT_MANIFEST: PluginManifest = {
-  platformKey: 'hubspot', displayName: 'HubSpot', pluginVersion: '2.1.0', category: 'CRM',
+  platformKey: 'hubspot', displayName: 'HubSpot', pluginVersion: '2.2.0', category: 'CRM',
   description: 'HubSpot CRM, Marketing, Sales, and Service Hub', tier: 1, clientFacing: true,
   icon: 'fab fa-hubspot', logoPath: '/logos/hubspot.svg', brandColor: '#FF7A59',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default HUBSPOT_MANIFEST;

@@ -2,7 +2,7 @@
  * Snowflake Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -27,10 +27,33 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
   targetTypes: ['ACCOUNT', 'WAREHOUSE', 'DATABASE'],
 };
 
+// Snowflake doesn't expose user management via REST API (requires SQL)
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: false,     // User management requires SQL, not REST API
+    canVerifyAccess: false,    // No REST API for user verification
+    requiresEvidenceUpload: true
+  },
+  GROUP_ACCESS: {
+    clientOAuthSupported: true,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
+
 export const SNOWFLAKE_MANIFEST: PluginManifest = {
-  platformKey: 'snowflake', displayName: 'Snowflake', pluginVersion: '2.1.0', category: 'Data Warehouse',
+  platformKey: 'snowflake', displayName: 'Snowflake', pluginVersion: '2.2.0', category: 'Data Warehouse',
   description: 'Snowflake Data Cloud', tier: 1, clientFacing: true,
   icon: 'fas fa-snowflake', logoPath: '/logos/snowflake.svg', brandColor: '#29B5E8',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default SNOWFLAKE_MANIFEST;

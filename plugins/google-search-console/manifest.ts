@@ -2,7 +2,7 @@
  * Google Search Console Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -13,16 +13,39 @@ export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
 ];
 
 export const SECURITY_CAPABILITIES: SecurityCapabilities = {
-  supportsDelegation: false, supportsGroupAccess: true, supportsOAuth: false, supportsCredentialLogin: true,
+  supportsDelegation: false, supportsGroupAccess: true, supportsOAuth: true, supportsCredentialLogin: true,
   pamRecommendation: 'not_recommended', pamRationale: 'Search Console supports named-user access. Use PAM only for break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: false, apiVerificationSupported: true, automatedProvisioningSupported: false };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: true, 
+  apiVerificationSupported: true, 
+  automatedProvisioningSupported: false,
+  discoverTargetsSupported: true,
+  targetTypes: ['SITE', 'PROPERTY']
+};
+
+// GSC API can verify owners but cannot add users programmatically
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: false,     // No API to add users to properties
+    canVerifyAccess: true,     // Can verify owners via API
+    requiresEvidenceUpload: false
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
 
 export const GSC_MANIFEST: PluginManifest = {
-  platformKey: 'google-search-console', displayName: 'Google Search Console', pluginVersion: '2.1.0', category: 'SEO',
+  platformKey: 'google-search-console', displayName: 'Google Search Console', pluginVersion: '2.2.0', category: 'SEO',
   description: 'Google Search Console for SEO and search performance', tier: 1, clientFacing: true,
   icon: 'fab fa-google', logoPath: '/logos/gsc.svg', brandColor: '#4285F4',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default GSC_MANIFEST;
