@@ -24,6 +24,8 @@ class GAUAPlugin extends BasePlugin {
     category: 'Analytics',
     description: 'Legacy Universal Analytics (being sunset - migrate to GA4)',
     icon: 'fas fa-chart-bar',
+    logoPath: '/logos/ga-ua.svg',
+    brandColor: '#F9AB00',
     tier: 3,
     supportedAccessItemTypes: [
       AccessItemType.NAMED_INVITE,
