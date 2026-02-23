@@ -330,8 +330,22 @@ export interface PlatformPlugin {
   verifyGrant(context: VerificationContext): Promise<VerificationResult>;
 
   // OAuth hooks (optional)
-  startOAuth?(context: { redirectUri: string }): Promise<OAuthStartResult>;
-  handleOAuthCallback?(context: { code: string; state: string }): Promise<OAuthCallbackResult>;
+  startOAuth?(context: { redirectUri: string; scopes?: string[] }): Promise<OAuthStartResult>;
+  handleOAuthCallback?(context: { code: string; state?: string; redirectUri: string }): Promise<OAuthCallbackResult>;
+
+  /**
+   * Programmatically grant access via platform API.
+   * Only implement when accessTypeCapabilities[type].canGrantAccess = true.
+   * Returns success if access was granted, error otherwise.
+   */
+  grantAccess?(context: GrantAccessContext): Promise<ConnectorResponse>;
+
+  /**
+   * Programmatically verify that access has been granted (after manual steps).
+   * Only implement when accessTypeCapabilities[type].canVerifyAccess = true.
+   * Returns success with data=true if access is verified, data=false if not found.
+   */
+  verifyAccess?(context: VerifyAccessContext): Promise<ConnectorResponse<boolean>>;
 }
 
 // ─── Schema UI Metadata Extensions ─────────────────────────────────────────────
