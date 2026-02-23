@@ -22,6 +22,8 @@ class DV360Plugin extends BasePlugin {
     category: 'Paid Media',
     description: 'Google Display & Video 360 for programmatic advertising',
     icon: 'fas fa-tv',
+    logoPath: '/logos/dv360.svg',
+    brandColor: '#34A853',
     tier: 1,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
