@@ -1526,27 +1526,73 @@ export default function PlatformConfigPage() {
                               {/* ═══ RULE B2a: STATIC_AGENCY_IDENTITY ═══ */}
                               {/* Show agencyIdentityId dropdown, HIDE: identityType, namingTemplate, checkout policy */}
                               {agencyConfig.pamIdentityStrategy === 'STATIC_AGENCY_IDENTITY' && (
-                                <div>
-                                  <Label htmlFor="agency-identity" className="text-sm font-medium">
-                                    Agency Identity <span className="text-destructive">*</span>
-                                  </Label>
-                                  <select
-                                    id="agency-identity"
-                                    className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
-                                    value={agencyConfig.agencyIdentityId || ''}
-                                    onChange={(e) => setAgencyConfig(prev => ({ ...prev, agencyIdentityId: e.target.value }))}
-                                  >
-                                    <option value="">Select agency identity...</option>
-                                    {agencyIdentities.map(identity => (
-                                      <option key={identity.id} value={identity.id}>
-                                        {identity.name} ({identity.email})
-                                      </option>
-                                    ))}
-                                    <option value="__create_new__">+ Configure New Agency Identity</option>
-                                  </select>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Select a pre-configured agency identity. This is a shared identity managed at the agency level.
-                                  </p>
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <Label htmlFor="agency-identity" className="text-sm font-medium">
+                                      Agency Identity <span className="text-destructive">*</span>
+                                    </Label>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-xs h-7"
+                                      onClick={() => router.push('/admin/identities')}
+                                    >
+                                      <i className="fas fa-cog mr-1" aria-hidden="true"></i>
+                                      Manage Identities
+                                    </Button>
+                                  </div>
+                                  
+                                  {/* Empty state when no identities exist */}
+                                  {agencyIdentities.length === 0 ? (
+                                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                                      <div className="flex items-start gap-3">
+                                        <i className="fas fa-exclamation-triangle text-amber-600 mt-0.5" aria-hidden="true"></i>
+                                        <div className="flex-1">
+                                          <p className="font-medium text-sm text-amber-800">No Agency Identities Configured</p>
+                                          <p className="text-xs text-amber-700 mt-1">
+                                            Create an Agency Identity before you can use the Static Agency Identity strategy.
+                                          </p>
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-2 text-xs"
+                                            onClick={() => router.push('/admin/identities')}
+                                          >
+                                            <i className="fas fa-plus mr-1" aria-hidden="true"></i>
+                                            Create Agency Identity
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <select
+                                        id="agency-identity"
+                                        className="w-full border rounded-md px-3 py-2 bg-background text-sm"
+                                        value={agencyConfig.agencyIdentityId || ''}
+                                        onChange={(e) => {
+                                          if (e.target.value === '__create_new__') {
+                                            router.push('/admin/identities');
+                                          } else {
+                                            setAgencyConfig(prev => ({ ...prev, agencyIdentityId: e.target.value }));
+                                          }
+                                        }}
+                                      >
+                                        <option value="">Select agency identity...</option>
+                                        {agencyIdentities.map(identity => (
+                                          <option key={identity.id} value={identity.id}>
+                                            {identity.name} ({identity.identifier || identity.email})
+                                          </option>
+                                        ))}
+                                        <option value="__create_new__">+ Configure New Agency Identity</option>
+                                      </select>
+                                      <p className="text-xs text-muted-foreground">
+                                        Select a pre-configured agency identity. This is a shared identity managed at the agency level.
+                                      </p>
+                                    </>
+                                  )}
                                 </div>
                               )}
                               
