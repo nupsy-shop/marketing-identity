@@ -10,9 +10,16 @@ import { z } from 'zod';
 export enum AccessItemType {
   NAMED_INVITE = 'NAMED_INVITE',
   PARTNER_DELEGATION = 'PARTNER_DELEGATION',
-  GROUP_SERVICE = 'GROUP_SERVICE',
+  GROUP_ACCESS = 'GROUP_ACCESS',
   PROXY_TOKEN = 'PROXY_TOKEN',
-  PAM_SHARED_ACCOUNT = 'PAM_SHARED_ACCOUNT'
+  SHARED_ACCOUNT = 'SHARED_ACCOUNT'
+}
+
+// PAM Recommendation levels
+export enum PamRecommendation {
+  RECOMMENDED = 'recommended',
+  NOT_RECOMMENDED = 'not_recommended',
+  BREAK_GLASS_ONLY = 'break_glass_only'
 }
 
 export enum IdentityPurpose {
