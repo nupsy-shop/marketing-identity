@@ -69,6 +69,84 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // OAuth Methods (OAuthCapablePlugin interface)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Start OAuth flow for GA4
+   * Uses GA4-specific OAuth credentials (GOOGLE_GA4_CLIENT_ID/SECRET)
+   */
+  async startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }> {
+    // Fail fast if not configured
+    if (!isGA4OAuthConfigured()) {
+      throw new GA4OAuthNotConfiguredError();
+    }
+
+    const config = getOAuthConfig(context.redirectUri);
+    const state = generateState();
+    const authUrl = buildAuthorizationUrl(config, state);
+
+    return { authUrl, state };
+  }
+
+  /**
+   * Handle OAuth callback for GA4
+   */
+  async handleOAuthCallback(context: { code: string; state?: string; redirectUri: string }): Promise<AuthResult> {
+    // Fail fast if not configured
+    if (!isGA4OAuthConfigured()) {
+      throw new GA4OAuthNotConfiguredError();
+    }
+
+    const config = getOAuthConfig(context.redirectUri);
+    return exchangeCodeForTokens(config, context.code);
+  }
+
+  /**
+   * Discover accessible GA4 accounts and properties
+   */
+  async discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult> {
+    if (!auth.success || !auth.accessToken) {
+      return { success: false, error: 'No valid access token provided', targets: [] };
+    }
+
+    try {
+      const accountSummaries = await listAllAccountSummaries(auth);
+      const targets: DiscoverTargetsResult['targets'] = [];
+
+      // Add accounts as targets
+      for (const account of accountSummaries) {
+        targets.push({
+          targetType: 'ACCOUNT',
+          externalId: account.account || '',
+          displayName: account.displayName || 'Unknown Account',
+          metadata: { name: account.name },
+        });
+
+        // Add properties under each account
+        for (const property of account.propertySummaries || []) {
+          targets.push({
+            targetType: 'PROPERTY',
+            externalId: property.property || '',
+            displayName: property.displayName || 'Unknown Property',
+            parentExternalId: account.account,
+            metadata: { name: property.name, parent: property.parent },
+          });
+        }
+      }
+
+      return { success: true, targets };
+    } catch (error) {
+      console.error('[GA4Plugin] discoverTargets error:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to discover targets',
+        targets: [] 
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Authentication Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -81,7 +159,7 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Account Discovery
+  // Account Discovery (Legacy)
   // ═══════════════════════════════════════════════════════════════════════════
 
   async fetchAccounts(auth: AuthResult): Promise<Account[]> {
