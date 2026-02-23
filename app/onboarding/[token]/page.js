@@ -172,6 +172,191 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
   };
   
   const identityToAdd = getIdentityToAdd();
+  const platformKey = platform?.pluginKey || platform?.slug;
+  
+  // ── OAuth Flow Handlers ────────────────────────────────────────────────────
+  
+  const handleOAuthConnect = async () => {
+    if (!platformKey) {
+      toast({ title: 'Error', description: 'Platform not configured for OAuth', variant: 'destructive' });
+      return;
+    }
+    
+    setOauthConnecting(true);
+    try {
+      const redirectUri = `${window.location.origin}/onboarding/oauth-callback`;
+      
+      const res = await fetch(`/api/oauth/${platformKey}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          redirectUri,
+          scope: 'CLIENT',
+          tenantId: item.accessRequestId,
+          tenantType: 'ACCESS_REQUEST'
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success && data.data?.authUrl) {
+        // Store state for callback
+        sessionStorage.setItem('oauth_state', data.data.state);
+        sessionStorage.setItem('oauth_platform', platformKey);
+        sessionStorage.setItem('oauth_scope', 'CLIENT');
+        sessionStorage.setItem('oauth_item_id', item.id);
+        sessionStorage.setItem('oauth_return_url', window.location.href);
+        
+        // Redirect to OAuth provider
+        window.location.href = data.data.authUrl;
+      } else {
+        toast({
+          title: 'OAuth Error',
+          description: data.error || 'Failed to start OAuth flow. Provider may not be configured.',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Connection Error',
+        description: error.message || 'Failed to connect',
+        variant: 'destructive'
+      });
+    } finally {
+      setOauthConnecting(false);
+    }
+  };
+  
+  const handleDiscoverTargets = async () => {
+    if (!clientToken?.accessToken || !platformKey) return;
+    
+    setDiscoveringTargets(true);
+    try {
+      const res = await fetch(`/api/oauth/${platformKey}/discover-targets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          accessToken: clientToken.accessToken,
+          tokenType: clientToken.tokenType 
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setDiscoveredTargets(data.data?.targets || []);
+        if (data.data?.targets?.length === 1) {
+          setSelectedTarget(data.data.targets[0]);
+        }
+        toast({ title: 'Targets Found', description: `Found ${data.data?.targets?.length || 0} accessible targets.` });
+      } else {
+        toast({
+          title: 'Discovery Failed',
+          description: data.error || 'Could not discover targets',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setDiscoveringTargets(false);
+    }
+  };
+  
+  const handleGrantAccess = async () => {
+    if (!clientToken?.accessToken || !selectedTarget || !identityToAdd || !platformKey) {
+      toast({ title: 'Missing Data', description: 'Please connect and select a target first', variant: 'destructive' });
+      return;
+    }
+    
+    setGrantingAccess(true);
+    try {
+      const res = await fetch(`/api/oauth/${platformKey}/grant-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: clientToken.accessToken,
+          tokenType: clientToken.tokenType,
+          target: selectedTarget,
+          role: item.role,
+          identity: identityToAdd,
+          accessItemType: item.itemType
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Access Granted!', description: 'Access has been provisioned automatically.' });
+        onComplete();
+      } else {
+        toast({
+          title: 'Grant Failed',
+          description: data.error || 'Could not grant access. You may need to complete this manually.',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setGrantingAccess(false);
+    }
+  };
+  
+  const handleVerifyAccess = async () => {
+    if (!clientToken?.accessToken || !selectedTarget || !identityToAdd || !platformKey) {
+      toast({ title: 'Missing Data', description: 'Please connect and select a target first', variant: 'destructive' });
+      return;
+    }
+    
+    setVerifyingAccess(true);
+    try {
+      const res = await fetch(`/api/oauth/${platformKey}/verify-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: clientToken.accessToken,
+          tokenType: clientToken.tokenType,
+          target: selectedTarget,
+          role: item.role,
+          identity: identityToAdd,
+          accessItemType: item.itemType
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success && data.data?.verified) {
+        toast({ title: 'Access Verified!', description: 'Your access grant has been confirmed.' });
+        onComplete();
+      } else if (data.success && !data.data?.verified) {
+        toast({
+          title: 'Not Found',
+          description: 'Access not found yet. Please complete the manual steps and try again.',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Verification Failed',
+          description: data.error || 'Could not verify access',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setVerifyingAccess(false);
+    }
+  };
   
   // Handle file selection for evidence
   const handleFileChange = (e) => {
