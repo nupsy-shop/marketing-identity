@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import type { PlatformPlugin, PluginManifest, ValidationResult, VerificationMode, VerificationResult, InstructionContext, InstructionStep, VerificationContext, AccessItemType } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
-import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload } from '../common/types';
+import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, DiscoverTargetsResult } from '../common/types';
 import { LINKEDIN_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { PartnerDelegationAgencySchema, NamedInviteAgencySchema, SharedAccountAgencySchema } from './schemas/agency';
 import { PartnerDelegationClientSchema, NamedInviteClientSchema, SharedAccountClientSchema } from './schemas/client';
-import { authorize as linkedInAuthorize, refreshToken as linkedInRefreshToken, startLinkedInOAuth, getAdAccounts } from './auth';
+import { authorize as linkedInAuthorize, refreshToken as linkedInRefreshToken, startLinkedInOAuth, discoverTargets as linkedInDiscoverTargets } from './auth';
 
 class LinkedInPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin {
   readonly name = 'linkedin';
@@ -15,22 +15,31 @@ class LinkedInPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePl
   async destroy(): Promise<void> { this.context = null; }
   
   // OAuth Methods
-  async startOAuth(context: { redirectUri: string }): Promise<{ authUrl: string; state: string }> {
-    return startLinkedInOAuth(context.redirectUri);
+  async startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }> {
+    return startLinkedInOAuth(context.redirectUri, context.scopes);
   }
-  async handleOAuthCallback(context: { code: string; state: string; redirectUri?: string }): Promise<AuthResult> {
-    return linkedInAuthorize({ code: context.code, redirectUri: context.redirectUri || '' });
+  async handleOAuthCallback(context: { code: string; state?: string; redirectUri: string }): Promise<AuthResult> {
+    return linkedInAuthorize({ code: context.code, redirectUri: context.redirectUri });
   }
   async authorize(params: AuthParams): Promise<AuthResult> { return linkedInAuthorize(params); }
-  async refreshToken(currentToken: string): Promise<AuthResult> { return linkedInRefreshToken(currentToken, ''); }
+  async refreshToken(currentToken: string, redirectUri?: string): Promise<AuthResult> { return linkedInRefreshToken(currentToken, redirectUri || ''); }
+  
+  // Target Discovery
+  async discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult> {
+    return linkedInDiscoverTargets(auth);
+  }
+  
   async fetchAccounts(auth: AuthResult): Promise<Account[]> { 
-    if (auth.accessToken) {
-      try {
-        const accounts = await getAdAccounts(auth.accessToken);
-        return accounts.map(acc => ({ id: acc.id, name: acc.name, type: 'ad_account', isAccessible: true, status: 'active' as const }));
-      } catch (error) {
-        console.error('[LinkedInPlugin] Failed to fetch accounts:', error);
-      }
+    const result = await this.discoverTargets(auth);
+    if (result.success && result.targets) {
+      return result.targets.map(t => ({
+        id: t.externalId,
+        name: t.displayName,
+        type: t.targetType.toLowerCase(),
+        isAccessible: true,
+        status: 'active' as const,
+        metadata: t.metadata,
+      }));
     }
     return []; 
   }
