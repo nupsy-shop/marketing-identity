@@ -2,7 +2,7 @@
  * TikTok Ads Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -19,12 +19,39 @@ export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   pamRecommendation: 'not_recommended', pamRationale: 'TikTok supports partner delegation. Use PAM only for break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: false, apiVerificationSupported: false, automatedProvisioningSupported: false };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: false, 
+  apiVerificationSupported: false, 
+  automatedProvisioningSupported: false 
+};
+
+// TikTok does not have public APIs for user management
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  PARTNER_DELEGATION: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  },
+  NAMED_INVITE: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
 
 export const TIKTOK_MANIFEST: PluginManifest = {
-  platformKey: 'tiktok', displayName: 'TikTok Ads', pluginVersion: '2.1.0', category: 'Paid Media',
+  platformKey: 'tiktok', displayName: 'TikTok Ads', pluginVersion: '2.2.0', category: 'Paid Media',
   description: 'TikTok Business Center and Ads Manager', tier: 1, clientFacing: true,
   icon: 'fab fa-tiktok', logoPath: '/logos/tiktok.svg', brandColor: '#000000',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default TIKTOK_MANIFEST;
