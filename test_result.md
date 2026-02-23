@@ -1526,3 +1526,56 @@ agent_communication:
   - agent: "testing"
     message: "🎉 PAM GOVERNANCE AND PLUGIN-BASED STRUCTURAL ALIGNMENT TESTING COMPLETED SUCCESSFULLY! 92.7% SUCCESS RATE (38/41 tests passed). Comprehensive validation of all PAM governance requirements: ✅ Plugin Manifest Security Capabilities - Google Ads plugin returns complete securityCapabilities object with all required fields (supportsDelegation, supportsGroupAccess, supportsOAuth, supportsCredentialLogin, pamRecommendation: 'not_recommended', pamRationale), PAM recommendation validation working with valid enum values, ✅ Access Item Type Metadata (New Format) - 3 access item types returned in new object format with all required fields (type, label, description, icon, roleTemplates), role templates structure correct with 9 validated templates across 3 access types, ✅ Asset Separation (Agency vs Client) - Agency config schema correctly excludes client fields (adAccountId), client target schema correctly excludes agency fields (managerAccountId), proper separation maintained, ✅ Plugin System Integration - All 15 plugins registered, schema endpoints returning valid JSON schemas, platform-specific validation working. Only 3 minor failures related to specific Google Ads platform ID not existing in system (agency platform creation/testing), but core plugin governance functionality is PRODUCTION-READY and fully operational!"
     message: "🎉 UI/UX FEATURES TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (9/9 tests passed). Comprehensive validation of improved UI/UX features for Marketing Identity Platform: ✅ Plugin Manifest API - GET /api/plugins returns all 15 plugins with logoPath and brandColor, GET /api/plugins/google-ads has correct manifest data (logoPath='/logos/google-ads.svg', brandColor='#4285F4'), ✅ Agency Platforms Enrichment - GET /api/agency/platforms includes enriched plugin data (logoPath, brandColor, category) for all platforms with corresponding plugins, ✅ Access Item CRUD - POST/PUT/DELETE operations working with proper validation, successfully created 'Standard Analytics Access' item, ✅ Platform Toggle - PATCH toggle functionality working perfectly for enabling/disabling platforms, ✅ Search/Filter Data - All necessary filtering data available (itemType, label, role, agencyData), ✅ Response Format Consistency - All APIs follow {success: true/false, data/error} standard. 🐛 FIXED BUG: Individual platform GET endpoint missing plugin enrichment - now both list and individual routes consistently return enriched data. All UI/UX features are PRODUCTION-READY!"
+# New PAM Governance Tests - Added by main agent
+pam_governance_tests:
+  - task: "Plugin-Driven PAM Governance - Server Validation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented validateAgainstPluginRules() function. Tests needed: (1) PAM confirmation required for SHARED_ACCOUNT on not_recommended platforms, (2) break_glass_only requires justification min 20 chars and reason code."
+
+  - task: "Plugin-Driven Item Type Validation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "API should reject itemType not supported by plugin. Meta plugin supports PARTNER_DELEGATION, NAMED_INVITE, SHARED_ACCOUNT - PROXY_TOKEN should be rejected."
+
+  - task: "Plugin-Driven Role Template Validation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "API should reject roles not in plugin roleTemplates. Meta PARTNER_DELEGATION allows only 'admin' and 'analyst' roles."
+
+  - task: "Agency Config Asset Separation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "API should reject agencyConfigJson containing client asset ID fields like clientAssetId, clientAccountId, clientPropertyId."
+
+agent_communication:
+  - agent: "main"
+    message: "Implemented server-side validation for plugin-driven PAM governance. All 15 plugins updated to v2.0.0 with securityCapabilities. Please test: (1) Create access item on Meta with unsupported itemType PROXY_TOKEN - should be rejected, (2) Create PARTNER_DELEGATION with invalid role 'superuser' - should be rejected, (3) Create SHARED_ACCOUNT without pamConfirmation - should be rejected, (4) Create item with clientAssetId in agencyConfigJson - should be rejected."
