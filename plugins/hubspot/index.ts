@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import type { PlatformPlugin, PluginManifest, ValidationResult, VerificationMode, VerificationResult, InstructionContext, InstructionStep, VerificationContext, AccessItemType } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
-import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload } from '../common/types';
+import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, DiscoverTargetsResult } from '../common/types';
 import { HUBSPOT_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { NamedInviteAgencySchema, PartnerDelegationAgencySchema, SharedAccountAgencySchema } from './schemas/agency';
 import { NamedInviteClientSchema, PartnerDelegationClientSchema, SharedAccountClientSchema } from './schemas/client';
-import { authorize as hubspotAuthorize, refreshToken as hubspotRefreshToken, startHubSpotOAuth, getPortalInfo } from './auth';
+import { authorize as hubspotAuthorize, refreshToken as hubspotRefreshToken, startHubSpotOAuth, discoverTargets as hubspotDiscoverTargets } from './auth';
 
 class HubSpotPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin {
   readonly name = 'hubspot';
@@ -15,22 +15,31 @@ class HubSpotPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlu
   async destroy(): Promise<void> { this.context = null; }
   
   // OAuth Methods
-  async startOAuth(context: { redirectUri: string }): Promise<{ authUrl: string; state: string }> {
-    return startHubSpotOAuth(context.redirectUri);
+  async startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }> {
+    return startHubSpotOAuth(context.redirectUri, context.scopes);
   }
-  async handleOAuthCallback(context: { code: string; state: string; redirectUri?: string }): Promise<AuthResult> {
-    return hubspotAuthorize({ code: context.code, redirectUri: context.redirectUri || '' });
+  async handleOAuthCallback(context: { code: string; state?: string; redirectUri: string }): Promise<AuthResult> {
+    return hubspotAuthorize({ code: context.code, redirectUri: context.redirectUri });
   }
   async authorize(params: AuthParams): Promise<AuthResult> { return hubspotAuthorize(params); }
-  async refreshToken(currentToken: string): Promise<AuthResult> { return hubspotRefreshToken(currentToken, ''); }
+  async refreshToken(currentToken: string, redirectUri?: string): Promise<AuthResult> { return hubspotRefreshToken(currentToken, redirectUri || ''); }
+  
+  // Target Discovery
+  async discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult> {
+    return hubspotDiscoverTargets(auth);
+  }
+  
   async fetchAccounts(auth: AuthResult): Promise<Account[]> { 
-    if (auth.accessToken) {
-      try {
-        const portal = await getPortalInfo(auth.accessToken);
-        return [{ id: String(portal.portalId), name: portal.name, type: 'portal', isAccessible: true, status: 'active' as const }];
-      } catch (error) {
-        console.error('[HubSpotPlugin] Failed to fetch accounts:', error);
-      }
+    const result = await this.discoverTargets(auth);
+    if (result.success && result.targets) {
+      return result.targets.map(t => ({
+        id: t.externalId,
+        name: t.displayName,
+        type: t.targetType.toLowerCase(),
+        isAccessible: true,
+        status: 'active' as const,
+        metadata: t.metadata,
+      }));
     }
     return []; 
   }
