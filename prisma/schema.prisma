@@ -253,3 +253,54 @@ model AuditLog {
   @@index([timestamp])
   @@map("audit_logs")
 }
+
+// ============================================================================
+// OAUTH TOKENS (OAuth connection storage)
+// ============================================================================
+
+model OAuthToken {
+  id            String    @id @default(uuid())
+  platformKey   String    // e.g., "linkedin", "hubspot", "salesforce", "snowflake"
+  provider      String    // OAuth provider key (e.g., "linkedin", "hubspot")
+  accessToken   String    // Encrypted access token
+  refreshToken  String?   // Encrypted refresh token
+  tokenType     String    @default("Bearer")
+  expiresAt     DateTime?
+  scopes        String[]  @default([])
+  metadata      Json?     // Provider-specific metadata
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relation to discovered targets
+  targets       AccessibleTarget[]
+
+  @@index([platformKey])
+  @@index([provider])
+  @@index([isActive])
+  @@map("oauth_tokens")
+}
+
+// ============================================================================
+// ACCESSIBLE TARGETS (Discovered OAuth resources)
+// ============================================================================
+
+model AccessibleTarget {
+  id                String    @id @default(uuid())
+  oauthTokenId      String
+  targetType        String    // ACCOUNT, PROPERTY, ORG, WORKSPACE, AD_ACCOUNT, SITE, PROJECT, PORTAL, BUSINESS, CONTAINER, WAREHOUSE, DATABASE
+  externalId        String    // Provider's unique identifier for this resource
+  displayName       String
+  parentExternalId  String?   // For hierarchical resources (org -> account -> property)
+  metadata          Json?     // Platform-specific metadata
+  isSelected        Boolean   @default(false) // Whether user selected this target
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  oauthToken        OAuthToken @relation(fields: [oauthTokenId], references: [id], onDelete: Cascade)
+
+  @@index([oauthTokenId])
+  @@index([targetType])
+  @@index([externalId])
+  @@map("accessible_targets")
+}
