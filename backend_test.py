@@ -151,23 +151,25 @@ class BackendTester:
                 if (data.get("success") and 
                     "data" in data):
                     capability_data = data["data"]
+                    # The capabilities are nested inside a "capabilities" field
+                    capabilities = capability_data.get("capabilities", {})
                     required_fields = ["clientOAuthSupported", "canGrantAccess", "canVerifyAccess"]
                     
-                    all_present = all(field in capability_data for field in required_fields)
+                    all_present = all(field in capabilities for field in required_fields)
                     if all_present:
                         self.add_result(
                             "GA4 NAMED_INVITE capabilities", 
                             True, 
-                            f"Returns capabilities: OAuth={capability_data.get('clientOAuthSupported')}, "
-                            f"Grant={capability_data.get('canGrantAccess')}, "
-                            f"Verify={capability_data.get('canVerifyAccess')}"
+                            f"Returns capabilities: OAuth={capabilities.get('clientOAuthSupported')}, "
+                            f"Grant={capabilities.get('canGrantAccess')}, "
+                            f"Verify={capabilities.get('canVerifyAccess')}"
                         )
                     else:
-                        missing = [f for f in required_fields if f not in capability_data]
+                        missing = [f for f in required_fields if f not in capabilities]
                         self.add_result(
                             "GA4 NAMED_INVITE capabilities", 
                             False, 
-                            f"Missing required fields: {missing}. Got: {list(capability_data.keys())}"
+                            f"Missing required fields in capabilities: {missing}. Got capabilities: {list(capabilities.keys())}"
                         )
                 else:
                     self.add_result(
