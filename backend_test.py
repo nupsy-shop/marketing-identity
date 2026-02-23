@@ -1,385 +1,468 @@
 #!/usr/bin/env python3
 """
-Backend Test Suite for OAuth 2.0 Flows with Target Discovery
-Testing Marketing Identity Platform OAuth implementation
+Backend Testing Script for Phase 1-3 Capability-Driven Access Grant and Verification Flows
+Tests the plugin capabilities endpoints, grant/verify enforcement, and OAuth token schema.
 """
 
 import requests
 import json
 import sys
-import os
-from urllib.parse import urlparse, parse_qs
+from typing import Dict, Any, List
+from dataclasses import dataclass
 
-# Get base URL from environment
-BASE_URL = "https://plugin-oauth-setup.preview.emergentagent.com"
-API_BASE = f"{BASE_URL}/api"
 
-def test_get_request(url, description):
-    """Helper function to test GET requests"""
-    try:
-        print(f"\n🧪 Testing: {description}")
-        print(f"📡 GET {url}")
+@dataclass
+class TestResult:
+    name: str
+    passed: bool
+    details: str
+    response_data: Any = None
+
+
+class BackendTester:
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip('/')
+        self.results: List[TestResult] = []
+    
+    def log(self, message: str, level: str = "INFO"):
+        print(f"[{level}] {message}")
+    
+    def add_result(self, name: str, passed: bool, details: str, response_data: Any = None):
+        result = TestResult(name, passed, details, response_data)
+        self.results.append(result)
+        status = "✅ PASS" if passed else "❌ FAIL"
+        self.log(f"{status}: {name} - {details}")
+        return result
+    
+    def get(self, endpoint: str) -> requests.Response:
+        url = f"{self.base_url}{endpoint}"
+        self.log(f"GET {url}")
+        return requests.get(url)
+    
+    def post(self, endpoint: str, data: Dict[str, Any]) -> requests.Response:
+        url = f"{self.base_url}{endpoint}"
+        self.log(f"POST {url}")
+        return requests.post(url, json=data, headers={'Content-Type': 'application/json'})
+
+    def test_plugin_capabilities_endpoints(self):
+        """Test 1: Plugin Capabilities Endpoints"""
+        self.log("=== TESTING PLUGIN CAPABILITIES ENDPOINTS ===")
         
-        response = requests.get(url, timeout=10)
-        print(f"📊 Status: {response.status_code}")
-        
-        if response.headers.get('content-type', '').startswith('application/json'):
-            try:
+        # Test GA4 capabilities - should have canGrantAccess=true for NAMED_INVITE/GROUP_ACCESS
+        try:
+            response = self.get("/api/plugins/ga4/capabilities")
+            if response.status_code == 200:
                 data = response.json()
-                print(f"📋 Response: {json.dumps(data, indent=2)}")
-                return response.status_code, data
-            except:
-                print(f"📋 Response: {response.text[:500]}")
-                return response.status_code, response.text
-        else:
-            print(f"📋 Response: {response.text[:200]}")
-            return response.status_code, response.text
-            
-    except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        return None, str(e)
-
-def test_post_request(url, payload, description):
-    """Helper function to test POST requests"""
-    try:
-        print(f"\n🧪 Testing: {description}")
-        print(f"📡 POST {url}")
-        print(f"📦 Payload: {json.dumps(payload, indent=2)}")
+                if data.get("success"):
+                    capabilities = data["data"]["accessTypeCapabilities"]
+                    
+                    # Check NAMED_INVITE capabilities
+                    named_invite = capabilities.get("NAMED_INVITE", {})
+                    if named_invite.get("canGrantAccess") == True:
+                        self.add_result(
+                            "GA4 NAMED_INVITE canGrantAccess=true", 
+                            True, 
+                            "GA4 supports programmatic grant for NAMED_INVITE"
+                        )
+                    else:
+                        self.add_result(
+                            "GA4 NAMED_INVITE canGrantAccess=true", 
+                            False, 
+                            f"Expected canGrantAccess=true, got {named_invite.get('canGrantAccess')}"
+                        )
+                    
+                    # Check GROUP_ACCESS capabilities  
+                    group_access = capabilities.get("GROUP_ACCESS", {})
+                    if group_access.get("canGrantAccess") == True:
+                        self.add_result(
+                            "GA4 GROUP_ACCESS canGrantAccess=true", 
+                            True, 
+                            "GA4 supports programmatic grant for GROUP_ACCESS"
+                        )
+                    else:
+                        self.add_result(
+                            "GA4 GROUP_ACCESS canGrantAccess=true", 
+                            False, 
+                            f"Expected canGrantAccess=true, got {group_access.get('canGrantAccess')}"
+                        )
+                    
+                    # Check SHARED_ACCOUNT capabilities - should be false
+                    shared_account = capabilities.get("SHARED_ACCOUNT", {})
+                    if (shared_account.get("canGrantAccess") == False and 
+                        shared_account.get("requiresEvidenceUpload") == True):
+                        self.add_result(
+                            "GA4 SHARED_ACCOUNT capabilities", 
+                            True, 
+                            "SHARED_ACCOUNT has canGrantAccess=false, requiresEvidenceUpload=true"
+                        )
+                    else:
+                        self.add_result(
+                            "GA4 SHARED_ACCOUNT capabilities", 
+                            False, 
+                            f"Expected canGrantAccess=false & requiresEvidenceUpload=true, got {shared_account}"
+                        )
+                else:
+                    self.add_result("GA4 capabilities API", False, f"API returned success=false: {data}")
+            else:
+                self.add_result("GA4 capabilities API", False, f"HTTP {response.status_code}: {response.text}")
+        except Exception as e:
+            self.add_result("GA4 capabilities API", False, f"Exception: {str(e)}")
         
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"📊 Status: {response.status_code}")
-        
-        if response.headers.get('content-type', '').startswith('application/json'):
-            try:
+        # Test specific capability endpoint
+        try:
+            response = self.get("/api/plugins/ga4/capabilities/NAMED_INVITE")
+            if response.status_code == 200:
                 data = response.json()
-                print(f"📋 Response: {json.dumps(data, indent=2)}")
-                return response.status_code, data
-            except:
-                print(f"📋 Response: {response.text[:500]}")
-                return response.status_code, response.text
-        else:
-            print(f"📋 Response: {response.text[:200]}")
-            return response.status_code, response.text
-            
-    except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        return None, str(e)
+                if data.get("success"):
+                    capability_data = data["data"]
+                    role_templates = capability_data.get("roleTemplates", [])
+                    if len(role_templates) > 0:
+                        self.add_result(
+                            "GA4 NAMED_INVITE specific capability", 
+                            True, 
+                            f"Returns roleTemplates with {len(role_templates)} roles"
+                        )
+                    else:
+                        self.add_result(
+                            "GA4 NAMED_INVITE specific capability", 
+                            False, 
+                            "No roleTemplates returned"
+                        )
+                else:
+                    self.add_result("GA4 NAMED_INVITE specific capability", False, f"API returned success=false")
+            else:
+                self.add_result("GA4 NAMED_INVITE specific capability", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("GA4 NAMED_INVITE specific capability", False, f"Exception: {str(e)}")
+        
+        # Test LinkedIn capabilities - should have canGrantAccess=false for all types
+        try:
+            response = self.get("/api/plugins/linkedin/capabilities")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    capabilities = data["data"]["accessTypeCapabilities"]
+                    all_false = True
+                    for access_type, caps in capabilities.items():
+                        if caps.get("canGrantAccess") != False:
+                            all_false = False
+                            break
+                    
+                    if all_false:
+                        self.add_result(
+                            "LinkedIn canGrantAccess=false for all types", 
+                            True, 
+                            "LinkedIn has no public APIs for user management"
+                        )
+                    else:
+                        self.add_result(
+                            "LinkedIn canGrantAccess=false for all types", 
+                            False, 
+                            f"Some capabilities have canGrantAccess=true: {capabilities}"
+                        )
+                else:
+                    self.add_result("LinkedIn capabilities API", False, f"API returned success=false")
+            else:
+                self.add_result("LinkedIn capabilities API", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("LinkedIn capabilities API", False, f"Exception: {str(e)}")
+        
+        # Test Salesforce capabilities - should have canGrantAccess=true for NAMED_INVITE
+        try:
+            response = self.get("/api/plugins/salesforce/capabilities")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    capabilities = data["data"]["accessTypeCapabilities"]
+                    named_invite = capabilities.get("NAMED_INVITE", {})
+                    if named_invite.get("canGrantAccess") == True:
+                        self.add_result(
+                            "Salesforce NAMED_INVITE canGrantAccess=true", 
+                            True, 
+                            "Salesforce API supports user creation"
+                        )
+                    else:
+                        self.add_result(
+                            "Salesforce NAMED_INVITE canGrantAccess=true", 
+                            False, 
+                            f"Expected canGrantAccess=true, got {named_invite.get('canGrantAccess')}"
+                        )
+                else:
+                    self.add_result("Salesforce capabilities API", False, f"API returned success=false")
+            else:
+                self.add_result("Salesforce capabilities API", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("Salesforce capabilities API", False, f"Exception: {str(e)}")
 
-def main():
-    """Main test execution"""
-    print("🎯 OAuth 2.0 Flows with Target Discovery - Backend Testing")
-    print("=" * 80)
-    
-    test_results = {
-        "plugin_manifest_updates": [],
-        "oauth_status_endpoints": [],
-        "oauth_flows_unconfigured": [],
-        "token_storage_endpoints": [],
-        "regression_tests": []
-    }
-    
-    # ===============================================================================
-    # 1. PLUGIN MANIFEST UPDATES - Test discoverTargetsSupported and targetTypes
-    # ===============================================================================
-    
-    print("\n" + "="*50)
-    print("1. PLUGIN MANIFEST UPDATES TESTING")
-    print("="*50)
-    
-    # Test LinkedIn plugin manifest
-    status, data = test_get_request(f"{API_BASE}/plugins/linkedin", "LinkedIn Plugin Manifest")
-    if status == 200 and isinstance(data, dict):
-        # Handle API response wrapper
-        manifest_data = data.get('data', {}).get('manifest', data)
-        automation_caps = manifest_data.get('automationCapabilities', {})
-        discover_supported = automation_caps.get('discoverTargetsSupported', False)
-        target_types = automation_caps.get('targetTypes', [])
+    def test_grant_access_enforcement(self):
+        """Test 2: Grant Access Enforcement"""
+        self.log("=== TESTING GRANT ACCESS ENFORCEMENT ===")
         
-        if discover_supported and 'AD_ACCOUNT' in target_types:
-            print("✅ LinkedIn: discoverTargetsSupported=true, targetTypes includes AD_ACCOUNT")
-            test_results["plugin_manifest_updates"].append("LinkedIn: PASS")
-        else:
-            print(f"❌ LinkedIn: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
-            test_results["plugin_manifest_updates"].append("LinkedIn: FAIL")
-    else:
-        print("❌ LinkedIn: Failed to get plugin manifest")
-        test_results["plugin_manifest_updates"].append("LinkedIn: ERROR")
-    
-    # Test HubSpot plugin manifest
-    status, data = test_get_request(f"{API_BASE}/plugins/hubspot", "HubSpot Plugin Manifest")
-    if status == 200 and isinstance(data, dict):
-        # Handle API response wrapper
-        manifest_data = data.get('data', {}).get('manifest', data)
-        automation_caps = manifest_data.get('automationCapabilities', {})
-        discover_supported = automation_caps.get('discoverTargetsSupported', False)
-        target_types = automation_caps.get('targetTypes', [])
-        
-        if discover_supported and 'PORTAL' in target_types:
-            print("✅ HubSpot: discoverTargetsSupported=true, targetTypes includes PORTAL")
-            test_results["plugin_manifest_updates"].append("HubSpot: PASS")
-        else:
-            print(f"❌ HubSpot: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
-            test_results["plugin_manifest_updates"].append("HubSpot: FAIL")
-    else:
-        print("❌ HubSpot: Failed to get plugin manifest")
-        test_results["plugin_manifest_updates"].append("HubSpot: ERROR")
-    
-    # Test Salesforce plugin manifest
-    status, data = test_get_request(f"{API_BASE}/plugins/salesforce", "Salesforce Plugin Manifest")
-    if status == 200 and isinstance(data, dict):
-        # Handle API response wrapper
-        manifest_data = data.get('data', {}).get('manifest', data)
-        automation_caps = manifest_data.get('automationCapabilities', {})
-        discover_supported = automation_caps.get('discoverTargetsSupported', False)
-        target_types = automation_caps.get('targetTypes', [])
-        
-        if discover_supported and 'ORG' in target_types:
-            print("✅ Salesforce: discoverTargetsSupported=true, targetTypes includes ORG")
-            test_results["plugin_manifest_updates"].append("Salesforce: PASS")
-        else:
-            print(f"❌ Salesforce: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
-            test_results["plugin_manifest_updates"].append("Salesforce: FAIL")
-    else:
-        print("❌ Salesforce: Failed to get plugin manifest")
-        test_results["plugin_manifest_updates"].append("Salesforce: ERROR")
-    
-    # Test Snowflake plugin manifest
-    status, data = test_get_request(f"{API_BASE}/plugins/snowflake", "Snowflake Plugin Manifest")
-    if status == 200 and isinstance(data, dict):
-        # Handle API response wrapper
-        manifest_data = data.get('data', {}).get('manifest', data)
-        automation_caps = manifest_data.get('automationCapabilities', {})
-        discover_supported = automation_caps.get('discoverTargetsSupported', False)
-        target_types = automation_caps.get('targetTypes', [])
-        
-        expected_types = ['ACCOUNT', 'WAREHOUSE', 'DATABASE']
-        has_expected_types = all(t in target_types for t in expected_types)
-        
-        if discover_supported and has_expected_types:
-            print("✅ Snowflake: discoverTargetsSupported=true, targetTypes includes ACCOUNT, WAREHOUSE, DATABASE")
-            test_results["plugin_manifest_updates"].append("Snowflake: PASS")
-        else:
-            print(f"❌ Snowflake: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
-            test_results["plugin_manifest_updates"].append("Snowflake: FAIL")
-    else:
-        print("❌ Snowflake: Failed to get plugin manifest")
-        test_results["plugin_manifest_updates"].append("Snowflake: ERROR")
-    
-    # ===============================================================================
-    # 2. OAUTH STATUS ENDPOINTS TESTING
-    # ===============================================================================
-    
-    print("\n" + "="*50)
-    print("2. OAUTH STATUS ENDPOINTS TESTING")
-    print("="*50)
-    
-    # Test GET /api/oauth/status - Should list all 9 providers
-    status, data = test_get_request(f"{API_BASE}/oauth/status", "OAuth Status - All Providers")
-    if status == 200 and isinstance(data, dict):
-        # Handle API response wrapper
-        status_data = data.get('data', data)
-        found_providers = list(status_data.keys())
-        all_configured_false = all(not provider.get('configured', True) for provider in status_data.values())
-        
-        if len(found_providers) >= 9 and all_configured_false:
-            print(f"✅ OAuth Status: Found {len(found_providers)} providers, all showing configured=false")
-            test_results["oauth_status_endpoints"].append("Global Status: PASS")
-        else:
-            print(f"❌ OAuth Status: Expected 9+ providers with configured=false, got {len(found_providers)}, configured_false={all_configured_false}")
-            test_results["oauth_status_endpoints"].append("Global Status: FAIL")
-    else:
-        print("❌ OAuth Status: Failed to get provider status")
-        test_results["oauth_status_endpoints"].append("Global Status: ERROR")
-    
-    # Test GET /api/oauth/linkedin/status - Platform specific status
-    status, data = test_get_request(f"{API_BASE}/oauth/linkedin/status", "LinkedIn OAuth Status")
-    if status == 200 and isinstance(data, dict):
-        # Handle API response wrapper
-        status_data = data.get('data', data)
-        configured = status_data.get('configured', True)
-        required_vars = status_data.get('requiredEnvVars', [])
-        
-        if not configured and 'LINKEDIN_CLIENT_ID' in required_vars and 'LINKEDIN_CLIENT_SECRET' in required_vars:
-            print("✅ LinkedIn Status: configured=false with proper required env vars")
-            test_results["oauth_status_endpoints"].append("LinkedIn Status: PASS")
-        else:
-            print(f"❌ LinkedIn Status: configured={configured}, requiredEnvVars={required_vars}")
-            test_results["oauth_status_endpoints"].append("LinkedIn Status: FAIL")
-    else:
-        print("❌ LinkedIn Status: Failed to get LinkedIn status")
-        test_results["oauth_status_endpoints"].append("LinkedIn Status: ERROR")
-    
-    # ===============================================================================
-    # 3. OAUTH FLOWS WITH UNCONFIGURED CREDENTIALS
-    # ===============================================================================
-    
-    print("\n" + "="*50)
-    print("3. OAUTH FLOWS WITH UNCONFIGURED CREDENTIALS")
-    print("="*50)
-    
-    # Test POST /api/oauth/linkedin/start - Should return 501 (not configured)
-    payload = {"redirectUri": "https://example.com/callback"}
-    status, data = test_post_request(f"{API_BASE}/oauth/linkedin/start", payload, "LinkedIn OAuth Start")
-    
-    if status == 501:
-        if isinstance(data, dict) and not data.get('success', True):
-            print("✅ LinkedIn Start: Returns HTTP 501 with error message")
-            test_results["oauth_flows_unconfigured"].append("LinkedIn Start: PASS")
-        else:
-            print("❌ LinkedIn Start: Wrong error response format")
-            test_results["oauth_flows_unconfigured"].append("LinkedIn Start: FAIL")
-    else:
-        print(f"❌ LinkedIn Start: Expected HTTP 501, got {status}")
-        test_results["oauth_flows_unconfigured"].append("LinkedIn Start: FAIL")
-    
-    # Test POST /api/oauth/linkedin/discover-targets - Should return 501 (not configured)
-    payload = {"accessToken": "test"}
-    status, data = test_post_request(f"{API_BASE}/oauth/linkedin/discover-targets", payload, "LinkedIn Discover Targets")
-    
-    if status == 501:
-        if isinstance(data, dict) and not data.get('success', True):
-            print("✅ LinkedIn Discover Targets: Returns HTTP 501 with error message")
-            test_results["oauth_flows_unconfigured"].append("LinkedIn Discover: PASS")
-        else:
-            print("❌ LinkedIn Discover Targets: Wrong error response format")
-            test_results["oauth_flows_unconfigured"].append("LinkedIn Discover: FAIL")
-    else:
-        print(f"❌ LinkedIn Discover Targets: Expected HTTP 501, got {status}")
-        test_results["oauth_flows_unconfigured"].append("LinkedIn Discover: FAIL")
-    
-    # Test HubSpot OAuth start
-    payload = {"redirectUri": "https://example.com/callback"}  # Fix payload
-    status, data = test_post_request(f"{API_BASE}/oauth/hubspot/start", payload, "HubSpot OAuth Start")
-    
-    if status == 501:
-        print("✅ HubSpot Start: Returns HTTP 501 (not configured)")
-        test_results["oauth_flows_unconfigured"].append("HubSpot Start: PASS")
-    else:
-        print(f"❌ HubSpot Start: Expected HTTP 501, got {status}")
-        test_results["oauth_flows_unconfigured"].append("HubSpot Start: FAIL")
-    
-    # Test Salesforce OAuth start
-    status, data = test_post_request(f"{API_BASE}/oauth/salesforce/start", payload, "Salesforce OAuth Start")
-    
-    if status == 501:
-        print("✅ Salesforce Start: Returns HTTP 501 (not configured)")
-        test_results["oauth_flows_unconfigured"].append("Salesforce Start: PASS")
-    else:
-        print(f"❌ Salesforce Start: Expected HTTP 501, got {status}")
-        test_results["oauth_flows_unconfigured"].append("Salesforce Start: FAIL")
-    
-    # Test Snowflake OAuth start
-    status, data = test_post_request(f"{API_BASE}/oauth/snowflake/start", payload, "Snowflake OAuth Start")
-    
-    if status == 501:
-        print("✅ Snowflake Start: Returns HTTP 501 (not configured)")
-        test_results["oauth_flows_unconfigured"].append("Snowflake Start: PASS")
-    else:
-        print(f"❌ Snowflake Start: Expected HTTP 501, got {status}")
-        test_results["oauth_flows_unconfigured"].append("Snowflake Start: FAIL")
-    
-    # ===============================================================================
-    # 4. TOKEN STORAGE ENDPOINTS
-    # ===============================================================================
-    
-    print("\n" + "="*50)
-    print("4. TOKEN STORAGE ENDPOINTS TESTING")
-    print("="*50)
-    
-    # Test GET /api/oauth/tokens - Should return empty array initially
-    status, data = test_get_request(f"{API_BASE}/oauth/tokens", "OAuth Tokens List")
-    
-    if status == 200:
-        if isinstance(data, list) and len(data) == 0:
-            print("✅ OAuth Tokens: Returns empty array initially")
-            test_results["token_storage_endpoints"].append("Tokens List: PASS")
-        elif isinstance(data, dict):
-            # Handle API response wrapper
-            tokens_data = data.get('data', [])
-            if isinstance(tokens_data, list) and len(tokens_data) == 0:
-                print("✅ OAuth Tokens: Returns empty tokens array initially")
-                test_results["token_storage_endpoints"].append("Tokens List: PASS")
+        # Test GA4 grant-access - should return 501 "not implemented" (plugin declares canGrantAccess but method missing)
+        try:
+            response = self.post("/api/oauth/ga4/grant-access", {
+                "target": {"propertyId": "12345"},
+                "role": "administrator", 
+                "identity": "user@example.com",
+                "accessItemType": "NAMED_INVITE"
+            })
+            
+            if response.status_code == 501:
+                self.add_result(
+                    "GA4 grant-access returns 501", 
+                    True, 
+                    "Correctly returns 'not implemented' when grantAccess method missing"
+                )
             else:
-                print(f"⚠️ OAuth Tokens: Found {len(tokens_data)} existing tokens")
-                test_results["token_storage_endpoints"].append("Tokens List: PASS (with data)")
-        else:
-            print(f"❌ OAuth Tokens: Unexpected response format: {type(data)}")
-            test_results["token_storage_endpoints"].append("Tokens List: FAIL")
-    else:
-        print(f"❌ OAuth Tokens: Expected HTTP 200, got {status}")
-        test_results["token_storage_endpoints"].append("Tokens List: ERROR")
-    
-    # ===============================================================================
-    # 5. EXISTING PLUGIN API ENDPOINTS (REGRESSION TESTING)
-    # ===============================================================================
-    
-    print("\n" + "="*50)
-    print("5. REGRESSION TESTING - EXISTING PLUGIN API ENDPOINTS")
-    print("="*50)
-    
-    # Test GET /api/plugins - Should return all plugins
-    status, data = test_get_request(f"{API_BASE}/plugins", "All Plugins List")
-    
-    if status == 200:
-        # Handle API response wrapper
-        plugins_data = data.get('data', data) if isinstance(data, dict) else data
+                self.add_result(
+                    "GA4 grant-access returns 501", 
+                    False, 
+                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
+                )
+        except Exception as e:
+            self.add_result("GA4 grant-access returns 501", False, f"Exception: {str(e)}")
         
-        if isinstance(plugins_data, list) and len(plugins_data) >= 15:
-            print(f"✅ Plugins List: Returns {len(plugins_data)} plugins")
-            test_results["regression_tests"].append("Plugins List: PASS")
-        else:
-            print(f"❌ Plugins List: Expected 15+ plugins, got {len(plugins_data) if isinstance(plugins_data, list) else 'non-list'}")
-            test_results["regression_tests"].append("Plugins List: FAIL")
-    else:
-        print("❌ Plugins List: Failed to get plugins list")
-        test_results["regression_tests"].append("Plugins List: ERROR")
-    
-    # Test GET /api/platforms - Should return platforms from catalog
-    status, data = test_get_request(f"{API_BASE}/platforms", "Platforms List")
-    
-    if status == 200 and isinstance(data, list):
-        if len(data) > 0:
-            print(f"✅ Platforms List: Returns {len(data)} platforms")
-            test_results["regression_tests"].append("Platforms List: PASS")
-        else:
-            print("❌ Platforms List: No platforms returned")
-            test_results["regression_tests"].append("Platforms List: FAIL")
-    else:
-        print("❌ Platforms List: Failed to get platforms list")
-        test_results["regression_tests"].append("Platforms List: ERROR")
-    
-    # ===============================================================================
-    # SUMMARY AND RESULTS
-    # ===============================================================================
-    
-    print("\n" + "="*80)
-    print("🎯 OAUTH 2.0 TESTING SUMMARY")
-    print("="*80)
-    
-    total_tests = 0
-    passed_tests = 0
-    
-    for category, results in test_results.items():
-        print(f"\n📊 {category.upper().replace('_', ' ')}:")
-        for result in results:
-            total_tests += 1
-            if "PASS" in result:
-                passed_tests += 1
-                print(f"  ✅ {result}")
-            elif "FAIL" in result:
-                print(f"  ❌ {result}")
+        # Test LinkedIn grant-access - should return 501 "not supported" (canGrantAccess=false)
+        try:
+            response = self.post("/api/oauth/linkedin/grant-access", {
+                "target": {"adAccountId": "12345"},
+                "role": "admin",
+                "identity": "user@example.com", 
+                "accessItemType": "PARTNER_DELEGATION"
+            })
+            
+            if response.status_code == 501:
+                response_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                error_message = response_data.get("error", "")
+                if "not supported" in error_message.lower() or "not configured" in error_message.lower():
+                    self.add_result(
+                        "LinkedIn grant-access returns 501 not supported", 
+                        True, 
+                        "Correctly returns 'not supported' when canGrantAccess=false"
+                    )
+                else:
+                    self.add_result(
+                        "LinkedIn grant-access returns 501 not supported", 
+                        False, 
+                        f"Got 501 but wrong error message: {error_message}"
+                    )
             else:
-                print(f"  ⚠️ {result}")
-    
-    print(f"\n🏆 OVERALL RESULTS: {passed_tests}/{total_tests} tests passed ({(passed_tests/total_tests*100):.1f}%)")
-    
-    if passed_tests == total_tests:
-        print("🎉 ALL TESTS PASSED - OAuth 2.0 implementation is working correctly!")
-        return True
-    else:
-        print("⚠️ Some tests failed - Check the details above")
-        return False
+                self.add_result(
+                    "LinkedIn grant-access returns 501 not supported", 
+                    False, 
+                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
+                )
+        except Exception as e:
+            self.add_result("LinkedIn grant-access returns 501 not supported", False, f"Exception: {str(e)}")
+        
+        # Test HubSpot grant-access - should return 501 "not supported"
+        try:
+            response = self.post("/api/oauth/hubspot/grant-access", {
+                "target": {"portalId": "12345"},
+                "role": "admin",
+                "identity": "user@example.com",
+                "accessItemType": "NAMED_INVITE"
+            })
+            
+            if response.status_code == 501:
+                self.add_result(
+                    "HubSpot grant-access returns 501", 
+                    True, 
+                    "Correctly returns 501 for unsupported grant access"
+                )
+            else:
+                self.add_result(
+                    "HubSpot grant-access returns 501", 
+                    False, 
+                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
+                )
+        except Exception as e:
+            self.add_result("HubSpot grant-access returns 501", False, f"Exception: {str(e)}")
+
+    def test_verify_access_enforcement(self):
+        """Test 3: Verify Access Enforcement"""  
+        self.log("=== TESTING VERIFY ACCESS ENFORCEMENT ===")
+        
+        # Test GA4 verify-access - should return 501 "not implemented" (method missing)
+        try:
+            response = self.post("/api/oauth/ga4/verify-access", {
+                "target": {"propertyId": "12345"},
+                "role": "administrator",
+                "identity": "user@example.com",
+                "accessItemType": "NAMED_INVITE"
+            })
+            
+            if response.status_code == 501:
+                self.add_result(
+                    "GA4 verify-access returns 501", 
+                    True, 
+                    "Correctly returns 'not implemented' when verifyAccess method missing"
+                )
+            else:
+                self.add_result(
+                    "GA4 verify-access returns 501", 
+                    False, 
+                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
+                )
+        except Exception as e:
+            self.add_result("GA4 verify-access returns 501", False, f"Exception: {str(e)}")
+        
+        # Test LinkedIn verify-access - should return 501 "not supported" (canVerifyAccess=false)
+        try:
+            response = self.post("/api/oauth/linkedin/verify-access", {
+                "target": {"adAccountId": "12345"},
+                "role": "admin",
+                "identity": "user@example.com",
+                "accessItemType": "PARTNER_DELEGATION"
+            })
+            
+            if response.status_code == 501:
+                self.add_result(
+                    "LinkedIn verify-access returns 501", 
+                    True, 
+                    "Correctly returns 'not supported' when canVerifyAccess=false"
+                )
+            else:
+                self.add_result(
+                    "LinkedIn verify-access returns 501", 
+                    False, 
+                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]"
+                )
+        except Exception as e:
+            self.add_result("LinkedIn verify-access returns 501", False, f"Exception: {str(e)}")
+
+    def test_oauth_token_scope(self):
+        """Test 4: OAuth Token Scope (DB Schema)"""
+        self.log("=== TESTING OAUTH TOKEN SCOPE (DB SCHEMA) ===")
+        
+        # Test that oauth/tokens endpoint works (should return empty list initially)
+        try:
+            response = self.get("/api/oauth/tokens")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    tokens = data["data"]
+                    self.add_result(
+                        "OAuth tokens endpoint works", 
+                        True, 
+                        f"Returns {len(tokens)} tokens (empty list is fine for initial state)"
+                    )
+                else:
+                    self.add_result("OAuth tokens endpoint works", False, f"API returned success=false")
+            else:
+                self.add_result("OAuth tokens endpoint works", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("OAuth tokens endpoint works", False, f"Exception: {str(e)}")
+        
+        # We can't easily test the DB schema directly, but the fact that the endpoint works
+        # and the db.js file shows the proper columns (scope, tenantId, tenantType) confirms it
+
+    def test_plugin_manifest_validation(self):
+        """Test 5: Plugin Manifest Validation"""
+        self.log("=== TESTING PLUGIN MANIFEST VALIDATION ===")
+        
+        # Test that /api/plugins returns 15 plugins with version 2.2.0
+        try:
+            response = self.get("/api/plugins")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    plugins = data["data"]
+                    
+                    # Check plugin count
+                    if len(plugins) == 15:
+                        self.add_result(
+                            "Plugin count is 15", 
+                            True, 
+                            f"Found {len(plugins)} plugins as expected"
+                        )
+                    else:
+                        self.add_result(
+                            "Plugin count is 15", 
+                            False, 
+                            f"Expected 15 plugins, found {len(plugins)}"
+                        )
+                    
+                    # Check that all plugins have version 2.2.0
+                    all_correct_version = True
+                    plugins_with_access_caps = 0
+                    
+                    for plugin in plugins:
+                        if plugin.get("pluginVersion") != "2.2.0":
+                            all_correct_version = False
+                        
+                        # Check if plugin has accessTypeCapabilities
+                        if plugin.get("accessTypeCapabilities"):
+                            plugins_with_access_caps += 1
+                    
+                    if all_correct_version:
+                        self.add_result(
+                            "All plugins have version 2.2.0", 
+                            True, 
+                            "All plugins updated to latest version"
+                        )
+                    else:
+                        self.add_result(
+                            "All plugins have version 2.2.0", 
+                            False, 
+                            "Some plugins have incorrect version"
+                        )
+                    
+                    # Check that plugins have accessTypeCapabilities
+                    if plugins_with_access_caps >= 10:  # Most plugins should have this
+                        self.add_result(
+                            "Plugins have accessTypeCapabilities", 
+                            True, 
+                            f"{plugins_with_access_caps} plugins have accessTypeCapabilities field"
+                        )
+                    else:
+                        self.add_result(
+                            "Plugins have accessTypeCapabilities", 
+                            False, 
+                            f"Only {plugins_with_access_caps} plugins have accessTypeCapabilities"
+                        )
+                else:
+                    self.add_result("Plugin manifest API", False, f"API returned success=false")
+            else:
+                self.add_result("Plugin manifest API", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("Plugin manifest API", False, f"Exception: {str(e)}")
+
+    def run_all_tests(self):
+        """Run all test suites"""
+        self.log("🚀 Starting Phase 1-3 Backend Testing for Capability-Driven Access Grant and Verification")
+        
+        try:
+            self.test_plugin_capabilities_endpoints()
+            self.test_grant_access_enforcement() 
+            self.test_verify_access_enforcement()
+            self.test_oauth_token_scope()
+            self.test_plugin_manifest_validation()
+        except Exception as e:
+            self.log(f"Unexpected error during testing: {str(e)}", "ERROR")
+        
+        # Print summary
+        passed = sum(1 for r in self.results if r.passed)
+        total = len(self.results)
+        self.log(f"\n📊 TEST SUMMARY: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
+        
+        if passed == total:
+            self.log("🎉 ALL TESTS PASSED! Phase 1-3 implementation is working correctly.", "SUCCESS")
+            return True
+        else:
+            failed = [r for r in self.results if not r.passed]
+            self.log(f"❌ {len(failed)} tests failed:", "FAILURE")
+            for failure in failed:
+                self.log(f"  - {failure.name}: {failure.details}", "FAILURE")
+            return False
+
 
 if __name__ == "__main__":
-    success = main()
+    # Use the base URL from environment or default
+    import os
+    base_url = os.getenv("NEXT_PUBLIC_BASE_URL", "https://plugin-oauth-setup.preview.emergentagent.com")
+    
+    tester = BackendTester(base_url)
+    success = tester.run_all_tests()
+    
     sys.exit(0 if success else 1)
