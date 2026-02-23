@@ -31,8 +31,9 @@ model CatalogPlatform {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  agencyPlatforms    AgencyPlatform[]
-  accessRequestItems AccessRequestItem[]
+  agencyPlatforms        AgencyPlatform[]
+  accessRequestItems     AccessRequestItem[]
+  integrationIdentities  IntegrationIdentity[]
 
   @@index([domain])
   @@index([clientFacing])
