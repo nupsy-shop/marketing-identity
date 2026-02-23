@@ -1395,6 +1395,81 @@ test_plan:
         agent: "testing"
         comment: "✅ Access Pattern Read-Only Verification WORKING PERFECTLY! Successfully tested patternLabel derivation from itemType. All pattern labels correctly set: (1) NAMED_INVITE → 'Named Invite', (2) PARTNER_DELEGATION → 'Partner Delegation' (tested on Google Ads which supports it), (3) SHARED_ACCOUNT_PAM → 'Shared Account (PAM)'. Pattern labels are properly derived and read-only as expected."
 
+  - task: "UI/UX Features - Plugin Manifest API with Logo and Brand Data"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Plugin Manifest API with logo and brand data working perfectly. Successfully tested: (1) GET /api/plugins returns all 15 plugins with logoPath and brandColor fields, (2) GET /api/plugins/google-ads returns correct manifest with logoPath='/logos/google-ads.svg' and brandColor='#4285F4', (3) GET /api/agency/platforms includes enriched platform data with logoPath, brandColor, category from plugin manifests for all platforms that have corresponding plugins. Plugin enrichment system fully operational."
+
+  - task: "UI/UX Features - Access Item CRUD Operations with Validation"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Access Item CRUD operations working perfectly. Successfully tested: (1) POST /api/agency/platforms/:id/items creates access items with proper validation (requires itemType, label, role), accepts valid label 'Standard Analytics Access', (2) PUT /api/agency/platforms/:id/items/:itemId updates access items correctly including label, role, notes, identity fields, (3) DELETE /api/agency/platforms/:id/items/:itemId removes access items and returns updated platform data. All CRUD operations functional with proper validation and error handling."
+
+  - task: "UI/UX Features - Platform Toggle and Actions"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Platform toggle functionality working perfectly. Successfully tested: (1) PATCH /api/agency/platforms/:id/toggle correctly toggles isEnabled status between true and false, (2) Response includes updated isEnabled state in return data, (3) Platform state changes are persistent and reversible. Toggle actions fully operational for platform enable/disable functionality."
+
+  - task: "UI/UX Features - Search and Filter Data Requirements"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Search and filter data requirements working perfectly. Successfully verified: (1) GET /api/agency/platforms returns all necessary data for client-side filtering, (2) Each accessItem includes required fields: label, itemType, role, agencyData for proper filtering capabilities, (3) Platform data includes category, domain, and other filtering metadata, (4) Response structure supports all expected UI filtering scenarios. All filtering data requirements met."
+
+  - task: "UI/UX Features - API Response Format Consistency"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ API response format consistency working perfectly. Successfully verified: (1) All successful operations return {success: true, data: ...} format, (2) All error responses return {success: false, error: 'descriptive message'} format, (3) Response messages are toast-friendly and descriptive, (4) HTTP status codes are appropriate (200 for success, 404 for not found, 400 for validation errors). Response format standards fully implemented."
+
+  - task: "UI/UX Features - Individual Platform Enrichment Bug Fix"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "🐛 Found bug: Individual platform GET endpoint missing plugin enrichment while list endpoint had enrichment. Fixed by adding same enrichment logic to GET /api/agency/platforms/:id route."
+      - working: true
+        agent: "testing"
+        comment: "✅ Individual platform enrichment bug fix completed. Applied plugin enrichment logic (logoPath, brandColor, category) to GET /api/agency/platforms/:id endpoint to match the enrichment already present in the list endpoint. Now both routes consistently return enriched platform data for platforms with corresponding plugins."
+
 agent_communication:
   - agent: "testing"
     message: "🎉 PLUGIN-BASED ADMIN PAGE FOR PAM IDENTITY HUB TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (24/24 tests passed). Comprehensive validation of all plugin-based functionality against https://plugin-onboard.preview.emergentagent.com/api: ✅ Plugin System API - Returns 15 plugins with proper manifest structure, Google Ads plugin details correct (supports PARTNER_DELEGATION & NAMED_INVITE, has 3 role templates), ✅ Plugin Schema API - Agency Config Schema returns valid JSON Schema with managerAccountId field for Google Ads Partner Delegation, Client Target Schema provides proper form schemas, ✅ Plugin Validation API - Correctly validates configs (accepts valid managerAccountId, rejects missing fields), ✅ Plugin Access Types API - Snowflake correctly excludes NAMED_INVITE (returns only GROUP_SERVICE), ✅ Plugin-Based Access Item Creation - Successfully created Partner Delegation item with plugin validation using agencyConfigJson, ✅ Plugin-Based Onboarding Enhancement - Onboarding API enhanced with clientTargetSchema (JSON Schema), pluginInstructions (4-step array), verificationMode (ATTESTATION_ONLY), ✅ Platform-Specific Constraints - Snowflake correctly rejects NAMED_INVITE creation with proper error message. The Plugin-Based Admin Page architecture is PRODUCTION-READY with complete form generation, validation, and platform constraints working perfectly!"
