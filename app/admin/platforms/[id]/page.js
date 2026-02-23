@@ -276,6 +276,10 @@ export default function PlatformConfigPage() {
       if (identitiesData.success) {
         setIntegrationIdentities(identitiesData.data || []);
       }
+      
+      if (agencyIdentitiesData.success) {
+        setAgencyIdentities(agencyIdentitiesData.data || []);
+      }
     } catch (error) {
       console.error('Error fetching platform:', error);
       toast({ title: 'Error', description: 'Failed to load platform', variant: 'destructive' });
