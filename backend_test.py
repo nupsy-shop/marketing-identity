@@ -264,7 +264,7 @@ class PluginValidationTester:
                 "label": "Test Partner Access",
                 "role": "admin",  # Valid role
                 "agencyConfigJson": {
-                    "businessManagerId": "123456789"  # Valid agency config
+                    "businessManagerId": "123456789012345"  # Valid agency config with longer ID
                 }
             }
         )
