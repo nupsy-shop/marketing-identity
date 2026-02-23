@@ -423,11 +423,10 @@ function PlatformRow({ ap, onToggle, onRemove, onConfigure }) {
   const itemCount = ap.accessItems?.length ?? 0;
   const hasItems = itemCount > 0;
   
-  // Build platform object for logo component
+  // Build platform object for logo component - use enriched data from API
   const platformForLogo = {
     ...ap.platform,
-    logoPath: `/logos/${ap.platform?.platformKey || ap.platformId || 'default'}.svg`,
-    brandColor: ap.platform?.brandColor,
+    logoPath: ap.platform?.logoPath || `/logos/${ap.platform?.platformKey || 'default'}.svg`,
   };
 
   return (
