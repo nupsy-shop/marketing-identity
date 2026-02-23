@@ -1401,6 +1401,80 @@ export async function POST(request, { params }) {
       }
     }
 
+    // POST /api/oauth/:platformKey/discover-targets - Discover accessible targets using OAuth token
+    if (path.match(/^oauth\/[^/]+\/discover-targets$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessToken, tokenType } = body || {};
+      
+      if (!accessToken) {
+        return NextResponse.json({ success: false, error: 'accessToken is required' }, { status: 400 });
+      }
+
+      // Check if OAuth provider is configured
+      const providerKey = getProviderForPlatform(platformKey);
+      if (providerKey && !isProviderConfigured(providerKey)) {
+        const providerConfig = getProviderConfig(providerKey);
+        return NextResponse.json({ 
+          success: false, 
+          error: `${providerConfig?.displayName || platformKey} OAuth is not configured.`,
+          details: {
+            provider: providerKey,
+            developerPortalUrl: providerConfig?.developerPortalUrl || ''
+          }
+        }, { status: 501 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // Check if plugin supports target discovery
+      if (!plugin.discoverTargets || typeof plugin.discoverTargets !== 'function') {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Plugin ${platformKey} does not support target discovery. Check manifest.automationCapabilities.discoverTargetsSupported` 
+        }, { status: 400 });
+      }
+
+      try {
+        const result = await plugin.discoverTargets({ 
+          success: true, 
+          accessToken, 
+          tokenType: tokenType || 'Bearer' 
+        });
+        
+        if (!result.success) {
+          return NextResponse.json({ 
+            success: false, 
+            error: result.error || 'Target discovery failed'
+          }, { status: 400 });
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            platformKey,
+            targets: result.targets || [],
+            targetTypes: plugin.manifest?.automationCapabilities?.targetTypes || [],
+          }
+        });
+      } catch (error) {
+        // Handle OAuthNotConfiguredError specifically
+        if (error instanceof OAuthNotConfiguredError) {
+          return NextResponse.json({ 
+            success: false, 
+            error: error.message,
+            details: error.toJSON()
+          }, { status: 501 });
+        }
+        return NextResponse.json({ 
+          success: false, 
+          error: `Target discovery failed: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('POST error:', error);
