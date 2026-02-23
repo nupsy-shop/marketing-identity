@@ -172,7 +172,26 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
   };
   
   const identityToAdd = getIdentityToAdd();
-  const platformKey = platform?.pluginKey || platform?.slug;
+  
+  // Map platform slug to plugin key (for legacy DB platforms that don't have pluginKey)
+  const SLUG_TO_PLUGIN_KEY = {
+    'google-analytics': 'ga4',
+    'google-tag-manager': 'gtm',
+    'google-search-console': 'google-search-console',
+    'google-ads': 'google-ads',
+    'dv360': 'dv360',
+    'meta-ads': 'meta',
+    'linkedin-ads': 'linkedin',
+    'tiktok-ads': 'tiktok',
+    'snapchat-ads': 'snapchat',
+    'pinterest-ads': 'pinterest',
+    'the-trade-desk': 'trade-desk',
+    'snowflake': 'snowflake',
+    'hubspot': 'hubspot',
+    'salesforce': 'salesforce',
+  };
+  
+  const platformKey = platform?.pluginKey || SLUG_TO_PLUGIN_KEY[platform?.slug] || platform?.slug;
   
   // ── Recover OAuth session after callback redirect ────────────────────────────
   useEffect(() => {
