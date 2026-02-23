@@ -756,7 +756,7 @@ class BackendTester:
 if __name__ == "__main__":
     # Use the base URL from environment or default
     import os
-    base_url = os.getenv("NEXT_PUBLIC_BASE_URL", "https://plugin-oauth-setup.preview.emergentagent.com")
+    base_url = os.getenv("NEXT_PUBLIC_BASE_URL", "https://agent-onboarding-hub.preview.emergentagent.com")
     
     tester = BackendTester(base_url)
     success = tester.run_all_tests()

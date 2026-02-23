@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://plugin-oauth-setup.preview.emergentagent.com"
+BASE_URL = "https://agent-onboarding-hub.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 # Test data
