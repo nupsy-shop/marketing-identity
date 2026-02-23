@@ -316,19 +316,24 @@ function AppCatalogContent() {
                   <span className="text-sm text-muted-foreground">{domainPlatforms.length} platform{domainPlatforms.length !== 1 ? 's' : ''}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {domainPlatforms.map(platform => (
-                    <PlatformCard
-                      key={platform.id}
-                      platform={platform}
-                      isAdded={addedPlatformIds.has(platform.id)}
-                      isAdding={adding === platform.id}
-                      onAddToAgency={handleAddToAgency}
-                      onConfigure={() => {
-                        const ap = agencyPlatforms.find(a => a.platformId === platform.id);
-                        if (ap) router.push(`/admin/platforms/${ap.id}`);
-                      }}
-                    />
-                  ))}
+                  {domainPlatforms.map(platform => {
+                    const platformKey = getPlatformKeyFromName(platform.name);
+                    const manifest = pluginManifests[platformKey];
+                    return (
+                      <PlatformCard
+                        key={platform.id}
+                        platform={platform}
+                        manifest={manifest}
+                        isAdded={addedPlatformIds.has(platform.id)}
+                        isAdding={adding === platform.id}
+                        onAddToAgency={handleAddToAgency}
+                        onConfigure={() => {
+                          const ap = agencyPlatforms.find(a => a.platformId === platform.id);
+                          if (ap) router.push(`/admin/platforms/${ap.id}`);
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             ))}
