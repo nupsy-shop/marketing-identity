@@ -589,6 +589,15 @@ export async function POST(request, { params }) {
         }, { status: 400 });
       }
 
+      // NEW: Validate against plugin-driven PAM governance rules
+      const pluginValidation = validateAgainstPluginRules(platformKey, itemType, role, agencyConfigJson, body);
+      if (!pluginValidation.valid) {
+        return NextResponse.json({
+          success: false,
+          error: pluginValidation.errors.join(' ')
+        }, { status: 400 });
+      }
+
       const item = await db.createAccessItem(apId, {
         id: uuidv4(),
         itemType,
