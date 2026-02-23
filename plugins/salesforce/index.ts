@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import type { PlatformPlugin, PluginManifest, ValidationResult, VerificationMode, VerificationResult, InstructionContext, InstructionStep, VerificationContext, AccessItemType } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
-import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload } from '../common/types';
+import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, DiscoverTargetsResult } from '../common/types';
 import { SALESFORCE_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { NamedInviteAgencySchema, GroupAccessAgencySchema, SharedAccountAgencySchema } from './schemas/agency';
 import { NamedInviteClientSchema, GroupAccessClientSchema, SharedAccountClientSchema } from './schemas/client';
-import { authorize as salesforceAuthorize, refreshToken as salesforceRefreshToken, startSalesforceOAuth, getUserInfo, query } from './auth';
+import { authorize as salesforceAuthorize, refreshToken as salesforceRefreshToken, startSalesforceOAuth, discoverTargets as salesforceDiscoverTargets } from './auth';
 
 class SalesforcePlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin {
   readonly name = 'salesforce';
@@ -15,15 +15,34 @@ class SalesforcePlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapable
   async destroy(): Promise<void> { this.context = null; }
   
   // OAuth Methods
-  async startOAuth(context: { redirectUri: string; isSandbox?: boolean }): Promise<{ authUrl: string; state: string }> {
-    return startSalesforceOAuth(context.redirectUri, { isSandbox: context.isSandbox });
+  async startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }> {
+    return startSalesforceOAuth(context.redirectUri, context.scopes);
   }
-  async handleOAuthCallback(context: { code: string; state: string; redirectUri?: string; isSandbox?: boolean }): Promise<AuthResult> {
-    return salesforceAuthorize({ code: context.code, redirectUri: context.redirectUri || '' });
+  async handleOAuthCallback(context: { code: string; state?: string; redirectUri: string }): Promise<AuthResult> {
+    return salesforceAuthorize({ code: context.code, redirectUri: context.redirectUri });
   }
   async authorize(params: AuthParams): Promise<AuthResult> { return salesforceAuthorize(params); }
-  async refreshToken(currentToken: string): Promise<AuthResult> { return salesforceRefreshToken(currentToken); }
-  async fetchAccounts(auth: AuthResult): Promise<Account[]> { return []; }
+  async refreshToken(currentToken: string, redirectUri?: string): Promise<AuthResult> { return salesforceRefreshToken(currentToken, redirectUri || ''); }
+  
+  // Target Discovery
+  async discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult> {
+    return salesforceDiscoverTargets(auth);
+  }
+  
+  async fetchAccounts(auth: AuthResult): Promise<Account[]> { 
+    const result = await this.discoverTargets(auth);
+    if (result.success && result.targets) {
+      return result.targets.map(t => ({
+        id: t.externalId,
+        name: t.displayName,
+        type: t.targetType.toLowerCase(),
+        isAccessible: true,
+        status: 'active' as const,
+        metadata: t.metadata,
+      }));
+    }
+    return []; 
+  }
   async fetchReport(auth: AuthResult, query: ReportQuery): Promise<ReportResult> { return { headers: [], rows: [] }; }
   async sendEvent(auth: AuthResult, event: EventPayload): Promise<void> { }
 
