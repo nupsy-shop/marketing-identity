@@ -22,6 +22,8 @@ class SnapchatPlugin extends BasePlugin {
     category: 'Paid Media',
     description: 'Snapchat advertising platform',
     icon: 'fab fa-snapchat',
+    logoPath: '/logos/snapchat.svg',
+    brandColor: '#FFFC00',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
