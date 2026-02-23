@@ -1276,15 +1276,55 @@ export async function POST(request, { params }) {
           return NextResponse.json({ success: false, error: result.error }, { status: 400 });
         }
 
+        let tokenId = null;
+        let targets = [];
+
+        // If persistToken is true, save the token to database
+        if (extraParams.persistToken) {
+          const providerKey = getProviderForPlatform(platformKey);
+          const storedToken = await db.createOAuthToken({
+            platformKey,
+            provider: providerKey || platformKey,
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            tokenType: result.tokenType || 'Bearer',
+            expiresAt: result.expiresAt ? new Date(result.expiresAt) : null,
+            scopes: result.scopes || [],
+            metadata: extraParams.metadata || {},
+          });
+          tokenId = storedToken.id;
+
+          // Automatically discover targets if plugin supports it
+          if (plugin.discoverTargets && typeof plugin.discoverTargets === 'function') {
+            try {
+              const discoveryResult = await plugin.discoverTargets(result);
+              if (discoveryResult.success && discoveryResult.targets) {
+                targets = await db.bulkCreateAccessibleTargets(tokenId, discoveryResult.targets);
+              }
+            } catch (discoverError) {
+              console.warn(`[OAuth] Target discovery failed for ${platformKey}:`, discoverError.message);
+            }
+          }
+        }
+
         return NextResponse.json({ 
           success: true, 
           data: {
             platformKey,
+            tokenId,
             accessToken: result.accessToken,
             refreshToken: result.refreshToken,
             expiresAt: result.expiresAt,
             tokenType: result.tokenType,
             scopes: result.scopes,
+            targets: targets.map(t => ({
+              id: t.id,
+              targetType: t.targetType,
+              externalId: t.externalId,
+              displayName: t.displayName,
+              parentExternalId: t.parentExternalId,
+              metadata: t.metadata,
+            })),
           }
         });
       } catch (error) {
