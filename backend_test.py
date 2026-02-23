@@ -289,6 +289,7 @@ class BackendTester:
         # Test GA4 verify-access - should return 501 "not implemented" (method missing)
         try:
             response = self.post("/api/oauth/ga4/verify-access", {
+                "accessToken": "fake_token",
                 "target": {"propertyId": "12345"},
                 "role": "administrator",
                 "identity": "user@example.com",
