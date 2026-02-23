@@ -201,6 +201,7 @@ class BackendTester:
         # Test GA4 grant-access - should return 501 "not implemented" (plugin declares canGrantAccess but method missing)
         try:
             response = self.post("/api/oauth/ga4/grant-access", {
+                "accessToken": "fake_token",
                 "target": {"propertyId": "12345"},
                 "role": "administrator", 
                 "identity": "user@example.com",
