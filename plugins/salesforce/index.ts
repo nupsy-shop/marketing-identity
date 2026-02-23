@@ -1,19 +1,28 @@
 import { z } from 'zod';
 import type { PlatformPlugin, PluginManifest, ValidationResult, VerificationMode, VerificationResult, InstructionContext, InstructionStep, VerificationContext, AccessItemType } from '../../lib/plugins/types';
-import type { AdPlatformPlugin } from '../common/plugin.interface';
+import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
 import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload } from '../common/types';
 import { SALESFORCE_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { NamedInviteAgencySchema, GroupAccessAgencySchema, SharedAccountAgencySchema } from './schemas/agency';
 import { NamedInviteClientSchema, GroupAccessClientSchema, SharedAccountClientSchema } from './schemas/client';
+import { authorize as salesforceAuthorize, refreshToken as salesforceRefreshToken, startSalesforceOAuth, getUserInfo, query } from './auth';
 
-class SalesforcePlugin implements PlatformPlugin, AdPlatformPlugin {
+class SalesforcePlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin {
   readonly name = 'salesforce';
   readonly manifest: PluginManifest = SALESFORCE_MANIFEST;
   private context: AppContext | null = null;
-  async initialize(context: AppContext): Promise<void> { this.context = context; }
+  async initialize(context: AppContext): Promise<void> { this.context = context; console.log(`[SalesforcePlugin] Initialized v${this.manifest.pluginVersion} with OAuth support`); }
   async destroy(): Promise<void> { this.context = null; }
-  async authorize(params: AuthParams): Promise<AuthResult> { return { success: false, error: 'Not implemented' }; }
-  async refreshToken(currentToken: string): Promise<AuthResult> { return { success: false, error: 'Not implemented' }; }
+  
+  // OAuth Methods
+  async startOAuth(context: { redirectUri: string; isSandbox?: boolean }): Promise<{ authUrl: string; state: string }> {
+    return startSalesforceOAuth(context.redirectUri, { isSandbox: context.isSandbox });
+  }
+  async handleOAuthCallback(context: { code: string; state: string; redirectUri?: string; isSandbox?: boolean }): Promise<AuthResult> {
+    return salesforceAuthorize({ code: context.code, redirectUri: context.redirectUri || '' });
+  }
+  async authorize(params: AuthParams): Promise<AuthResult> { return salesforceAuthorize(params); }
+  async refreshToken(currentToken: string): Promise<AuthResult> { return salesforceRefreshToken(currentToken); }
   async fetchAccounts(auth: AuthResult): Promise<Account[]> { return []; }
   async fetchReport(auth: AuthResult, query: ReportQuery): Promise<ReportResult> { return { headers: [], rows: [] }; }
   async sendEvent(auth: AuthResult, event: EventPayload): Promise<void> { }
