@@ -26,6 +26,8 @@ class GA4Plugin extends BasePlugin {
     category: 'Analytics',
     description: 'Google Analytics 4 for website and app analytics',
     icon: 'fas fa-chart-line',
+    logoPath: '/logos/ga4.svg',
+    brandColor: '#E37400',
     tier: 1,
     supportedAccessItemTypes: [
       AccessItemType.NAMED_INVITE,
