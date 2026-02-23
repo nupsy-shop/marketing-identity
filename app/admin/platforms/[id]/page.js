@@ -210,13 +210,15 @@ export default function PlatformConfigPage() {
   // Fetch agency platform data
   const fetchData = useCallback(async () => {
     try {
-      const [platformRes, identitiesRes] = await Promise.all([
+      const [platformRes, identitiesRes, agencyIdentitiesRes] = await Promise.all([
         fetch(`/api/agency/platforms/${params.id}`),
-        fetch('/api/integration-identities')
+        fetch('/api/integration-identities'),
+        fetch('/api/agency-identities')
       ]);
       
       const platformData = await platformRes.json();
       const identitiesData = await identitiesRes.json();
+      const agencyIdentitiesData = await agencyIdentitiesRes.json();
       
       if (platformData.success) {
         setAgencyPlatform(platformData.data);
