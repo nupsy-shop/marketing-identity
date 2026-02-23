@@ -659,6 +659,78 @@ export async function GET(request, { params }) {
       });
     }
 
+    // GET /api/oauth/tokens - Get all stored OAuth tokens
+    if (path === 'oauth/tokens') {
+      // This is a simple list, in production you'd add pagination
+      const result = await db.pool.query(
+        `SELECT id, "platformKey", provider, "tokenType", "expiresAt", scopes, "isActive", "createdAt" 
+         FROM oauth_tokens ORDER BY "createdAt" DESC LIMIT 50`
+      );
+      return NextResponse.json({ 
+        success: true, 
+        data: result.rows.map(row => ({
+          id: row.id,
+          platformKey: row.platformKey,
+          provider: row.provider,
+          tokenType: row.tokenType,
+          expiresAt: row.expiresAt,
+          scopes: row.scopes,
+          isActive: row.isActive,
+          createdAt: row.createdAt,
+        }))
+      });
+    }
+
+    // GET /api/oauth/tokens/:tokenId - Get specific token with targets
+    if (path.match(/^oauth\/tokens\/[^/]+$/)) {
+      const tokenId = path.split('/')[2];
+      const token = await db.getOAuthTokenById(tokenId);
+      if (!token) {
+        return NextResponse.json({ success: false, error: 'Token not found' }, { status: 404 });
+      }
+      const targets = await db.getAccessibleTargetsByTokenId(tokenId);
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          id: token.id,
+          platformKey: token.platformKey,
+          provider: token.provider,
+          tokenType: token.tokenType,
+          expiresAt: token.expiresAt,
+          scopes: token.scopes,
+          isActive: token.isActive,
+          createdAt: token.createdAt,
+          targets: targets.map(t => ({
+            id: t.id,
+            targetType: t.targetType,
+            externalId: t.externalId,
+            displayName: t.displayName,
+            parentExternalId: t.parentExternalId,
+            isSelected: t.isSelected,
+            metadata: t.metadata,
+          })),
+        }
+      });
+    }
+
+    // GET /api/oauth/tokens/:tokenId/targets - Get targets for a token
+    if (path.match(/^oauth\/tokens\/[^/]+\/targets$/)) {
+      const tokenId = path.split('/')[2];
+      const targets = await db.getAccessibleTargetsByTokenId(tokenId);
+      return NextResponse.json({ 
+        success: true, 
+        data: targets.map(t => ({
+          id: t.id,
+          targetType: t.targetType,
+          externalId: t.externalId,
+          displayName: t.displayName,
+          parentExternalId: t.parentExternalId,
+          isSelected: t.isSelected,
+          metadata: t.metadata,
+        }))
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('GET error:', error);
