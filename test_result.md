@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Enhanced Access Request API with new data structure that supports items[] array containing platformId, accessPattern, role, assetType, assetId, assetName, and status fields. Ensure backward compatibility with old platformIds format and comprehensive end-to-end functionality."
+user_problem_statement: "Test the Plugin-Based Admin Page for PAM Identity Hub where platform plugins define supported access types, role templates, and schemas. Forms are dynamically generated from JSON Schema (from Zod) and validation uses plugin validators on the server."
 
 backend:
   - task: "Enhanced Access Request API - New Items Structure"
