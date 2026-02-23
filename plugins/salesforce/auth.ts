@@ -1,96 +1,89 @@
 /**
- * Salesforce OAuth Authentication
- * Salesforce uses OAuth 2.0 with Web Server flow (Authorization Code)
+ * Salesforce OAuth Authentication & Target Discovery
+ * Salesforce uses OAuth 2.0 with Authorization Code flow
  */
 
-import type { AuthParams, AuthResult } from '../common/types';
-import { generateState } from '../common/utils/auth';
+import type { AuthParams, AuthResult, AccessibleTarget, DiscoverTargetsResult } from '../common/types';
+import { 
+  generateState, 
+  type OAuthConfig 
+} from '../common/utils/auth';
+import { 
+  getProviderCredentials, 
+  isProviderConfigured,
+  OAuthNotConfiguredError 
+} from '../common/oauth-config';
 
-// Salesforce OAuth endpoints (production)
-const SF_AUTH_URL = 'https://login.salesforce.com/services/oauth2/authorize';
-const SF_TOKEN_URL = 'https://login.salesforce.com/services/oauth2/token';
-
-// Sandbox endpoints
-const SF_SANDBOX_AUTH_URL = 'https://test.salesforce.com/services/oauth2/authorize';
-const SF_SANDBOX_TOKEN_URL = 'https://test.salesforce.com/services/oauth2/token';
-
-// Default scopes
-const DEFAULT_SCOPES = [
-  'api',
-  'refresh_token',
-  'full',
-];
-
-export interface SalesforceOAuthConfig {
-  clientId: string;
-  clientSecret: string;
-  redirectUri: string;
-  isSandbox?: boolean;
-}
+// Salesforce OAuth Configuration
+const SALESFORCE_OAUTH_CONFIG: Omit<OAuthConfig, 'clientId' | 'clientSecret' | 'redirectUri'> = {
+  authorizationUrl: 'https://login.salesforce.com/services/oauth2/authorize',
+  tokenUrl: 'https://login.salesforce.com/services/oauth2/token',
+  scopes: [
+    'api',
+    'refresh_token',
+    'full',
+    'id',
+    'profile',
+    'email',
+    'openid',
+  ],
+};
 
 /**
- * Get OAuth configuration
+ * Get OAuth configuration with environment credentials
  */
-export function getOAuthConfig(redirectUri: string, isSandbox: boolean = false): SalesforceOAuthConfig {
-  const clientId = process.env.SALESFORCE_CLIENT_ID;
-  const clientSecret = process.env.SALESFORCE_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error('Salesforce OAuth credentials not configured. Set SALESFORCE_CLIENT_ID and SALESFORCE_CLIENT_SECRET.');
-  }
-
-  return { clientId, clientSecret, redirectUri, isSandbox };
-}
-
-/**
- * Build Salesforce authorization URL
- */
-export function buildSalesforceAuthUrl(
-  redirectUri: string,
-  options: { isSandbox?: boolean; scopes?: string[] } = {}
-): { authUrl: string; state: string } {
-  const state = generateState();
-  const config = getOAuthConfig(redirectUri, options.isSandbox);
-  const authBaseUrl = options.isSandbox ? SF_SANDBOX_AUTH_URL : SF_AUTH_URL;
-
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: config.clientId,
-    redirect_uri: redirectUri,
-    scope: (options.scopes || DEFAULT_SCOPES).join(' '),
-    state,
-    prompt: 'consent',
-  });
-
+export function getOAuthConfig(redirectUri: string): OAuthConfig {
+  const credentials = getProviderCredentials('salesforce');
+  
   return {
-    authUrl: `${authBaseUrl}?${params.toString()}`,
-    state,
+    ...SALESFORCE_OAUTH_CONFIG,
+    clientId: credentials.clientId,
+    clientSecret: credentials.clientSecret,
+    redirectUri,
   };
+}
+
+/**
+ * Check if Salesforce OAuth is configured
+ */
+export function isConfigured(): boolean {
+  return isProviderConfigured('salesforce');
 }
 
 /**
  * Start Salesforce OAuth flow
  */
-export function startSalesforceOAuth(
-  redirectUri: string,
-  options?: { isSandbox?: boolean; scopes?: string[] }
-): { authUrl: string; state: string } {
-  return buildSalesforceAuthUrl(redirectUri, options);
+export function startSalesforceOAuth(redirectUri: string, scopes?: string[]): { authUrl: string; state: string } {
+  const state = generateState();
+  const config = getOAuthConfig(redirectUri);
+  
+  // Allow custom scopes
+  const scopeList = scopes && scopes.length > 0 ? scopes : config.scopes;
+  
+  const params = new URLSearchParams({
+    client_id: config.clientId,
+    redirect_uri: config.redirectUri,
+    response_type: 'code',
+    scope: scopeList.join(' '),
+    state,
+    prompt: 'consent',
+  });
+  
+  const authUrl = `${config.authorizationUrl}?${params.toString()}`;
+  return { authUrl, state };
 }
 
 /**
- * Exchange authorization code for tokens
+ * Handle Salesforce OAuth callback
  */
-export async function exchangeSalesforceCode(
+export async function handleSalesforceOAuthCallback(
   code: string,
-  redirectUri: string,
-  isSandbox: boolean = false
+  redirectUri: string
 ): Promise<AuthResult> {
-  const config = getOAuthConfig(redirectUri, isSandbox);
-  const tokenUrl = isSandbox ? SF_SANDBOX_TOKEN_URL : SF_TOKEN_URL;
-
+  const config = getOAuthConfig(redirectUri);
+  
   try {
-    const response = await fetch(tokenUrl, {
+    const response = await fetch(config.tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -98,29 +91,39 @@ export async function exchangeSalesforceCode(
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: redirectUri,
         client_id: config.clientId,
         client_secret: config.clientSecret,
+        redirect_uri: config.redirectUri,
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      return { success: false, error: `Token exchange failed: ${error}` };
+      return {
+        success: false,
+        error: `Salesforce token exchange failed: ${error}`,
+      };
     }
 
     const data = await response.json();
+    
+    // Salesforce returns issued_at (timestamp in ms) instead of expires_in
+    // Access tokens typically expire in 2 hours
+    const expiresAt = new Date(Date.now() + 7200 * 1000).toISOString();
 
     return {
       success: true,
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      expiresAt: data.issued_at ? new Date(parseInt(data.issued_at) + 7200000).toISOString() : undefined, // ~2 hours
+      expiresAt,
       tokenType: data.token_type || 'Bearer',
-      scopes: data.scope?.split(' '),
+      scopes: data.scope?.split(' ') || config.scopes,
     };
   } catch (error) {
-    return { success: false, error: `Token exchange error: ${(error as Error).message}` };
+    return {
+      success: false,
+      error: `Salesforce token exchange error: ${(error as Error).message}`,
+    };
   }
 }
 
@@ -129,13 +132,12 @@ export async function exchangeSalesforceCode(
  */
 export async function refreshSalesforceToken(
   refreshToken: string,
-  isSandbox: boolean = false
+  redirectUri: string
 ): Promise<AuthResult> {
-  const config = getOAuthConfig('', isSandbox); // redirectUri not needed for refresh
-  const tokenUrl = isSandbox ? SF_SANDBOX_TOKEN_URL : SF_TOKEN_URL;
-
+  const config = getOAuthConfig(redirectUri);
+  
   try {
-    const response = await fetch(tokenUrl, {
+    const response = await fetch(config.tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -150,32 +152,28 @@ export async function refreshSalesforceToken(
 
     if (!response.ok) {
       const error = await response.text();
-      return { success: false, error: `Token refresh failed: ${error}` };
+      return {
+        success: false,
+        error: `Salesforce token refresh failed: ${error}`,
+      };
     }
 
     const data = await response.json();
+    const expiresAt = new Date(Date.now() + 7200 * 1000).toISOString();
 
     return {
       success: true,
       accessToken: data.access_token,
-      refreshToken: refreshToken, // Salesforce doesn't return new refresh token
-      expiresAt: data.issued_at ? new Date(parseInt(data.issued_at) + 7200000).toISOString() : undefined,
+      refreshToken: data.refresh_token || refreshToken,
+      expiresAt,
       tokenType: data.token_type || 'Bearer',
     };
   } catch (error) {
-    return { success: false, error: `Token refresh error: ${(error as Error).message}` };
+    return {
+      success: false,
+      error: `Salesforce token refresh error: ${(error as Error).message}`,
+    };
   }
-}
-
-/**
- * Handle Salesforce OAuth callback
- */
-export async function handleSalesforceOAuthCallback(
-  code: string,
-  redirectUri: string,
-  isSandbox?: boolean
-): Promise<AuthResult> {
-  return exchangeSalesforceCode(code, redirectUri, isSandbox);
 }
 
 /**
@@ -183,8 +181,14 @@ export async function handleSalesforceOAuthCallback(
  */
 export async function authorize(params: AuthParams): Promise<AuthResult> {
   if (params.code && params.redirectUri) {
-    const isSandbox = params.redirectUri?.includes('sandbox') || false;
-    return handleSalesforceOAuthCallback(params.code, params.redirectUri, isSandbox);
+    return handleSalesforceOAuthCallback(params.code, params.redirectUri);
+  }
+
+  if (params.apiKey) {
+    return {
+      success: false,
+      error: 'Salesforce requires OAuth authentication',
+    };
   }
 
   return {
@@ -196,55 +200,97 @@ export async function authorize(params: AuthParams): Promise<AuthResult> {
 /**
  * Refresh an expired token
  */
-export async function refreshToken(currentToken: string, isSandbox?: boolean): Promise<AuthResult> {
-  return refreshSalesforceToken(currentToken, isSandbox);
+export async function refreshToken(
+  currentToken: string,
+  redirectUri: string
+): Promise<AuthResult> {
+  return refreshSalesforceToken(currentToken, redirectUri);
 }
 
 /**
- * Get Salesforce user info
+ * Discover accessible targets (orgs) from Salesforce
  */
-export async function getUserInfo(accessToken: string, instanceUrl: string): Promise<{
-  id: string;
-  username: string;
-  email: string;
-  orgId: string;
-}> {
-  const response = await fetch(`${instanceUrl}/services/oauth2/userinfo`, {
+export async function discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult> {
+  if (!auth.success || !auth.accessToken) {
+    return {
+      success: false,
+      error: 'Valid access token required for target discovery',
+    };
+  }
+
+  try {
+    // Get user info which contains org details
+    // The instance URL is typically returned in the OAuth response but we'll use the standard endpoint
+    const userInfoResponse = await fetch('https://login.salesforce.com/services/oauth2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${auth.accessToken}`,
+      },
+    });
+
+    if (!userInfoResponse.ok) {
+      // Try identity URL
+      const identityResponse = await fetch('https://login.salesforce.com/id/', {
+        headers: {
+          'Authorization': `Bearer ${auth.accessToken}`,
+        },
+      });
+      
+      if (!identityResponse.ok) {
+        return {
+          success: false,
+          error: `Failed to fetch Salesforce org info: ${userInfoResponse.status}`,
+        };
+      }
+    }
+
+    const userInfo = await userInfoResponse.json();
+    
+    // Salesforce typically connects to one org per OAuth token
+    const targets: AccessibleTarget[] = [{
+      targetType: 'ORG' as const,
+      externalId: userInfo.organization_id || userInfo.sub?.split('/').pop() || 'unknown',
+      displayName: userInfo.organization_id ? `Salesforce Org ${userInfo.organization_id}` : 'Salesforce Organization',
+      metadata: {
+        userId: userInfo.user_id,
+        username: userInfo.preferred_username,
+        email: userInfo.email,
+        name: userInfo.name,
+        profile: userInfo.profile,
+        instanceUrl: userInfo.urls?.custom_domain || userInfo.urls?.enterprise,
+        isSandbox: userInfo.urls?.custom_domain?.includes('sandbox') || false,
+      },
+    }];
+
+    return {
+      success: true,
+      targets,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Salesforce target discovery failed: ${(error as Error).message}`,
+    };
+  }
+}
+
+/**
+ * Get org info from Salesforce
+ */
+export async function getOrgInfo(accessToken: string): Promise<{ orgId: string; username: string; instanceUrl: string }> {
+  const response = await fetch('https://login.salesforce.com/services/oauth2/userinfo', {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
     },
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to get Salesforce user info: ${response.statusText}`);
+    throw new Error(`Failed to get Salesforce org info: ${response.statusText}`);
   }
 
   const data = await response.json();
   return {
-    id: data.user_id,
-    username: data.preferred_username,
-    email: data.email,
     orgId: data.organization_id,
+    username: data.preferred_username,
+    instanceUrl: data.urls?.custom_domain || data.urls?.enterprise || '',
   };
-}
-
-/**
- * Query Salesforce using SOQL
- */
-export async function query(accessToken: string, instanceUrl: string, soql: string): Promise<any[]> {
-  const response = await fetch(
-    `${instanceUrl}/services/data/v59.0/query?q=${encodeURIComponent(soql)}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Salesforce query failed: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.records || [];
 }

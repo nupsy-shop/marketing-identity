@@ -1,10 +1,21 @@
 /**
- * LinkedIn OAuth Authentication
+ * LinkedIn OAuth Authentication & Target Discovery
  * LinkedIn uses OAuth 2.0 with Authorization Code flow
  */
 
-import type { AuthParams, AuthResult } from '../common/types';
-import { buildAuthorizationUrl, exchangeCodeForTokens, refreshAccessToken, generateState, type OAuthConfig } from '../common/utils/auth';
+import type { AuthParams, AuthResult, AccessibleTarget, DiscoverTargetsResult } from '../common/types';
+import { 
+  buildAuthorizationUrl, 
+  exchangeCodeForTokens, 
+  refreshAccessToken, 
+  generateState, 
+  type OAuthConfig 
+} from '../common/utils/auth';
+import { 
+  getProviderCredentials, 
+  isProviderConfigured,
+  OAuthNotConfiguredError 
+} from '../common/oauth-config';
 
 // LinkedIn OAuth Configuration
 const LINKEDIN_OAUTH_CONFIG: Omit<OAuthConfig, 'clientId' | 'clientSecret' | 'redirectUri'> = {
@@ -24,29 +35,36 @@ const LINKEDIN_OAUTH_CONFIG: Omit<OAuthConfig, 'clientId' | 'clientSecret' | 're
  * Get OAuth configuration with environment credentials
  */
 export function getOAuthConfig(redirectUri: string): OAuthConfig {
-  const clientId = process.env.LINKEDIN_CLIENT_ID;
-  const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error('LinkedIn OAuth credentials not configured. Set LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET environment variables.');
-  }
-
+  const credentials = getProviderCredentials('linkedin');
+  
   return {
     ...LINKEDIN_OAUTH_CONFIG,
-    clientId,
-    clientSecret,
+    clientId: credentials.clientId,
+    clientSecret: credentials.clientSecret,
     redirectUri,
   };
 }
 
 /**
+ * Check if LinkedIn OAuth is configured
+ */
+export function isConfigured(): boolean {
+  return isProviderConfigured('linkedin');
+}
+
+/**
  * Start LinkedIn OAuth flow
  */
-export function startLinkedInOAuth(redirectUri: string): { authUrl: string; state: string } {
+export function startLinkedInOAuth(redirectUri: string, scopes?: string[]): { authUrl: string; state: string } {
   const state = generateState();
   const config = getOAuthConfig(redirectUri);
+  
+  // Allow custom scopes
+  if (scopes && scopes.length > 0) {
+    config.scopes = scopes;
+  }
+  
   const authUrl = buildAuthorizationUrl(config, state);
-
   return { authUrl, state };
 }
 
@@ -63,7 +81,6 @@ export async function handleLinkedInOAuthCallback(
 
 /**
  * Refresh LinkedIn access token
- * Note: LinkedIn refresh tokens are long-lived but do expire
  */
 export async function refreshLinkedInToken(
   refreshToken: string,
@@ -82,7 +99,6 @@ export async function authorize(params: AuthParams): Promise<AuthResult> {
   }
 
   if (params.apiKey) {
-    // API key auth not supported for LinkedIn
     return {
       success: false,
       error: 'LinkedIn requires OAuth authentication',
@@ -106,6 +122,61 @@ export async function refreshToken(
 }
 
 /**
+ * Discover accessible targets (ad accounts) from LinkedIn
+ */
+export async function discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult> {
+  if (!auth.success || !auth.accessToken) {
+    return {
+      success: false,
+      error: 'Valid access token required for target discovery',
+    };
+  }
+
+  try {
+    // Fetch ad accounts
+    const response = await fetch('https://api.linkedin.com/v2/adAccountsV2?q=search&count=100', {
+      headers: {
+        'Authorization': `Bearer ${auth.accessToken}`,
+        'X-Restli-Protocol-Version': '2.0.0',
+        'LinkedIn-Version': '202304',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        error: `Failed to fetch LinkedIn ad accounts: ${response.status} - ${errorText}`,
+      };
+    }
+
+    const data = await response.json();
+    const targets: AccessibleTarget[] = (data.elements || []).map((account: any) => ({
+      targetType: 'AD_ACCOUNT' as const,
+      externalId: String(account.id),
+      displayName: account.name || `Account ${account.id}`,
+      metadata: {
+        status: account.status,
+        type: account.type,
+        currency: account.currency,
+        reference: account.reference,
+        servingStatuses: account.servingStatuses,
+      },
+    }));
+
+    return {
+      success: true,
+      targets,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `LinkedIn target discovery failed: ${(error as Error).message}`,
+    };
+  }
+}
+
+/**
  * Get user profile from LinkedIn
  */
 export async function getUserProfile(accessToken: string): Promise<{ id: string; name: string; email?: string }> {
@@ -124,26 +195,4 @@ export async function getUserProfile(accessToken: string): Promise<{ id: string;
     id: data.id,
     name: `${data.localizedFirstName} ${data.localizedLastName}`,
   };
-}
-
-/**
- * Get ad accounts from LinkedIn
- */
-export async function getAdAccounts(accessToken: string): Promise<Array<{ id: string; name: string }>> {
-  const response = await fetch('https://api.linkedin.com/v2/adAccountsV2?q=search', {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'X-Restli-Protocol-Version': '2.0.0',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get LinkedIn ad accounts: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return (data.elements || []).map((acc: any) => ({
-    id: acc.id,
-    name: acc.name,
-  }));
 }
