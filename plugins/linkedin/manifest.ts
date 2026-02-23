@@ -19,7 +19,13 @@ export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   pamRecommendation: 'not_recommended', pamRationale: 'LinkedIn supports partner delegation. Use PAM only for break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: true, apiVerificationSupported: false, automatedProvisioningSupported: false };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: true, 
+  apiVerificationSupported: false, 
+  automatedProvisioningSupported: false,
+  discoverTargetsSupported: true,
+  targetTypes: ['AD_ACCOUNT'],
+};
 
 export const LINKEDIN_MANIFEST: PluginManifest = {
   platformKey: 'linkedin', displayName: 'LinkedIn Ads', pluginVersion: '2.1.0', category: 'Paid Media',
