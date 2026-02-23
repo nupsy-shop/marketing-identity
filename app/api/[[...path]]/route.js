@@ -1330,7 +1330,54 @@ export async function POST(request, { params }) {
         return NextResponse.json({ success: false, error: 'redirectUri is required' }, { status: 400 });
       }
 
-      // Check if OAuth provider is configured (fail fast with clear message)
+      // First check if plugin implements startOAuth directly (per-platform OAuth)
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // Check if plugin has startOAuth method
+      if (plugin.startOAuth && typeof plugin.startOAuth === 'function') {
+        try {
+          const result = await plugin.startOAuth({ redirectUri, ...extraParams });
+          return NextResponse.json({ 
+            success: true, 
+            data: {
+              authUrl: result.authUrl,
+              state: result.state,
+              platformKey,
+            }
+          });
+        } catch (error) {
+          // Handle per-platform OAuth not configured error
+          if (error.name === 'GA4OAuthNotConfiguredError' || error.name === 'PlatformOAuthError') {
+            const platformConfig = getPlatformConfig(platformKey);
+            return NextResponse.json({ 
+              success: false, 
+              error: error.message,
+              details: {
+                platformKey,
+                requiredEnvVars: platformConfig?.envVars ? [platformConfig.envVars.clientId, platformConfig.envVars.clientSecret] : [],
+                developerPortalUrl: platformConfig?.developerPortalUrl || error.developerPortalUrl || ''
+              }
+            }, { status: 501 });
+          }
+          // Handle legacy OAuthNotConfiguredError
+          if (error instanceof OAuthNotConfiguredError) {
+            return NextResponse.json({ 
+              success: false, 
+              error: error.message,
+              details: error.toJSON()
+            }, { status: 501 });
+          }
+          return NextResponse.json({ 
+            success: false, 
+            error: `Failed to start OAuth: ${error.message}` 
+          }, { status: 500 });
+        }
+      }
+
+      // Fallback: Check legacy provider-based OAuth config
       const providerKey = getProviderForPlatform(platformKey);
       if (providerKey && !isProviderConfigured(providerKey)) {
         const providerConfig = getProviderConfig(providerKey);
@@ -1345,43 +1392,11 @@ export async function POST(request, { params }) {
         }, { status: 501 });
       }
 
-      const plugin = PluginRegistry.get(platformKey);
-      if (!plugin) {
-        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
-      }
-
-      // Check if plugin supports OAuth
-      if (!plugin.startOAuth && typeof plugin.startOAuth !== 'function') {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Plugin ${platformKey} does not support OAuth. Check manifest.automationCapabilities.oauthSupported` 
-        }, { status: 400 });
-      }
-
-      try {
-        const result = await plugin.startOAuth({ redirectUri, ...extraParams });
-        return NextResponse.json({ 
-          success: true, 
-          data: {
-            authUrl: result.authUrl,
-            state: result.state,
-            platformKey,
-          }
-        });
-      } catch (error) {
-        // Handle OAuthNotConfiguredError specifically
-        if (error instanceof OAuthNotConfiguredError) {
-          return NextResponse.json({ 
-            success: false, 
-            error: error.message,
-            details: error.toJSON()
-          }, { status: 501 });
-        }
-        return NextResponse.json({ 
-          success: false, 
-          error: `Failed to start OAuth: ${error.message}` 
-        }, { status: 500 });
-      }
+      // Plugin doesn't support OAuth
+      return NextResponse.json({ 
+        success: false, 
+        error: `Plugin ${platformKey} does not support OAuth. Check manifest.automationCapabilities.oauthSupported` 
+      }, { status: 400 });
     }
 
     // POST /api/oauth/:platformKey/callback - Handle OAuth callback
@@ -1393,7 +1408,102 @@ export async function POST(request, { params }) {
         return NextResponse.json({ success: false, error: 'code is required' }, { status: 400 });
       }
 
-      // Check if OAuth provider is configured (fail fast with clear message)
+      // First check if plugin implements handleOAuthCallback directly
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      if (plugin.handleOAuthCallback && typeof plugin.handleOAuthCallback === 'function') {
+        try {
+          const result = await plugin.handleOAuthCallback({ code, state, redirectUri, ...extraParams });
+          
+          if (!result.success) {
+            return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+          }
+
+          let tokenId = null;
+          let targets = [];
+
+          // If persistToken is true, save the token to database
+          if (extraParams.persistToken) {
+            const storedToken = await db.createOAuthToken({
+              platformKey,
+              provider: getPlatformConfig(platformKey)?.provider || platformKey,
+              accessToken: result.accessToken,
+              refreshToken: result.refreshToken,
+              tokenType: result.tokenType || 'Bearer',
+              expiresAt: result.expiresAt ? new Date(result.expiresAt) : null,
+              scopes: result.scopes || [],
+              scope: extraParams.scope || 'AGENCY',
+              tenantId: extraParams.tenantId || null,
+              tenantType: extraParams.tenantType || null,
+              metadata: extraParams.metadata || {},
+            });
+            tokenId = storedToken.id;
+
+            // Automatically discover targets if plugin supports it
+            if (plugin.discoverTargets && typeof plugin.discoverTargets === 'function') {
+              try {
+                const discoveryResult = await plugin.discoverTargets(result);
+                if (discoveryResult.success && discoveryResult.targets) {
+                  targets = await db.bulkCreateAccessibleTargets(tokenId, discoveryResult.targets);
+                }
+              } catch (discoverError) {
+                console.warn(`[OAuth] Target discovery failed for ${platformKey}:`, discoverError.message);
+              }
+            }
+          }
+
+          return NextResponse.json({ 
+            success: true, 
+            data: {
+              platformKey,
+              tokenId,
+              accessToken: result.accessToken,
+              refreshToken: result.refreshToken,
+              expiresAt: result.expiresAt,
+              tokenType: result.tokenType,
+              scopes: result.scopes,
+              targets: targets.map(t => ({
+                id: t.id,
+                targetType: t.targetType,
+                externalId: t.externalId,
+                displayName: t.displayName,
+                parentExternalId: t.parentExternalId,
+                metadata: t.metadata,
+              })),
+            }
+          });
+        } catch (error) {
+          // Handle per-platform OAuth not configured error
+          if (error.name === 'GA4OAuthNotConfiguredError' || error.name === 'PlatformOAuthError') {
+            const platformConfig = getPlatformConfig(platformKey);
+            return NextResponse.json({ 
+              success: false, 
+              error: error.message,
+              details: {
+                platformKey,
+                requiredEnvVars: platformConfig?.envVars ? [platformConfig.envVars.clientId, platformConfig.envVars.clientSecret] : [],
+                developerPortalUrl: platformConfig?.developerPortalUrl || error.developerPortalUrl || ''
+              }
+            }, { status: 501 });
+          }
+          if (error instanceof OAuthNotConfiguredError) {
+            return NextResponse.json({ 
+              success: false, 
+              error: error.message,
+              details: error.toJSON()
+            }, { status: 501 });
+          }
+          return NextResponse.json({ 
+            success: false, 
+            error: `OAuth callback failed: ${error.message}` 
+          }, { status: 500 });
+        }
+      }
+
+      // Fallback: Check legacy provider-based OAuth config
       const providerKey = getProviderForPlatform(platformKey);
       if (providerKey && !isProviderConfigured(providerKey)) {
         const providerConfig = getProviderConfig(providerKey);
