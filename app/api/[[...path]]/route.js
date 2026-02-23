@@ -618,6 +618,47 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: types });
     }
 
+    // GET /api/oauth/status - Get OAuth configuration status for all providers
+    if (path === 'oauth/status') {
+      const { getProvidersStatus } = await import('@/plugins/common/oauth-config');
+      const status = getProvidersStatus();
+      return NextResponse.json({ success: true, data: status });
+    }
+
+    // GET /api/oauth/:platformKey/status - Get OAuth configuration status for a specific platform
+    if (path.match(/^oauth\/[^/]+\/status$/)) {
+      const platformKey = path.split('/')[1];
+      const providerKey = getProviderForPlatform(platformKey);
+      
+      if (!providerKey) {
+        return NextResponse.json({ 
+          success: true, 
+          data: { 
+            platformKey,
+            oauthSupported: false,
+            configured: false,
+            message: `Platform ${platformKey} does not support OAuth`
+          }
+        });
+      }
+
+      const providerConfig = getProviderConfig(providerKey);
+      const configured = isProviderConfigured(providerKey);
+
+      return NextResponse.json({ 
+        success: true, 
+        data: { 
+          platformKey,
+          provider: providerKey,
+          oauthSupported: true,
+          configured,
+          displayName: providerConfig?.displayName,
+          developerPortalUrl: providerConfig?.developerPortalUrl,
+          requiredEnvVars: providerConfig?.envVars ? [providerConfig.envVars.clientId, providerConfig.envVars.clientSecret] : []
+        }
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('GET error:', error);
