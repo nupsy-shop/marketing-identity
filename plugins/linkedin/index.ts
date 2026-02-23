@@ -22,6 +22,8 @@ class LinkedInPlugin extends BasePlugin {
     category: 'Paid Media',
     description: 'LinkedIn Campaign Manager for B2B advertising',
     icon: 'fab fa-linkedin',
+    logoPath: '/logos/linkedin.svg',
+    brandColor: '#0A66C2',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
