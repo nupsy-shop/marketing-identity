@@ -976,6 +976,18 @@ agent_communication:
         agent: "main"
         comment: "Updated EnhancedAccessRequestDialog to support new Identity Taxonomy. Shows identity strategy badges, displays resolved identity preview, handles INDIVIDUAL_USERS strategy with inline email input field. Passes all Identity Taxonomy fields to access request creation. Needs UI testing."
 
+  - task: "Plugin-Driven Onboarding Page - Schema-Driven Form and Instructions"
+    implemented: true
+    working: true
+    file: "/app/app/onboarding/[token]/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Plugin-driven onboarding page fully tested and working. Successfully verified: (1) SchemaForm component renders dynamic form fields from clientTargetSchema (adAccountId, adAccountName for Google Ads), (2) PluginInstructions component displays step-by-step instructions with links and dynamic MCC ID interpolation, (3) Form submission correctly saves clientProvidedTarget data to database, (4) Item status changes to validated, (5) Progress bar updates, (6) Completion state displays All Access Verified! message. End-to-end onboarding flow with plugin architecture is production-ready."
+
 backend:
   - task: "Bug Fix Testing - Named Invite Identity Strategy Restrictions"
     implemented: true
