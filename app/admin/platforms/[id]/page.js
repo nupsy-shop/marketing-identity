@@ -113,6 +113,17 @@ export default function PlatformConfigPage() {
   const [formNotes, setFormNotes] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  
+  // Search and filter state for access items
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
+  const [itemTypeFilter, setItemTypeFilter] = useState('all');
+  const [itemSortBy, setItemSortBy] = useState('label');
+  
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    item: null,
+  });
 
   // Get platform key from name
   const getPlatformKey = useCallback((name) => {
