@@ -194,14 +194,19 @@ model AccessRequestItem {
 model IntegrationIdentity {
   id          String   @id @default(uuid())
   name        String
-  type        String   // SERVICE_ACCOUNT, API_KEY, OAUTH_CLIENT
-  identifier  String   // Email, key ID, client ID
+  type        String   // SERVICE_ACCOUNT, API_KEY, OAUTH_CLIENT, SHARED_CREDENTIAL
+  identifier  String   // Email, key ID, client ID, or login email
   description String?
+  platformId  String?  // FK to catalog_platforms (optional - can be agency-wide)
   isActive    Boolean  @default(true)
-  metadata    Json?
+  metadata    Json?    // Platform-specific metadata (scopes, permissions, etc.)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  platform    CatalogPlatform? @relation(fields: [platformId], references: [id], onDelete: SetNull)
+
+  @@index([platformId])
+  @@index([type])
   @@map("integration_identities")
 }
 
