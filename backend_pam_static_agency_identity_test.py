@@ -58,18 +58,18 @@ class PAMStaticAgencyIdentityTester:
     def setup_test_data(self) -> bool:
         """Set up required test data"""
         try:
-            # 1. Get a platform that supports SHARED_ACCOUNT_PAM (required for PAM validation tests)
+            # 1. Get a platform that supports SHARED_ACCOUNT (required for PAM validation tests)
             platforms_response = self.session.get(f"{self.base_url}/api/platforms?clientFacing=true")
             if platforms_response.status_code != 200:
                 print("Failed to get platforms")
                 return False
                 
             platforms = platforms_response.json().get('data', [])
-            # Find a platform that supports SHARED_ACCOUNT_PAM or SHARED_ACCOUNT
+            # Find a platform that supports SHARED_ACCOUNT or SHARED_ACCOUNT
             pam_platform = None
             for platform in platforms:
                 supported_types = platform.get('supportedItemTypes', [])
-                if 'SHARED_ACCOUNT_PAM' in supported_types or 'SHARED_ACCOUNT' in supported_types:
+                if 'SHARED_ACCOUNT' in supported_types or 'SHARED_ACCOUNT' in supported_types:
                     pam_platform = platform
                     break
                     
@@ -81,7 +81,7 @@ class PAMStaticAgencyIdentityTester:
                         break
                         
             if not pam_platform:
-                print("No platform supporting SHARED_ACCOUNT_PAM found for testing")
+                print("No platform supporting SHARED_ACCOUNT found for testing")
                 return False
                 
             self.test_platform_id = pam_platform['id']
@@ -412,7 +412,7 @@ class PAMStaticAgencyIdentityTester:
         
         # Test 1: INTEGRATION_NON_HUMAN without integrationIdentityId - should be REJECTED
         item_data_no_identity = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Integration Non-Human Access",
             "role": "admin", 
             "agencyConfigJson": {
@@ -449,7 +449,7 @@ class PAMStaticAgencyIdentityTester:
             return True
             
         item_data_with_identity = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Integration Non-Human Access",
             "role": "admin",
             "agencyConfigJson": {
@@ -484,7 +484,7 @@ class PAMStaticAgencyIdentityTester:
         
         # Test 1: STATIC_AGENCY_IDENTITY without agencyIdentityId - should be REJECTED
         item_data_no_identity = {
-            "itemType": "SHARED_ACCOUNT_PAM", 
+            "itemType": "SHARED_ACCOUNT", 
             "label": "Test Static Agency Identity Access",
             "role": "admin",
             "agencyConfigJson": {
@@ -531,7 +531,7 @@ class PAMStaticAgencyIdentityTester:
             
         # Test 2: STATIC_AGENCY_IDENTITY with agencyIdentityId - should be ACCEPTED
         item_data_with_identity = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Static Agency Identity Access", 
             "role": "admin",
             "agencyConfigJson": {
@@ -553,7 +553,7 @@ class PAMStaticAgencyIdentityTester:
             
         # Test 3: STATIC_AGENCY_IDENTITY with forbidden pamNamingTemplate - should be REJECTED
         item_data_with_template = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Static Agency Identity with Template",
             "role": "admin", 
             "agencyConfigJson": {
@@ -585,7 +585,7 @@ class PAMStaticAgencyIdentityTester:
         
         # Test 1: CLIENT_DEDICATED_IDENTITY without pamIdentityType - should be REJECTED
         item_data_no_type = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Client Dedicated Identity",
             "role": "admin",
             "agencyConfigJson": {
@@ -608,7 +608,7 @@ class PAMStaticAgencyIdentityTester:
             
         # Test 2: CLIENT_DEDICATED_IDENTITY without pamNamingTemplate - should be REJECTED  
         item_data_no_template = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Client Dedicated Identity", 
             "role": "admin",
             "agencyConfigJson": {
@@ -631,7 +631,7 @@ class PAMStaticAgencyIdentityTester:
             
         # Test 3: GROUP type with checkout duration - should be REJECTED
         item_data_group_checkout = {
-            "itemType": "SHARED_ACCOUNT_PAM", 
+            "itemType": "SHARED_ACCOUNT", 
             "label": "Test Client Dedicated Group",
             "role": "admin",
             "agencyConfigJson": {
@@ -655,7 +655,7 @@ class PAMStaticAgencyIdentityTester:
             
         # Test 4: MAILBOX type with checkout duration - should be ACCEPTED
         item_data_mailbox_checkout = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Client Dedicated Mailbox",
             "role": "admin", 
             "agencyConfigJson": {
@@ -721,7 +721,7 @@ class PAMStaticAgencyIdentityTester:
             # Look for a platform that likely supports SHARED_ACCOUNT (GA4, Google Ads, etc.)
             for platform in platforms:
                 supported_types = platform.get('supportedItemTypes', [])
-                if 'SHARED_ACCOUNT_PAM' in supported_types:
+                if 'SHARED_ACCOUNT' in supported_types:
                     suitable_platform = platform
                     break
                     
@@ -766,7 +766,7 @@ class PAMStaticAgencyIdentityTester:
             
             # Step 3: Create access item using STATIC_AGENCY_IDENTITY strategy
             access_item_data = {
-                "itemType": "SHARED_ACCOUNT_PAM",
+                "itemType": "SHARED_ACCOUNT",
                 "label": "E2E Static Agency Identity Access",
                 "role": "admin",
                 "agencyConfigJson": {
@@ -804,7 +804,7 @@ class PAMStaticAgencyIdentityTester:
                 "clientId": self.test_client_id,
                 "items": [{
                     "platformId": suitable_platform['id'],
-                    "itemType": "SHARED_ACCOUNT_PAM",
+                    "itemType": "SHARED_ACCOUNT",
                     "accessPattern": "PAM",
                     "role": "admin",
                     "pamOwnership": "AGENCY_OWNED",
@@ -841,8 +841,8 @@ class PAMStaticAgencyIdentityTester:
             pam_item = onboarding_items[0]
             
             # Verify PAM configuration
-            if pam_item.get('itemType') != 'SHARED_ACCOUNT_PAM':
-                print(f"Wrong item type: expected SHARED_ACCOUNT_PAM, got {pam_item.get('itemType')}")
+            if pam_item.get('itemType') != 'SHARED_ACCOUNT':
+                print(f"Wrong item type: expected SHARED_ACCOUNT, got {pam_item.get('itemType')}")
                 return False
                 
             if pam_item.get('pamOwnership') != 'AGENCY_OWNED':
