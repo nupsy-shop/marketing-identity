@@ -577,24 +577,35 @@ export default function PlatformConfigPage() {
     // First try plugin manifest
     if (pluginManifest?.supportedAccessItemTypes?.length > 0) {
       // Map plugin types back to legacy types used in DB
-      return pluginManifest.supportedAccessItemTypes.map(type => {
-        if (type === 'GROUP_SERVICE') return 'GROUP_ACCESS';
-        if (type === 'PAM_SHARED_ACCOUNT') return 'SHARED_ACCOUNT_PAM';
-        return type;
-      });
+      // Handle new format - array of AccessItemTypeMetadata objects
+      if (typeof pluginManifest.supportedAccessItemTypes[0] === 'object' && pluginManifest.supportedAccessItemTypes[0].type) {
+        return pluginManifest.supportedAccessItemTypes.map(meta => normalizeItemType(meta.type));
+      }
+      
+      // Legacy format - array of strings
+      return pluginManifest.supportedAccessItemTypes.map(type => normalizeItemType(type));
     }
     
     // Fall back to platform's supportedItemTypes
     if (agencyPlatform?.platform?.supportedItemTypes?.length > 0) {
-      return agencyPlatform.platform.supportedItemTypes;
+      return agencyPlatform.platform.supportedItemTypes.map(t => normalizeItemType(t));
     }
     
     // Default all types
-    return ['NAMED_INVITE', 'PARTNER_DELEGATION', 'GROUP_ACCESS', 'PROXY_TOKEN', 'SHARED_ACCOUNT_PAM'];
+    return ['NAMED_INVITE', 'PARTNER_DELEGATION', 'GROUP_ACCESS', 'PROXY_TOKEN', 'SHARED_ACCOUNT'];
   };
 
-  // Get role templates - from plugin or legacy
-  const getRoleTemplates = () => {
+  // Get role templates for a specific item type (from plugin metadata)
+  const getRoleTemplatesForType = (itemType) => {
+    // First, check if we have new-format metadata with per-type roles
+    if (accessItemTypeMetadata.length > 0) {
+      const metadata = accessItemTypeMetadata.find(m => normalizeItemType(m.type) === normalizeItemType(itemType));
+      if (metadata?.roleTemplates?.length > 0) {
+        return metadata.roleTemplates;
+      }
+    }
+    
+    // Fall back to global plugin role templates
     if (pluginManifest?.supportedRoleTemplates?.length > 0) {
       return pluginManifest.supportedRoleTemplates;
     }
@@ -612,6 +623,56 @@ export default function PlatformConfigPage() {
     ];
   };
 
+  // Get role templates - legacy function for backward compatibility  
+  const getRoleTemplates = () => {
+    // If an item type is selected, get roles for that type
+    if (selectedItemType) {
+      return getRoleTemplatesForType(selectedItemType);
+    }
+    
+    // Fall back to global plugin role templates
+    if (pluginManifest?.supportedRoleTemplates?.length > 0) {
+      return pluginManifest.supportedRoleTemplates;
+    }
+    
+    // Fall back to platform's default roles
+    const platformRoles = agencyPlatform?.platform?.defaultRoles;
+    if (platformRoles?.length > 0) {
+      return platformRoles.map(r => ({ key: r, label: r }));
+    }
+    
+    return [
+      { key: 'admin', label: 'Admin' },
+      { key: 'standard', label: 'Standard' },
+      { key: 'read-only', label: 'Read-only' }
+    ];
+  };
+  
+  // Check if SHARED_ACCOUNT (PAM) is available for this platform
+  const isPamAvailable = () => {
+    const types = getSupportedItemTypes();
+    return types.includes('SHARED_ACCOUNT');
+  };
+  
+  // Get PAM recommendation config
+  const getPamConfig = () => {
+    if (!securityCapabilities) return null;
+    
+    const rec = securityCapabilities.pamRecommendation || 'not_recommended';
+    return {
+      ...PAM_RECOMMENDATION_CONFIG[rec],
+      recommendation: rec,
+      rationale: securityCapabilities.pamRationale || '',
+      supportsCredentialLogin: securityCapabilities.supportsCredentialLogin ?? false
+    };
+  };
+  
+  // Check if item type should show PAM warning
+  const shouldShowPamWarning = (itemType) => {
+    return normalizeItemType(itemType) === 'SHARED_ACCOUNT' && 
+           securityCapabilities?.pamRecommendation !== 'recommended';
+  };
+
   const supportedItemTypes = getSupportedItemTypes();
   const roleTemplates = getRoleTemplates();
   
@@ -620,6 +681,12 @@ export default function PlatformConfigPage() {
     if (!agencyPlatform?.accessItems) return [];
     
     let items = [...agencyPlatform.accessItems];
+    
+    // Normalize item types
+    items = items.map(item => ({
+      ...item,
+      itemType: normalizeItemType(item.itemType)
+    }));
     
     // Search filter
     if (itemSearchQuery.trim()) {
@@ -633,7 +700,7 @@ export default function PlatformConfigPage() {
     
     // Type filter
     if (itemTypeFilter !== 'all') {
-      items = items.filter(item => item.itemType === itemTypeFilter);
+      items = items.filter(item => normalizeItemType(item.itemType) === normalizeItemType(itemTypeFilter));
     }
     
     // Sort
