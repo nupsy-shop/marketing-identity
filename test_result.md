@@ -1262,7 +1262,16 @@ backend:
         comment: "Platform supportedItemTypes validation implemented. Needs testing that Snowflake rejects NAMED_INVITE creation and Google Ads accepts PARTNER_DELEGATION."
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Plugin System API - GET /api/plugins"
+    - "Plugin System API - Individual Plugin Details" 
+    - "Plugin Schema API - Agency Config Schema"
+    - "Plugin Schema API - Client Target Schema"
+    - "Plugin Validation API - Agency Config Validation"
+    - "Plugin Access Types API - Supported Access Types"
+    - "Plugin-Based Access Item Creation"
+    - "Plugin-Based Onboarding Enhancement"
+    - "Platform-Specific Constraints Testing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
