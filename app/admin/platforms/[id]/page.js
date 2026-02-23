@@ -397,6 +397,41 @@ export default function PlatformConfigPage() {
     const platformKey = getPlatformKey(agencyPlatform.platform?.name);
     const pluginItemType = ITEM_TYPE_MAP[selectedItemType] || selectedItemType;
     
+    // Validate PAM requirements if SHARED_ACCOUNT
+    if (normalizeItemType(selectedItemType) === 'SHARED_ACCOUNT' && securityCapabilities) {
+      const pamConfig = getPamConfig();
+      
+      // Check confirmation requirement
+      if (pamConfig?.requiresConfirmation && !pamConfirmation) {
+        toast({ 
+          title: 'PAM Confirmation Required', 
+          description: 'Please confirm you understand the security implications of PAM access.',
+          variant: 'destructive' 
+        });
+        return;
+      }
+      
+      // Check justification requirement for break-glass
+      if (pamConfig?.requiresJustification) {
+        if (!pamReasonCode) {
+          toast({ 
+            title: 'Reason Code Required', 
+            description: 'Please select a reason code for break-glass PAM access.',
+            variant: 'destructive' 
+          });
+          return;
+        }
+        if (!pamJustification.trim() || pamJustification.trim().length < 20) {
+          toast({ 
+            title: 'Justification Required', 
+            description: 'Please provide a detailed justification (at least 20 characters) for break-glass PAM access.',
+            variant: 'destructive' 
+          });
+          return;
+        }
+      }
+    }
+    
     // Validate with plugin if available
     if (platformKey && agencyConfigSchema) {
       try {
@@ -434,12 +469,20 @@ export default function PlatformConfigPage() {
       // Build payload with both new JSON config and legacy fields for backward compatibility
       const legacyFields = flattenConfigForApi(agencyConfig, selectedItemType);
       
+      // Include PAM metadata if applicable
+      const pamMetadata = normalizeItemType(selectedItemType) === 'SHARED_ACCOUNT' ? {
+        pamConfirmation,
+        pamReasonCode: pamReasonCode || null,
+        pamJustification: pamJustification || null,
+        pamRecommendation: securityCapabilities?.pamRecommendation
+      } : {};
+      
       const payload = {
-        itemType: selectedItemType,
+        itemType: normalizeItemType(selectedItemType),
         label: formattedLabel,
         role: selectedRole,
         notes: formNotes,
-        agencyConfigJson: agencyConfig,
+        agencyConfigJson: { ...agencyConfig, ...pamMetadata },
         ...legacyFields
       };
       
