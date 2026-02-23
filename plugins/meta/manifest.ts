@@ -3,7 +3,7 @@
  */
 
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -42,22 +42,46 @@ export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
 export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   supportsDelegation: true,
   supportsGroupAccess: false,
-  supportsOAuth: false,
+  supportsOAuth: true,
   supportsCredentialLogin: true,
   pamRecommendation: 'not_recommended',
   pamRationale: 'Meta Business Manager supports partner delegation and named-user invites. Shared credentials (PAM) should be used only for break-glass scenarios.'
 };
 
 export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
-  oauthSupported: false,
-  apiVerificationSupported: false,
-  automatedProvisioningSupported: false
+  oauthSupported: true,
+  apiVerificationSupported: true,
+  automatedProvisioningSupported: true,
+  discoverTargetsSupported: true,
+  targetTypes: ['BUSINESS', 'AD_ACCOUNT']
+};
+
+// Meta Business Manager API supports adding partners and user roles
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  PARTNER_DELEGATION: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // Business Manager API can add agency partners
+    canVerifyAccess: true,     // Can list ad account partners
+    requiresEvidenceUpload: false
+  },
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // Can add user roles to ad accounts
+    canVerifyAccess: true,     // Can check user access
+    requiresEvidenceUpload: false
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
 };
 
 export const META_MANIFEST: PluginManifest = {
   platformKey: 'meta',
   displayName: 'Meta Business Manager / Facebook Ads',
-  pluginVersion: '2.1.0',
+  pluginVersion: '2.2.0',
   category: 'Paid Media',
   description: 'Meta Business Manager, Facebook Ads, Instagram advertising',
   tier: 1,
@@ -68,6 +92,7 @@ export const META_MANIFEST: PluginManifest = {
   supportedAccessItemTypes: ACCESS_ITEM_TYPES,
   securityCapabilities: SECURITY_CAPABILITIES,
   automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
   supportsReporting: true,
   supportsEventUpload: true,
   supportsWebhooks: true,
