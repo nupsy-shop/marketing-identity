@@ -23,7 +23,17 @@ class LinkedInPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePl
   }
   async authorize(params: AuthParams): Promise<AuthResult> { return linkedInAuthorize(params); }
   async refreshToken(currentToken: string): Promise<AuthResult> { return linkedInRefreshToken(currentToken, ''); }
-  async fetchAccounts(auth: AuthResult): Promise<Account[]> { return []; }
+  async fetchAccounts(auth: AuthResult): Promise<Account[]> { 
+    if (auth.accessToken) {
+      try {
+        const accounts = await getAdAccounts(auth.accessToken);
+        return accounts.map(acc => ({ id: acc.id, name: acc.name, type: 'ad_account', isAccessible: true, status: 'active' as const }));
+      } catch (error) {
+        console.error('[LinkedInPlugin] Failed to fetch accounts:', error);
+      }
+    }
+    return []; 
+  }
   async fetchReport(auth: AuthResult, query: ReportQuery): Promise<ReportResult> { return { headers: [], rows: [] }; }
   async sendEvent(auth: AuthResult, event: EventPayload): Promise<void> { }
 
