@@ -145,17 +145,17 @@ export async function GET(request, { params }) {
       const enrichedPlatforms = agencyPlatforms.map(ap => {
         const platformKey = getPlatformKeyFromName(ap.platform?.name);
         if (platformKey && PluginRegistry.has(platformKey)) {
-          const manifest = PluginRegistry.getManifest(platformKey);
-          if (manifest) {
+          const plugin = PluginRegistry.get(platformKey);
+          if (plugin && plugin.manifest) {
             return {
               ...ap,
               platform: {
                 ...ap.platform,
-                platformKey: manifest.platformKey,
-                displayName: manifest.displayName,
-                logoPath: manifest.logoPath,
-                brandColor: manifest.brandColor,
-                category: manifest.category,
+                platformKey: plugin.manifest.platformKey,
+                displayName: plugin.manifest.displayName,
+                logoPath: plugin.manifest.logoPath,
+                brandColor: plugin.manifest.brandColor,
+                category: plugin.manifest.category,
               }
             };
           }
