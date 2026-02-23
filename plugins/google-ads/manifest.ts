@@ -4,7 +4,7 @@
  */
 
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -45,22 +45,46 @@ export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
 export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   supportsDelegation: true,
   supportsGroupAccess: false,
-  supportsOAuth: false,
+  supportsOAuth: true,
   supportsCredentialLogin: true,
   pamRecommendation: 'not_recommended',
   pamRationale: 'Google Ads supports partner delegation and named-user invites. Shared credentials (PAM) should be used only for break-glass, legacy constraints, or client-mandated shared logins.'
 };
 
 export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
-  oauthSupported: false,
+  oauthSupported: true,
   apiVerificationSupported: true,
-  automatedProvisioningSupported: true
+  automatedProvisioningSupported: true,
+  discoverTargetsSupported: true,
+  targetTypes: ['ACCOUNT', 'AD_ACCOUNT']
+};
+
+// Google Ads API supports linking customers to MCC and managing user invitations
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  PARTNER_DELEGATION: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // Google Ads API supports linking to MCC
+    canVerifyAccess: true,     // Can check account links
+    requiresEvidenceUpload: false
+  },
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // Can send invitations via API
+    canVerifyAccess: true,     // Can check user access
+    requiresEvidenceUpload: false
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
 };
 
 export const GOOGLE_ADS_MANIFEST: PluginManifest = {
   platformKey: 'google-ads',
   displayName: 'Google Ads',
-  pluginVersion: '2.1.0',
+  pluginVersion: '2.2.0',
   category: 'Paid Media',
   description: 'Google Ads Manager and MCC access management',
   tier: 1,
@@ -71,6 +95,7 @@ export const GOOGLE_ADS_MANIFEST: PluginManifest = {
   supportedAccessItemTypes: ACCESS_ITEM_TYPES,
   securityCapabilities: SECURITY_CAPABILITIES,
   automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
   supportsReporting: true,
   supportsEventUpload: false,
   supportsWebhooks: false,
