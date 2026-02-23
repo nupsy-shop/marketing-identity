@@ -140,8 +140,11 @@ class PluginValidationTester:
                 "itemType": "PARTNER_DELEGATION",
                 "label": "Test Partner Delegation",
                 "role": "superuser",  # Invalid role for Meta
+                "agencyData": {
+                    "businessManagerId": "123456789012345"  # Include in agencyData for validation
+                },
                 "agencyConfigJson": {
-                    "businessManagerId": "123456789012345"  # Use a longer ID that might pass validation
+                    "businessManagerId": "123456789012345"  # Also include in agencyConfigJson
                 }
             }
         )
