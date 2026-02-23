@@ -1121,6 +1121,170 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: true, data: instructions });
     }
 
+    // ─── OAUTH ENDPOINTS ─────────────────────────────────────────────────────────
+
+    // POST /api/oauth/:platformKey/start - Start OAuth flow
+    if (path.match(/^oauth\/[^/]+\/start$/)) {
+      const platformKey = path.split('/')[1];
+      const { redirectUri, ...extraParams } = body || {};
+      
+      if (!redirectUri) {
+        return NextResponse.json({ success: false, error: 'redirectUri is required' }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // Check if plugin supports OAuth
+      if (!plugin.startOAuth && typeof plugin.startOAuth !== 'function') {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Plugin ${platformKey} does not support OAuth. Check manifest.automationCapabilities.oauthSupported` 
+        }, { status: 400 });
+      }
+
+      try {
+        const result = await plugin.startOAuth({ redirectUri, ...extraParams });
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            authUrl: result.authUrl,
+            state: result.state,
+            platformKey,
+          }
+        });
+      } catch (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Failed to start OAuth: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
+    // POST /api/oauth/:platformKey/callback - Handle OAuth callback
+    if (path.match(/^oauth\/[^/]+\/callback$/)) {
+      const platformKey = path.split('/')[1];
+      const { code, state, redirectUri, ...extraParams } = body || {};
+      
+      if (!code) {
+        return NextResponse.json({ success: false, error: 'code is required' }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      if (!plugin.handleOAuthCallback && typeof plugin.handleOAuthCallback !== 'function') {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Plugin ${platformKey} does not support OAuth callbacks` 
+        }, { status: 400 });
+      }
+
+      try {
+        const result = await plugin.handleOAuthCallback({ code, state, redirectUri, ...extraParams });
+        
+        if (!result.success) {
+          return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            platformKey,
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            expiresAt: result.expiresAt,
+            tokenType: result.tokenType,
+            scopes: result.scopes,
+          }
+        });
+      } catch (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `OAuth callback failed: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
+    // POST /api/oauth/:platformKey/refresh - Refresh OAuth token
+    if (path.match(/^oauth\/[^/]+\/refresh$/)) {
+      const platformKey = path.split('/')[1];
+      const { refreshToken, ...extraParams } = body || {};
+      
+      if (!refreshToken) {
+        return NextResponse.json({ success: false, error: 'refreshToken is required' }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      try {
+        const result = await plugin.refreshToken(refreshToken, extraParams.redirectUri || '');
+        
+        if (!result.success) {
+          return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            platformKey,
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            expiresAt: result.expiresAt,
+            tokenType: result.tokenType,
+          }
+        });
+      } catch (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Token refresh failed: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
+    // POST /api/oauth/:platformKey/fetch-accounts - Fetch accounts using OAuth token
+    if (path.match(/^oauth\/[^/]+\/fetch-accounts$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessToken, tokenType } = body || {};
+      
+      if (!accessToken) {
+        return NextResponse.json({ success: false, error: 'accessToken is required' }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      try {
+        const accounts = await plugin.fetchAccounts({ 
+          success: true, 
+          accessToken, 
+          tokenType: tokenType || 'Bearer' 
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            platformKey,
+            accounts,
+          }
+        });
+      } catch (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Failed to fetch accounts: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('POST error:', error);
