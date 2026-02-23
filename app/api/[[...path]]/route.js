@@ -660,19 +660,28 @@ export async function GET(request, { params }) {
       });
     }
 
-    // GET /api/oauth/tokens - Get all stored OAuth tokens
+    // GET /api/oauth/tokens - Get all stored OAuth tokens (with optional filters)
     if (path === 'oauth/tokens') {
-      // This is a simple list, in production you'd add pagination
-      const result = await db.pool.query(
-        `SELECT id, "platformKey", provider, "tokenType", "expiresAt", scopes, "isActive", "createdAt" 
-         FROM oauth_tokens ORDER BY "createdAt" DESC LIMIT 50`
-      );
+      // Parse query parameters for filtering
+      const searchParams = request.nextUrl.searchParams;
+      const filters = {
+        platformKey: searchParams.get('platformKey') || undefined,
+        scope: searchParams.get('scope') || undefined,
+        tenantId: searchParams.get('tenantId') || undefined,
+        isActive: searchParams.has('isActive') ? searchParams.get('isActive') === 'true' : true,
+        limit: parseInt(searchParams.get('limit') || '50', 10)
+      };
+      
+      const tokens = await db.getOAuthTokens(filters);
       return NextResponse.json({ 
         success: true, 
-        data: result.rows.map(row => ({
+        data: tokens.map(row => ({
           id: row.id,
           platformKey: row.platformKey,
           provider: row.provider,
+          scope: row.scope,
+          tenantId: row.tenantId,
+          tenantType: row.tenantType,
           tokenType: row.tokenType,
           expiresAt: row.expiresAt,
           scopes: row.scopes,
