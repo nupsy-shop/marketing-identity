@@ -196,7 +196,18 @@ class PluginRegistryClass {
   isAccessItemTypeSupported(platformKey: string, accessItemType: AccessItemType): boolean {
     const plugin = this.get(platformKey);
     if (!plugin) return false;
-    return plugin.manifest.supportedAccessItemTypes.includes(accessItemType);
+    
+    // Handle both old and new manifest formats
+    const types = plugin.manifest.supportedAccessItemTypes;
+    if (!types || types.length === 0) return false;
+    
+    // Check if it's the new format (array of AccessItemTypeMetadata)
+    if (typeof types[0] === 'object' && 'type' in types[0]) {
+      return (types as any[]).some(t => t.type === accessItemType);
+    }
+    
+    // Old format (array of AccessItemType strings)
+    return (types as string[]).includes(accessItemType);
   }
 
   /**
@@ -205,16 +216,113 @@ class PluginRegistryClass {
   getSupportedAccessItemTypes(platformKey: string): AccessItemType[] {
     const plugin = this.get(platformKey);
     if (!plugin) return [];
-    return plugin.manifest.supportedAccessItemTypes;
+    
+    const types = plugin.manifest.supportedAccessItemTypes;
+    if (!types || types.length === 0) return [];
+    
+    // Check if it's the new format (array of AccessItemTypeMetadata)
+    if (typeof types[0] === 'object' && 'type' in types[0]) {
+      return (types as any[]).map(t => t.type);
+    }
+    
+    // Old format (array of AccessItemType strings)
+    return types as AccessItemType[];
   }
 
   /**
-   * Get role templates for a platform
+   * Get access item type metadata (new format)
    */
-  getRoleTemplates(platformKey: string): { key: string; label: string; description?: string }[] {
+  getAccessItemTypeMetadata(platformKey: string, accessItemType: AccessItemType): any | null {
+    const plugin = this.get(platformKey);
+    if (!plugin) return null;
+    
+    const types = plugin.manifest.supportedAccessItemTypes;
+    if (!types || types.length === 0) return null;
+    
+    // Check if it's the new format
+    if (typeof types[0] === 'object' && 'type' in types[0]) {
+      return (types as any[]).find(t => t.type === accessItemType) || null;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get all access item type metadata for a platform
+   */
+  getAllAccessItemTypeMetadata(platformKey: string): any[] {
     const plugin = this.get(platformKey);
     if (!plugin) return [];
-    return plugin.manifest.supportedRoleTemplates;
+    
+    const types = plugin.manifest.supportedAccessItemTypes;
+    if (!types || types.length === 0) return [];
+    
+    // Check if it's the new format
+    if (typeof types[0] === 'object' && 'type' in types[0]) {
+      return types as any[];
+    }
+    
+    // Convert old format to basic metadata
+    return (types as AccessItemType[]).map(type => ({
+      type,
+      label: type.replace(/_/g, ' '),
+      description: '',
+      icon: 'fas fa-cog',
+      roleTemplates: []
+    }));
+  }
+
+  /**
+   * Get role templates for a platform and specific access item type
+   */
+  getRoleTemplates(platformKey: string, accessItemType?: AccessItemType): { key: string; label: string; description?: string }[] {
+    const plugin = this.get(platformKey);
+    if (!plugin) return [];
+    
+    // If access item type specified and using new format, get roles for that type
+    if (accessItemType) {
+      const metadata = this.getAccessItemTypeMetadata(platformKey, accessItemType);
+      if (metadata && metadata.roleTemplates) {
+        return metadata.roleTemplates;
+      }
+    }
+    
+    // Fall back to legacy format
+    const manifest = plugin.manifest as any;
+    if (manifest.supportedRoleTemplates) {
+      return manifest.supportedRoleTemplates;
+    }
+    
+    return [];
+  }
+
+  /**
+   * Get security capabilities for a platform
+   */
+  getSecurityCapabilities(platformKey: string): any | null {
+    const plugin = this.get(platformKey);
+    if (!plugin) return null;
+    return (plugin.manifest as any).securityCapabilities || null;
+  }
+
+  /**
+   * Check if SHARED_ACCOUNT (PAM) is supported
+   */
+  isPamSupported(platformKey: string): boolean {
+    return this.isAccessItemTypeSupported(platformKey, 'SHARED_ACCOUNT' as AccessItemType);
+  }
+
+  /**
+   * Get PAM recommendation for a platform
+   */
+  getPamRecommendation(platformKey: string): { recommendation: string; rationale: string } | null {
+    const security = this.getSecurityCapabilities(platformKey);
+    if (!security) return null;
+    
+    return {
+      recommendation: security.pamRecommendation || 'not_recommended',
+      rationale: security.pamRationale || ''
+    };
   }
 
   /**
