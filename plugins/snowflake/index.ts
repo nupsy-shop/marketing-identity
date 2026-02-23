@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import type { PlatformPlugin, PluginManifest, ValidationResult, VerificationMode, VerificationResult, InstructionContext, InstructionStep, VerificationContext, AccessItemType } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
-import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload } from '../common/types';
+import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, DiscoverTargetsResult } from '../common/types';
 import { SNOWFLAKE_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { NamedInviteAgencySchema, GroupAccessAgencySchema, SharedAccountAgencySchema } from './schemas/agency';
 import { NamedInviteClientSchema, GroupAccessClientSchema, SharedAccountClientSchema } from './schemas/client';
-import { authorize as snowflakeAuthorize, refreshToken as snowflakeRefreshToken, startSnowflakeOAuth, executeQuery } from './auth';
+import { authorize as snowflakeAuthorize, refreshToken as snowflakeRefreshToken, startSnowflakeOAuth, discoverTargets as snowflakeDiscoverTargets } from './auth';
 
 class SnowflakePlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin {
   readonly name = 'snowflake';
@@ -15,15 +15,35 @@ class SnowflakePlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
   async destroy(): Promise<void> { this.context = null; }
   
   // OAuth Methods
-  async startOAuth(context: { redirectUri: string; accountIdentifier: string }): Promise<{ authUrl: string; state: string }> {
-    return startSnowflakeOAuth(context.accountIdentifier, context.redirectUri);
+  async startOAuth(context: { redirectUri: string; scopes?: string[]; accountIdentifier?: string }): Promise<{ authUrl: string; state: string }> {
+    const account = context.accountIdentifier || process.env.SNOWFLAKE_ACCOUNT || '';
+    return startSnowflakeOAuth(context.redirectUri, account, context.scopes);
   }
-  async handleOAuthCallback(context: { code: string; state: string; redirectUri?: string; accountIdentifier?: string }): Promise<AuthResult> {
-    return snowflakeAuthorize({ code: context.code, redirectUri: context.redirectUri || '', accountIdentifier: context.accountIdentifier });
+  async handleOAuthCallback(context: { code: string; state?: string; redirectUri: string; accountIdentifier?: string }): Promise<AuthResult> {
+    return snowflakeAuthorize({ code: context.code, redirectUri: context.redirectUri });
   }
-  async authorize(params: AuthParams & { accountIdentifier?: string }): Promise<AuthResult> { return snowflakeAuthorize(params); }
-  async refreshToken(currentToken: string): Promise<AuthResult> { return snowflakeRefreshToken(currentToken, '', ''); }
-  async fetchAccounts(auth: AuthResult): Promise<Account[]> { return []; }
+  async authorize(params: AuthParams): Promise<AuthResult> { return snowflakeAuthorize(params); }
+  async refreshToken(currentToken: string, redirectUri?: string): Promise<AuthResult> { return snowflakeRefreshToken(currentToken, redirectUri || ''); }
+  
+  // Target Discovery
+  async discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult> {
+    return snowflakeDiscoverTargets(auth);
+  }
+  
+  async fetchAccounts(auth: AuthResult): Promise<Account[]> { 
+    const result = await this.discoverTargets(auth);
+    if (result.success && result.targets) {
+      return result.targets.map(t => ({
+        id: t.externalId,
+        name: t.displayName,
+        type: t.targetType.toLowerCase(),
+        isAccessible: true,
+        status: 'active' as const,
+        metadata: t.metadata,
+      }));
+    }
+    return []; 
+  }
   async fetchReport(auth: AuthResult, query: ReportQuery): Promise<ReportResult> { return { headers: [], rows: [] }; }
   async sendEvent(auth: AuthResult, event: EventPayload): Promise<void> { }
 
