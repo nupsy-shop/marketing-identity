@@ -140,7 +140,30 @@ export async function GET(request, { params }) {
     // GET /api/agency/platforms - List agency's configured platforms
     if (path === 'agency/platforms') {
       const agencyPlatforms = await db.getAllAgencyPlatforms();
-      return NextResponse.json({ success: true, data: agencyPlatforms });
+      
+      // Enrich with plugin manifest data (logoPath, brandColor, etc.)
+      const enrichedPlatforms = agencyPlatforms.map(ap => {
+        const platformKey = getPlatformKeyFromName(ap.platform?.name);
+        if (platformKey && PluginRegistry.has(platformKey)) {
+          const manifest = PluginRegistry.getManifest(platformKey);
+          if (manifest) {
+            return {
+              ...ap,
+              platform: {
+                ...ap.platform,
+                platformKey: manifest.platformKey,
+                displayName: manifest.displayName,
+                logoPath: manifest.logoPath,
+                brandColor: manifest.brandColor,
+                category: manifest.category,
+              }
+            };
+          }
+        }
+        return ap;
+      });
+      
+      return NextResponse.json({ success: true, data: enrichedPlatforms });
     }
 
     // GET /api/agency/platforms/:id - Get single agency platform with items
