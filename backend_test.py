@@ -314,6 +314,7 @@ class BackendTester:
         # Test LinkedIn verify-access - should return 501 "not supported" (canVerifyAccess=false)
         try:
             response = self.post("/api/oauth/linkedin/verify-access", {
+                "accessToken": "fake_token",
                 "target": {"adAccountId": "12345"},
                 "role": "admin",
                 "identity": "user@example.com",
