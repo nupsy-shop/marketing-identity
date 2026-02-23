@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 PAM Governance and Plugin-Based Structural Alignment Test Suite
-Testing against: https://plugin-onboard.preview.emergentagent.com/api
+Testing against: https://identity-platform-8.preview.emergentagent.com/api
 
 This test suite covers:
 1. Plugin Manifest Structure - Security Capabilities
@@ -19,7 +19,7 @@ import uuid
 from typing import Dict, Any, List
 
 # Base configuration
-BASE_URL = "https://plugin-onboard.preview.emergentagent.com/api"
+BASE_URL = "https://identity-platform-8.preview.emergentagent.com/api"
 GOOGLE_ADS_PLATFORM_ID = "92417db3-7c40-4da2-8f5b-33be4cd335cd"
 
 class PAMGovernanceTestSuite:

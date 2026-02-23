@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 
 # Test configuration
-BASE_URL = "https://plugin-onboard.preview.emergentagent.com/api"
+BASE_URL = "https://identity-platform-8.preview.emergentagent.com/api"
 TEST_RESULTS = []
 
 def log_test(test_name, success, details=""):
