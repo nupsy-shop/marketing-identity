@@ -268,6 +268,7 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
         sessionStorage.setItem('oauth_platform', platformKey);
         sessionStorage.setItem('oauth_scope', 'CLIENT');
         sessionStorage.setItem('oauth_item_id', item.id);
+        sessionStorage.setItem('oauth_tenant_id', item.accessRequestId || item.id);
         sessionStorage.setItem('oauth_return_url', window.location.href);
         
         // Redirect to OAuth provider
