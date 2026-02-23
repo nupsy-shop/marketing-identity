@@ -23,6 +23,8 @@ class GTMPlugin extends BasePlugin {
     category: 'Tag Management',
     description: 'Google Tag Manager for marketing tag deployment',
     icon: 'fas fa-tags',
+    logoPath: '/logos/gtm.svg',
+    brandColor: '#4285F4',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.NAMED_INVITE,
