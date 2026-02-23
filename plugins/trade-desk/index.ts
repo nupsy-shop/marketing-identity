@@ -22,6 +22,8 @@ class TradeDeskPlugin extends BasePlugin {
     category: 'Paid Media',
     description: 'The Trade Desk DSP for programmatic advertising',
     icon: 'fas fa-bullhorn',
+    logoPath: '/logos/trade-desk.svg',
+    brandColor: '#00B140',
     tier: 1,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
