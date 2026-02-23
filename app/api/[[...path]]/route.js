@@ -389,7 +389,8 @@ export async function POST(request, { params }) {
       const {
         itemType, label, role, notes,
         identityPurpose, humanIdentityStrategy, agencyGroupEmail,
-        integrationIdentityId, agencyData, pamConfig, validationMethod
+        integrationIdentityId, agencyData, pamConfig, validationMethod,
+        agencyConfigJson // New plugin architecture field
       } = body || {};
 
       // Derive pattern from itemType - use proper pattern label
@@ -407,9 +408,23 @@ export async function POST(request, { params }) {
         return NextResponse.json({ success: false, error: 'itemType, label and role are required' }, { status: 400 });
       }
 
-      // Check supportedItemTypes
+      // Get platform key for plugin
       const platform = ap.platform;
-      if (platform?.supportedItemTypes?.length > 0 && !platform.supportedItemTypes.includes(itemType)) {
+      const platformKey = getPlatformKeyFromName(platform?.name);
+
+      // Check supportedItemTypes from plugin or platform
+      if (platformKey && PluginRegistry.has(platformKey)) {
+        const supportedTypes = PluginRegistry.getSupportedAccessItemTypes(platformKey);
+        // Map legacy types to plugin types for checking
+        const checkType = itemType === 'GROUP_ACCESS' ? 'GROUP_SERVICE' : 
+                         itemType === 'SHARED_ACCOUNT_PAM' ? 'PAM_SHARED_ACCOUNT' : itemType;
+        if (supportedTypes.length > 0 && !supportedTypes.includes(checkType)) {
+          return NextResponse.json({
+            success: false,
+            error: `Item type "${itemType}" is not supported by ${platform.name}. Supported types: ${supportedTypes.join(', ')}`
+          }, { status: 400 });
+        }
+      } else if (platform?.supportedItemTypes?.length > 0 && !platform.supportedItemTypes.includes(itemType)) {
         return NextResponse.json({
           success: false,
           error: `Item type "${itemType}" is not supported by ${platform.name}. Supported types: ${platform.supportedItemTypes.join(', ')}`
@@ -439,7 +454,12 @@ export async function POST(request, { params }) {
         integrationIdentityId,
         agencyData,
         pamConfig,
-        validationMethod: validationMethod || 'ATTESTATION'
+        validationMethod: validationMethod || 'ATTESTATION',
+        // New plugin architecture fields
+        agencyConfigJson: agencyConfigJson || null,
+        platformKey: platformKey,
+        pluginVersion: '1.0.0',
+        migrationStatus: 'MIGRATED'
       });
 
       const updatedAp = await db.getAgencyPlatformById(apId);
