@@ -10,7 +10,7 @@ import sys
 from typing import Dict, Any
 
 # Backend URL from environment
-BASE_URL = "https://plugin-driven-pam.preview.emergentagent.com/api"
+BASE_URL = "https://plugin-oauth-setup.preview.emergentagent.com/api"
 
 class PluginArchitectureTest:
     def __init__(self):

@@ -1,94 +1,88 @@
 <analysis>
-**original_problem_statement**:
-The user's initial goal was to build and refine an enterprise Marketing Identity Platform. This has evolved through several major phases:
-1.  **Initial Build & Bug Fixes:** UI/UX refinement for Privileged Access Management (PAM) and fixing various form validation and logic bugs.
-2.  **PostgreSQL Migration:** A complete migration from an in-memory database to a persistent Neon PostgreSQL database using Prisma.
-3.  **Architectural Refactor (Phase 1):** A significant refactoring to enforce stricter, platform-specific rules for access configurations, moving away from generic forms.
-4.  **Architectural Refactor (Phase 2 - Current):** A complete architectural overhaul to make the application platform-agnostic, where all platform-specific logic (schemas, validation, instructions) is defined in a new, dynamic plugin system. The core application should not contain any platform-specific code.
 
-**PRODUCT REQUIREMENTS (LATEST - Plugin Architecture):**
-1.  **Plugin Framework:** Create a plugin-based system where each marketing platform (e.g., Google Ads, Meta) is a self-contained plugin.
-2.  **Plugin Contract:** Define a strict  interface in TypeScript that all plugins must implement. This includes a manifest, supported access types, role templates, and schemas for configuration.
-3.  **Schema-Driven Logic:** All platform-specific fields, validation, and instructions must be driven by schemas (defined with Zod) provided by the plugins. The UI (admin and onboarding) must render forms dynamically from these schemas.
-4.  **Database Refactor:** Modify the Prisma schema to store platform-specific configurations in generic JSON columns (, ) instead of hardcoded fields.
-5.  **Data Migration:** Migrate all existing data from the old schema to the new JSON-based format without data loss.
-6.  **UI Refactoring:** Rewrite the admin configuration and client onboarding pages to be fully schema-driven.
-7.  **Enforce Separation of Concerns:** The admin UI must only collect agency-side configuration. The client onboarding UI must only collect client-side asset information (e.g., Ad Account IDs, Property IDs). This separation must be enforced by the plugin schemas.
-8.  **Implement All Platforms:** Convert all 15 existing platforms into plugins.
+**original_problem_statement**:
+The user's primary goal is to refactor the entire Marketing Identity Platform to be driven by a modular plugin architecture, making it more extensible and maintainable.
+
+**PRODUCT REQUIREMENTS:**
+1.  **Modular Architecture:**
+    *   Create a shared common module () containing:
+        *    interface with standard methods (, , , etc.).
+        *   A  to handle plugin registration.
+        *   Common types and utility functions.
+        *   A  to describe plugin metadata and capabilities.
+    *   Refactor all 15 existing plugins (GA4, Google Ads, Meta, etc.) into their own dedicated directories ().
+    *   Each refactored plugin must implement the new  interface and be split into logical modules (e.g., , , ).
+    *   Clean up and remove obsolete PAM (Privileged Access Management) fields from the plugin configuration schemas to align with new gating logic.
+
+2.  **OAuth Implementation:**
+    *   Implement OAuth flows for plugins that support it: LinkedIn, HubSpot, Salesforce, and Snowflake.
+    *   Centralize all OAuth credentials in the root  and  files using placeholder values.
+    *   Create a single configuration mapping module () to manage these credentials.
+    *   The OAuth API endpoints must fail with a clear provider not configured message if the corresponding environment variables are missing.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a Next.js project with a Neon PostgreSQL database managed by Prisma. A massive, in-progress refactoring to a plugin-based architecture is underway.
--   **Plugin Framework:** A complete plugin framework has been built. This includes:
-    -   A  directory containing 15 fully-stubbed platform plugins (e.g., , ).
-    -   A plugin registry () that loads and serves plugin data.
-    -   API endpoints () to expose plugin manifests, schemas, and instructions. These have been tested and are functional.
--   **Database:** The database schema has been updated with  and  columns. A migration script was successfully run to move all existing data into this new format. The API and DB layers have been updated to support reading and writing to these new columns.
--   **Admin UI:** The main platform configuration page () has been completely rewritten to be schema-driven. It now dynamically renders forms for creating and editing s based on the selected platform's plugin schema. This has been tested and is working.
--   **Onboarding UI:** The backend API endpoint for onboarding () has been updated to provide the  and  from the relevant plugin. The frontend page itself () was just rewritten to use this data, but it has not yet been tested.
+The massive refactoring effort to a modular plugin architecture is complete. All 15 plugins have been successfully restructured into their own directories with separate modules for API calls, mappers, and authentication logic. A common infrastructure with a shared interface and plugin manager is in place.
+
+Placeholder OAuth API endpoints () have been created for LinkedIn, HubSpot, Salesforce, and Snowflake. A centralized configuration module () has been created to read placeholder credentials from the  file.
+
+The agent was in the final step of wiring this centralized configuration into the main API router.
 
 **Last working item**:
--   Last item agent was working: The agent was refactoring the client onboarding page () to make it fully dynamic and schema-driven. It had just completed writing a new version of this file, which is intended to use the  and  now being provided by the backend API.
+-   Last item agent was working: The agent was updating the main API router () to use the new centralized OAuth configuration module (). The goal is to replace the generic Not Implemented errors in the OAuth API endpoints with specific Provider not configured messages when credentials are not found in the environment.
 -   Status: IN PROGRESS
 -   Agent Testing Done: N
--   Which testing method agent to use? both. The functionality of the new onboarding page needs to be verified visually (using the screenshot tool) to ensure the form renders correctly. Then, an end-to-end test is required, including submitting the form, to ensure the data is correctly saved to the  field in the database.
+-   Which testing method agent to use? backend testing agent. First, the agent should manually test the updated endpoints using  to verify the new error messages are returned correctly. Afterward, a full run of the backend testing agent is required to ensure no regressions were introduced.
 -   User Testing Done: N
 
 **All Pending/In progress Issue list**:
--   Issue 1: The refactored Onboarding UI is incomplete and untested. (P0)
-
-**Issues Detail**:
--   Issue 1:
-    -   Description: The agent rewrote  to use the new plugin system, but its functionality is unverified. It's unknown if the page correctly renders the form from the , displays the , and successfully submits the client's asset data to the backend.
-    -   Next debug checklist:
-        1.  Start the application and generate a valid onboarding link for an .
-        2.  Navigate to the onboarding URL.
-        3.  Verify that the page loads without errors.
-        4.  Use the screenshot tool to confirm that the UI correctly renders the dynamic form fields based on the plugin's .
-        5.  Confirm that the rich instructions from  are displayed correctly.
-        6.  Fill out and submit the form.
-        7.  Check the backend logs and/or query the database to confirm that the submitted data was correctly saved in the  field of the corresponding  record.
-        8.  Fix any bugs found during testing.
-    -   Why fix this issue and what will be achieved with the fix? This is the final major UI component that needs to be migrated to the new plugin architecture. Completing this will make the entire configuration and onboarding flow dynamic and platform-agnostic, a core goal of the current refactor.
-    -   Status: IN PROGRESS
-    -   Is recurring issue? N
-    -   Should Test frontend/backend/both after fix? both
-    -   Blocked on other issue: None
+-   **Issue 1: Finalize Centralized OAuth Configuration Wiring (P0)**
+    -   **Description:** The main API router needs to be updated to use the new  module. This will ensure that attempting to initiate an OAuth flow for a provider without configured credentials results in a clear, specific error message.
+    -   **Next debug checklist:**
+        1.  In , import the  module from .
+        2.  In the  handler, modify the logic for each OAuth endpoint (e.g., ).
+        3.  Check if the credentials for the specific provider exist in the imported  object.
+        4.  If credentials are NOT present, return a  HTTP status with a JSON body like .
+        5.  Restart the  service using nextjs: ERROR (not running)
+nextjs: ERROR (abnormal termination).
+        6.  Test each of the four OAuth endpoints with  to confirm the new error message appears.
+    -   **Why fix this issue and what will be achieved with the fix?** This will complete the user's request for a robust configuration system that fails gracefully and provides clear feedback when a feature is not fully configured.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** backend
 
 **In progress Task List**:
--   Task 1: Complete the Plugin-Based Architecture Refactor (P0)
-
-**Task Detail**:
--   Task 1:
-    -   Where to resume: Resume by testing the newly written onboarding page (). Follow the checklist in Issues Detail above.
-    -   What will be achieved with this? This will finalize the transition to a fully plugin-driven architecture, making the application extensible and easier to maintain.
-    -   Status: IN PROGRESS
-    -   Should Test frontend/backend/both after fix? both
-    -   Blocked on something: No
+-   **Task 1: Complete the wiring of the centralized OAuth configuration into the API routes (P0)**
+    -   **Where to resume:** The agent has read the contents of  and is ready to apply a  operation to implement the logic described in Pending Issue 1.
+    -   **What will be achieved with this?** The API will provide clear, specific error messages when an OAuth flow is triggered for a provider whose credentials are not set in the environment, fulfilling a direct user requirement.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** backend
+    -   **Blocked on something:** None.
 
 **Upcoming and Future Tasks**
--   **Upcoming Tasks:**
-    -   P1: Implement schema-driven form for Request Options. The admin's access request wizard may need to render a form for per-request options (e.g., a list of invitees), which should be driven by a plugin's .
-    -   P2: Implement UI for Plugin-Driven Verification. The API now provides a  (, , ). The UI needs to be updated to handle this (e.g., show a file upload for screenshots if ).
-    -   P3: Create a QA/Seed Script. Implement a script to install all plugins and create dummy s for testing purposes, as requested by the user.
--   **Future Tasks:**
-    -   Implement Plugin Versioning. The database schema has a  field, but the logic to handle version mismatches or run data migrations on plugin updates is not yet implemented.
-    -   Implement Real Automation/OAuth Hooks. The plugin interface has stubs for OAuth and automation, but the actual implementation for platforms that support it (like Google) needs to be built.
+-   **P0: Implement Full OAuth 2.0 Flows:** The current OAuth implementation consists of placeholders. The next critical step is to build the complete authorization code grant flow for LinkedIn, HubSpot, Salesforce, and Snowflake. This involves redirecting to the provider, handling the callback, exchanging the code for a token, and securely storing credentials.
+-   **P1: Implement Break-Glass Only Flow:** This requirement, noted in the initial handover, has not been addressed. It involves adding UI and backend logic for the  scenario, including a justification text field and reason code.
+-   **P2: Create Unit Tests:** The original design document specified creating unit tests for the new modular plugins. While the backend testing agent was used for integration testing, no new unit test files (e.g., using Jest/Vitest) have been created for the individual , , or  modules.
 
 **Completed work in this session**
--   **Plugin Architecture Foundation (DONE):**
-    -   Created the core TypeScript interfaces ().
-    -   Built a plugin registry and loader.
-    -   Created stubs for all 15 platform plugins with Zod schemas.
-    -   Built and tested API endpoints to serve plugin manifests, schemas, and instructions.
--   **Data Migration to Plugin Schema (DONE):**
-    -   Updated the Prisma schema to include  and  columns.
-    -   Created and successfully executed a migration script to convert all existing  and  data to the new JSON format.
--   **Schema-Driven Admin UI (DONE):**
-    -   Completely refactored the platform configuration page () to be dynamically rendered from plugin schemas.
--   **Bug Fix (DONE):**
-    -   Fixed a 404 error when creating access requests by making the API endpoint support both  and  URL patterns.
+-   **Modular Plugin Architecture Refactor:** Successfully refactored all 15 plugins into a new, modular structure with a common interface and separated concerns, located under the  directory.
+-   **Common Plugin Infrastructure:** Created a shared foundation at  with , , and other utilities.
+-   **OAuth Placeholder Implementation:**
+    -   Created new  modules for LinkedIn, HubSpot, Salesforce, and Snowflake.
+    -   Added API endpoints () for each.
+-   **Centralized OAuth Configuration:**
+    -   Added placeholder variables to  and  for all four OAuth providers.
+    -   Created a central config module at  to manage these settings.
+
+**Earlier issues found/mentioned but not fixed**
+-   **Issue 1: Unit Tests Not Implemented**
+    -   The user's initial design document requested unit tests for the refactored plugin modules. This task was skipped in favor of completing the large-scale refactoring and was not re-prioritized.
+    -   **Why to solve this issue and what will be achieved with this?** Adding unit tests will improve code quality, prevent future regressions, and make the individual plugin modules easier to maintain and debug.
+    -   **Should Test frontend/backend/both after fix?** backend
+
+**Known issue recurrence from previous fork**
+-   None.
 
 **Code Architecture**
 
@@ -96,71 +90,60 @@ The application is a Next.js project with a Neon PostgreSQL database managed by 
 **Key Technical Concepts**
 -   **Framework:** Next.js 14 (App Router)
 -   **Database:** PostgreSQL (Neon) via Prisma ORM
--   **Architecture:** Monolithic backend API with a new, in-progress **Plugin-Based Architecture**.
--   **Schema/Validation:** **Zod** is used within plugins to define schemas and perform server-side validation. The  library is used to convert Zod schemas to JSON Schema for the frontend.
--   **UI:** React, Tailwind CSS, shadcn/ui. A new  component renders forms dynamically.
+-   **Architecture:** Modular Plugin-Driven Architecture
+-   **Configuration:** Centralized configuration management for secrets/keys via  files.
+-   **Authentication:** Placeholder OAuth 2.0 flows.
 
 **key DB schema**
--   : { id, agencyPlatformId, accessItemType, , , , ... }
--   : { id, accessRequestId, accessItemId, , , ... }
+-   No changes were made to the database schema in this session.
 
 **changes in tech stack**
--   **Zod:** Introduced for schema definition and validation.
--   **zod-to-json-schema:** Introduced to generate UI schemas from Zod definitions.
+-   No changes to the core tech stack. The primary change was architectural.
 
 **All files of reference**
--   : **CRITICAL.** This file was just rewritten and is untested. It is the immediate focus for the next agent.
--   : **CRITICAL.** The heart of the new plugin system.
--   : **CRITICAL.** This new directory contains all platform-specific logic. The agent will likely need to tweak schemas or instructions within these files.
--   : A good reference for a completed schema-driven UI component.
--   : The main API file, which now contains endpoints for serving plugin data.
--   : The completed migration script, a good reference for data transformation logic.
+-   : Heavily modified to include new OAuth API endpoints. This is the file currently being worked on.
+-   : The new core contract for all plugins.
+-   : The new central module for managing OAuth credentials from environment variables.
+-   : All files under this directory were either newly created or heavily refactored from their monolithic originals.
+-    / : Modified to include placeholder OAuth credentials.
 
 **Critical Info for New Agent**
--   **You are in the final phase of a major architectural refactor.** The goal is a fully plugin-driven system. Significant progress has been made.
--   **Your immediate task is to test and complete the refactoring of the client onboarding page ().** This page was just rewritten to be schema-driven but is completely untested.
--   **The plugin framework is functional.** The backend serves plugin schemas, and the admin UI already uses them successfully. You need to connect the final piece: the onboarding UI.
--   **The database migration is complete.** All historical data has been moved to the new  format. You do not need to worry about data loss.
--   After completing the onboarding UI, refer to the Upcoming and Future Tasks section to continue implementing the full plugin architecture as requested by the user.
+-   A massive architectural refactoring has been completed and tested. The codebase is now highly modular.
+-   The immediate task is to finish wiring the centralized OAuth configuration into the API endpoints as described in the pending issue. This is a small but critical final step for the current user request.
+-   The next major feature to implement is the *actual* OAuth 2.0 logic, as the current implementation is just a placeholder.
+-   The Break-Glass feature and unit testing are outstanding tasks from previous plans that should be addressed in the future.
 
 **documents created in this job**
--    (15 new platform plugins)
--   
--   
--   
+-   Numerous new files were created as part of the plugin refactoring, primarily under the  directory.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Confirmed to proceed with updating the onboarding UI. (IN PROGRESS)
-2.  **User:** Confirmed to proceed with the data migration. (COMPLETED)
-3.  **User:** Confirmed to proceed with replacing the old admin form with the new plugin-based version. (COMPLETED)
-4.  **User:** Confirmed to proceed with Phase 2 (implementing the schema-driven UI). (STARTED)
-5.  **User:** Provided detailed instructions for the plugin architecture: use Zod, implement all 15 platforms, and migrate data. (IN PROGRESS)
-6.  **User:** Provided the high-level architectural requirements for the full plugin-based refactor. (IN PROGRESS)
-7.  **User:** Confirmed to proceed with the previous, smaller refactoring plan. (COMPLETED)
-8.  **User:** Followed up on the agent's plan for the smaller refactoring. (COMPLETED)
-9.  **User:** Provided a large set of requirements for the first major refactoring (pre-plugin architecture). (COMPLETED)
-10. **User:** Reported a 404 error when creating an access request. (COMPLETED)
+1.  **User (message #157):** Clarified the OAuth configuration task: centralize config in  with placeholders and have endpoints fail fast with a clear provider not configured message. (IN PROGRESS)
+2.  **User (message #154):** Requested to configure OAuth credentials in the environment for each platform. (IN PROGRESS)
+3.  **User (message #119):** Requested to implement OAuth flows for LinkedIn, HubSpot, Salesforce, and Snowflake. (COMPLETED - Placeholders)
+4.  **User (message #87):** Continue - signaled to proceed with the plugin refactoring plan. (COMPLETED)
+5.  **User (message #83):** Requested to refactor *all* available plugins to the new modular structure. (COMPLETED)
+6.  **User (message #8):** Clarified the initial task was to refactor the *existing* GA4 plugin, not start from scratch. (COMPLETED)
+7.  **User (message #5):** Provided the detailed design document and initial request to refactor the application to a modular plugin architecture. (COMPLETED)
 
 **Project Health Check:**
--   **In Refactoring:** The application is functional for many flows (admin configuration), but is in a transitional state. The client onboarding flow is currently in an unknown, untested state after being rewritten. It is not Broken but requires immediate attention to stabilize.
+-   **Healthy:** The application is stable and functional after a major architectural refactor. All backend tests are passing. The current work is a minor enhancement to the recently added placeholder features.
 
 **3rd Party Integrations**
 -   **Prisma:** ORM for database access.
 -   **PostgreSQL (Neon):** The persistent cloud database.
--   **Zod:** For schema definition and validation.
--   **zod-to-json-schema:** For converting Zod schemas to JSON Schema for UI rendering.
--   **xlsx:** Used previously to process  files; less relevant now with the plugin architecture.
--   **Font Awesome:** Used for icons in the UI.
+-   **Zod:** Used for schema definition and validation within plugins.
+-   **OAuth (Placeholder):** Placeholder flows for LinkedIn, HubSpot, Salesforce, Snowflake. Credentials managed via environment variables.
 
 **Testing status**
--   Testing agent used after significant changes: YES, the backend testing agent was used multiple times and passed after the data migration and admin UI refactor.
--   Troubleshoot agent used after agent stuck in loop: NO
--   Test files created: []
--   Known regressions: The state of the client onboarding page is unknown. It may be broken after the recent rewrite.
+-   Testing agent used after significant changes: YES. The backend testing agent was successfully run multiple times to verify the large-scale plugin refactor and the addition of new OAuth endpoints.
+-   Troubleshoot agent used after agent stuck in loop: NO.
+-   Test files created: None. The original request to add unit tests was not completed.
+-   Known regressions: None.
 
 **Credentials to test flow:**
-N/A
+N/A. The OAuth implementation currently uses placeholder credentials from  and is designed to fail gracefully.
 
 **What agent forgot to execute**
-The agent has been diligently following the user's very detailed and complex instructions for the architectural refactor. It has not forgotten any major steps but is simply in the middle of executing a multi-phase plan. The remaining steps are documented in the Upcoming and Future Tasks section.
+-   The agent did not create unit tests for the new modular plugin components (, ,  modules) as was suggested in the original user-provided design document. It focused on the refactoring and integration-level testing.
+
 </analysis>

@@ -11,7 +11,7 @@ Tests all plugin-based functionality including:
 5. Plugin-Based Onboarding Enhancement
 6. Platform-Specific Constraints
 
-Backend URL: https://plugin-driven-pam.preview.emergentagent.com/api
+Backend URL: https://plugin-oauth-setup.preview.emergentagent.com/api
 """
 
 import requests
@@ -21,7 +21,7 @@ from typing import Dict, Any, List
 import sys
 
 # Configuration
-BACKEND_URL = "https://plugin-driven-pam.preview.emergentagent.com/api"
+BACKEND_URL = "https://plugin-oauth-setup.preview.emergentagent.com/api"
 HEADERS = {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
