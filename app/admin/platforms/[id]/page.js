@@ -1106,34 +1106,70 @@ export default function PlatformConfigPage() {
                 <div className="space-y-4">
                   <Label className="text-base font-semibold">Select Access Type</Label>
                   <p className="text-sm text-muted-foreground">
-                    Only types supported by {platform?.name} are shown
+                    Only types supported by {platform?.displayName || platform?.name} are shown (defined by plugin)
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {supportedItemTypes.map(type => {
-                      const config = ACCESS_ITEM_TYPE_CONFIG[type];
+                      const normalizedType = normalizeItemType(type);
+                      const config = ACCESS_ITEM_TYPE_CONFIG[normalizedType];
                       if (!config) return null;
+                      
+                      // Check if this is PAM and get the recommendation
+                      const isPam = normalizedType === 'SHARED_ACCOUNT';
+                      const pamConfig = isPam ? getPamConfig() : null;
+                      const pamDisabled = isPam && !securityCapabilities?.supportsCredentialLogin;
+                      
                       return (
-                        <button
-                          key={type}
-                          onClick={() => handleSelectItemType(type)}
-                          className="p-4 border-2 rounded-xl text-left hover:border-primary hover:bg-primary/5 transition-all group"
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className={`w-12 h-12 rounded-lg bg-${config.color}-100 flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                              <i className={`${config.icon} text-lg text-${config.color}-600`}></i>
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-semibold">{config.label}</p>
-                              <p className="text-xs text-muted-foreground mt-1">{config.desc}</p>
-                            </div>
-                          </div>
-                        </button>
+                        <Tooltip key={type}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => !pamDisabled && handleSelectItemType(normalizedType)}
+                              disabled={pamDisabled}
+                              className={`p-4 border-2 rounded-xl text-left transition-all group relative
+                                ${pamDisabled ? 'opacity-50 cursor-not-allowed bg-muted' : 'hover:border-primary hover:bg-primary/5'}
+                              `}
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}
+                                  style={{ backgroundColor: pamDisabled ? '#f3f4f6' : `var(--${config.color}-100, #e0e7ff)` }}>
+                                  <i className={`${config.icon} text-lg`} style={{ color: pamDisabled ? '#9ca3af' : `var(--${config.color}-600, #4f46e5)` }} aria-hidden="true"></i>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-semibold flex items-center gap-2">
+                                    {config.label}
+                                    {isPam && pamConfig && (
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${pamConfig.badgeClass}`}>
+                                        {pamConfig.badge}
+                                      </span>
+                                    )}
+                                    {pamDisabled && (
+                                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                        Unavailable
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">{config.desc}</p>
+                                  {isPam && pamConfig && !pamDisabled && (
+                                    <p className="text-xs text-muted-foreground mt-2 italic">
+                                      {pamConfig.rationale ? pamConfig.rationale.substring(0, 100) + '...' : pamConfig.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          </TooltipTrigger>
+                          {pamDisabled && (
+                            <TooltipContent>
+                              <p>This platform does not support credential-based login.</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
                       );
                     })}
                   </div>
                   {supportedItemTypes.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
-                      <i className="fas fa-exclamation-circle text-2xl mb-2"></i>
+                      <i className="fas fa-exclamation-circle text-2xl mb-2" aria-hidden="true"></i>
                       <p>No access types available for this platform.</p>
                     </div>
                   )}
@@ -1150,23 +1186,53 @@ export default function PlatformConfigPage() {
               {/* Step 2: Configure Item */}
               {selectedItemType && (
                 <div className="space-y-6">
-                  {/* Type Badge & Change */}
+                  {/* Type Badge & Change - Access Pattern is READ-ONLY, derived from itemType */}
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg bg-${ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.color}-100 flex items-center justify-center`}>
-                        <i className={`${ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.icon}`}></i>
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center`}
+                        style={{ backgroundColor: `var(--${ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.color}-100, #e0e7ff)` }}>
+                        <i className={`${ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.icon}`} aria-hidden="true"></i>
                       </div>
                       <div>
                         <p className="font-medium">{ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.label}</p>
-                        <p className="text-xs text-muted-foreground">{ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.desc}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Access Pattern: <strong>{ACCESS_ITEM_TYPE_CONFIG[selectedItemType]?.label}</strong> (derived from type)
+                        </p>
                       </div>
                     </div>
                     {!editingItem && (
                       <Button variant="ghost" size="sm" onClick={() => setSelectedItemType(null)}>
-                        <i className="fas fa-exchange-alt mr-2"></i> Change Type
+                        <i className="fas fa-exchange-alt mr-2" aria-hidden="true"></i> Change Type
                       </Button>
                     )}
                   </div>
+                  
+                  {/* PAM Warning Banner */}
+                  {shouldShowPamWarning(selectedItemType) && (
+                    <div className={`p-4 rounded-lg border-2 ${
+                      securityCapabilities?.pamRecommendation === 'break_glass_only' 
+                        ? 'bg-red-50 border-red-200' 
+                        : 'bg-amber-50 border-amber-200'
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <i className={`fas ${
+                          securityCapabilities?.pamRecommendation === 'break_glass_only' 
+                            ? 'fa-exclamation-triangle text-red-600' 
+                            : 'fa-info-circle text-amber-600'
+                        } text-xl mt-0.5`} aria-hidden="true"></i>
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">
+                            {securityCapabilities?.pamRecommendation === 'break_glass_only' 
+                              ? '🚨 Break-Glass Only Access' 
+                              : '⚠️ Shared Account Access Not Recommended'}
+                          </p>
+                          <p className="text-xs mt-1">
+                            {securityCapabilities?.pamRationale || PAM_RECOMMENDATION_CONFIG[securityCapabilities?.pamRecommendation]?.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Basic Fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
