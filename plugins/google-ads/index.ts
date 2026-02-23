@@ -22,6 +22,8 @@ class GoogleAdsPlugin extends BasePlugin {
     category: 'Paid Media',
     description: 'Google Ads campaign management and reporting',
     icon: 'fab fa-google',
+    logoPath: '/logos/google-ads.svg',
+    brandColor: '#4285F4',
     tier: 1,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
