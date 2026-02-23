@@ -2,7 +2,7 @@
  * Google Tag Manager Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -15,16 +15,45 @@ export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
 ];
 
 export const SECURITY_CAPABILITIES: SecurityCapabilities = {
-  supportsDelegation: false, supportsGroupAccess: true, supportsOAuth: false, supportsCredentialLogin: true,
+  supportsDelegation: false, supportsGroupAccess: true, supportsOAuth: true, supportsCredentialLogin: true,
   pamRecommendation: 'not_recommended', pamRationale: 'GTM supports named-user and group access. Use PAM only for break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: false, apiVerificationSupported: true, automatedProvisioningSupported: true };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: true, 
+  apiVerificationSupported: true, 
+  automatedProvisioningSupported: true,
+  discoverTargetsSupported: true,
+  targetTypes: ['ACCOUNT', 'CONTAINER']
+};
+
+// GTM API supports user management
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // GTM API supports adding users
+    canVerifyAccess: true,     // GTM API can list permissions
+    requiresEvidenceUpload: false
+  },
+  GROUP_ACCESS: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,
+    canVerifyAccess: true,
+    requiresEvidenceUpload: false
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
 
 export const GTM_MANIFEST: PluginManifest = {
-  platformKey: 'gtm', displayName: 'Google Tag Manager', pluginVersion: '2.1.0', category: 'Tag Management',
+  platformKey: 'gtm', displayName: 'Google Tag Manager', pluginVersion: '2.2.0', category: 'Tag Management',
   description: 'Google Tag Manager container access', tier: 1, clientFacing: true,
   icon: 'fas fa-tags', logoPath: '/logos/gtm.svg', brandColor: '#4285F4',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default GTM_MANIFEST;
