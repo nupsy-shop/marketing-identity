@@ -542,6 +542,53 @@ export default function PlatformConfigPage() {
 
   const supportedItemTypes = getSupportedItemTypes();
   const roleTemplates = getRoleTemplates();
+  
+  // Filter and sort access items
+  const filteredAccessItems = useMemo(() => {
+    if (!agencyPlatform?.accessItems) return [];
+    
+    let items = [...agencyPlatform.accessItems];
+    
+    // Search filter
+    if (itemSearchQuery.trim()) {
+      const query = itemSearchQuery.toLowerCase();
+      items = items.filter(item => 
+        item.label?.toLowerCase().includes(query) ||
+        item.role?.toLowerCase().includes(query) ||
+        item.notes?.toLowerCase().includes(query)
+      );
+    }
+    
+    // Type filter
+    if (itemTypeFilter !== 'all') {
+      items = items.filter(item => item.itemType === itemTypeFilter);
+    }
+    
+    // Sort
+    items.sort((a, b) => {
+      switch (itemSortBy) {
+        case 'label':
+          return (a.label || '').localeCompare(b.label || '');
+        case 'type':
+          return (a.itemType || '').localeCompare(b.itemType || '');
+        case 'role':
+          return (a.role || '').localeCompare(b.role || '');
+        case 'date':
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        default:
+          return 0;
+      }
+    });
+    
+    return items;
+  }, [agencyPlatform?.accessItems, itemSearchQuery, itemTypeFilter, itemSortBy]);
+  
+  // Get unique item types for filter dropdown
+  const availableItemTypes = useMemo(() => {
+    if (!agencyPlatform?.accessItems) return [];
+    const types = new Set(agencyPlatform.accessItems.map(item => item.itemType));
+    return Array.from(types);
+  }, [agencyPlatform?.accessItems]);
 
   if (loading) {
     return (
