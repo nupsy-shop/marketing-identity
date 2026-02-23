@@ -12,7 +12,7 @@
  */
 
 import type { PluginManifest, AccessItemType, ValidationResult, VerificationMode, VerificationResult, InstructionContext, InstructionStep, VerificationContext } from '../../lib/plugins/types';
-import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, IncomingRequest } from './types';
+import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, IncomingRequest, AccessibleTarget, DiscoverTargetsResult } from './types';
 import { z } from 'zod';
 
 /**
@@ -40,12 +40,20 @@ export interface AdPlatformPlugin {
   authorize(params: AuthParams): Promise<AuthResult>;
 
   /** Refresh an expired token */
-  refreshToken(currentToken: string): Promise<AuthResult>;
+  refreshToken(currentToken: string, redirectUri?: string): Promise<AuthResult>;
 
-  // ─── Account Discovery ─────────────────────────────────────────────────────
+  // ─── Account Discovery (Legacy) ────────────────────────────────────────────
 
   /** List available accounts/properties for the authenticated user */
   fetchAccounts(auth: AuthResult): Promise<Account[]>;
+
+  // ─── Target Discovery (New) ────────────────────────────────────────────────
+
+  /** 
+   * Discover accessible targets/resources after OAuth authentication
+   * Returns normalized list of targets with type information
+   */
+  discoverTargets?(auth: AuthResult): Promise<DiscoverTargetsResult>;
 
   // ─── Reporting ─────────────────────────────────────────────────────────────
 
@@ -98,10 +106,13 @@ export interface AdPlatformPlugin {
  */
 export interface OAuthCapablePlugin extends AdPlatformPlugin {
   /** Start OAuth flow */
-  startOAuth(context: { redirectUri: string }): Promise<{ authUrl: string; state: string }>;
+  startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }>;
 
   /** Handle OAuth callback */
-  handleOAuthCallback(context: { code: string; state: string }): Promise<AuthResult>;
+  handleOAuthCallback(context: { code: string; state?: string; redirectUri: string }): Promise<AuthResult>;
+  
+  /** Discover accessible targets after OAuth */
+  discoverTargets(auth: AuthResult): Promise<DiscoverTargetsResult>;
 }
 
 /**
@@ -109,4 +120,11 @@ export interface OAuthCapablePlugin extends AdPlatformPlugin {
  */
 export function isOAuthCapable(plugin: AdPlatformPlugin): plugin is OAuthCapablePlugin {
   return 'startOAuth' in plugin && 'handleOAuthCallback' in plugin;
+}
+
+/**
+ * Type guard to check if a plugin supports target discovery
+ */
+export function supportsTargetDiscovery(plugin: AdPlatformPlugin): plugin is AdPlatformPlugin & { discoverTargets: NonNullable<AdPlatformPlugin['discoverTargets']> } {
+  return 'discoverTargets' in plugin && typeof plugin.discoverTargets === 'function';
 }

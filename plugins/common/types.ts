@@ -115,10 +115,64 @@ export interface AuthResult {
   error?: string;
 }
 
-// ─── Account Discovery ───────────────────────────────────────────────────────
+// ─── Accessible Target Discovery ─────────────────────────────────────────────
+
+/**
+ * Target types for different platforms
+ */
+export type TargetType = 
+  | 'ACCOUNT'
+  | 'PROPERTY'
+  | 'ORG'
+  | 'WORKSPACE'
+  | 'AD_ACCOUNT'
+  | 'SITE'
+  | 'PROJECT'
+  | 'PORTAL'
+  | 'BUSINESS'
+  | 'CONTAINER'
+  | 'WAREHOUSE'
+  | 'DATABASE';
+
+/**
+ * Represents a discoverable resource/target from an OAuth-connected platform
+ */
+export interface AccessibleTarget {
+  /** Type of the target resource */
+  targetType: TargetType;
+  
+  /** Provider's unique identifier for this resource */
+  externalId: string;
+  
+  /** Human-readable name */
+  displayName: string;
+  
+  /** Parent resource ID (for hierarchical resources like org -> account -> property) */
+  parentExternalId?: string;
+  
+  /** Platform-specific metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Result of target discovery
+ */
+export interface DiscoverTargetsResult {
+  /** Whether discovery was successful */
+  success: boolean;
+  
+  /** List of discovered targets */
+  targets?: AccessibleTarget[];
+  
+  /** Error message if failed */
+  error?: string;
+}
+
+// ─── Account Discovery (Legacy - use AccessibleTarget) ──────────────────────
 
 /**
  * Generic account/property representation
+ * @deprecated Use AccessibleTarget instead
  */
 export interface Account {
   /** Unique account identifier */
