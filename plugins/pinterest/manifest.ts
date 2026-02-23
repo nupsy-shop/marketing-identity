@@ -2,7 +2,7 @@
  * Pinterest Ads Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -19,12 +19,39 @@ export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   pamRecommendation: 'not_recommended', pamRationale: 'Pinterest supports business partnerships. Use PAM only for break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: false, apiVerificationSupported: false, automatedProvisioningSupported: false };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: false, 
+  apiVerificationSupported: false, 
+  automatedProvisioningSupported: false 
+};
+
+// Pinterest does not have public APIs for user management
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  PARTNER_DELEGATION: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  },
+  NAMED_INVITE: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
 
 export const PINTEREST_MANIFEST: PluginManifest = {
-  platformKey: 'pinterest', displayName: 'Pinterest Ads', pluginVersion: '2.1.0', category: 'Paid Media',
+  platformKey: 'pinterest', displayName: 'Pinterest Ads', pluginVersion: '2.2.0', category: 'Paid Media',
   description: 'Pinterest Ads Manager', tier: 2, clientFacing: true,
   icon: 'fab fa-pinterest', logoPath: '/logos/pinterest.svg', brandColor: '#E60023',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default PINTEREST_MANIFEST;
