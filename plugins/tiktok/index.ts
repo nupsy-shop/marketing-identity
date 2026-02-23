@@ -22,6 +22,8 @@ class TikTokPlugin extends BasePlugin {
     category: 'Paid Media',
     description: 'TikTok for Business advertising platform',
     icon: 'fab fa-tiktok',
+    logoPath: '/logos/tiktok.svg',
+    brandColor: '#000000',
     tier: 1,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
