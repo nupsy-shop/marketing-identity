@@ -130,6 +130,7 @@ export default function PlatformConfigPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [integrationIdentities, setIntegrationIdentities] = useState([]);
+  const [agencyIdentities, setAgencyIdentities] = useState([]);
   
   // Form state
   const [selectedItemType, setSelectedItemType] = useState(null);
