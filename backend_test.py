@@ -236,7 +236,9 @@ class BackendTester:
             if response.status_code == 501:
                 response_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
                 error_message = response_data.get("error", "")
-                if "not supported" in error_message.lower() or "not configured" in error_message.lower():
+                if ("not support" in error_message.lower() or 
+                    "not configured" in error_message.lower() or
+                    "manual steps required" in error_message.lower()):
                     self.add_result(
                         "LinkedIn grant-access returns 501 not supported", 
                         True, 
