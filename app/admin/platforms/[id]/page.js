@@ -44,7 +44,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import CustomRoleDialog from '@/components/CustomRoleDialog';
 import { validateAccessItemLabel, formatConfigKey } from '@/lib/validation';
 
-// Access Item Type display configuration
+// Access Item Type display configuration - derived from plugin metadata
 const ACCESS_ITEM_TYPE_CONFIG = {
   NAMED_INVITE: { 
     label: 'Named Invite', 
@@ -58,42 +58,61 @@ const ACCESS_ITEM_TYPE_CONFIG = {
     desc: 'Grant access via partner/agency seat or manager account',
     color: 'green'
   },
-  GROUP_SERVICE: { 
-    label: 'Group / Service Account', 
-    icon: 'fas fa-users-cog', 
-    desc: 'Service account or group-based access',
-    color: 'purple'
-  },
   GROUP_ACCESS: { 
     label: 'Group / Service Account', 
     icon: 'fas fa-users-cog', 
-    desc: 'Service account or group-based access',
+    desc: 'Service account or SSO/SCIM group-based access',
     color: 'purple'
   },
   PROXY_TOKEN: { 
     label: 'API / Integration Token', 
-    icon: 'fas fa-key', 
-    desc: 'Non-interactive integration via API keys',
+    icon: 'fas fa-robot', 
+    desc: 'Non-interactive integration via API keys or service accounts',
     color: 'orange'
   },
-  PAM_SHARED_ACCOUNT: { 
+  SHARED_ACCOUNT: { 
     label: 'Shared Account (PAM)', 
-    icon: 'fas fa-shield-halved', 
-    desc: 'Privileged shared account with checkout policy',
-    color: 'red'
-  },
-  SHARED_ACCOUNT_PAM: { 
-    label: 'Shared Account (PAM)', 
-    icon: 'fas fa-shield-halved', 
-    desc: 'Privileged shared account with checkout policy',
+    icon: 'fas fa-key', 
+    desc: 'Privileged shared account with credential vault and checkout policy',
     color: 'red'
   }
 };
 
-// Map old item types to new plugin types
+// Map legacy item types to current types
 const ITEM_TYPE_MAP = {
-  'GROUP_ACCESS': 'GROUP_SERVICE',
-  'SHARED_ACCOUNT_PAM': 'PAM_SHARED_ACCOUNT'
+  'GROUP_SERVICE': 'GROUP_ACCESS',
+  'PAM_SHARED_ACCOUNT': 'SHARED_ACCOUNT',
+  'SHARED_ACCOUNT_PAM': 'SHARED_ACCOUNT'
+};
+
+// Normalize item type to current format
+function normalizeItemType(itemType) {
+  return ITEM_TYPE_MAP[itemType] || itemType;
+}
+
+// PAM Recommendation display configuration
+const PAM_RECOMMENDATION_CONFIG = {
+  recommended: {
+    badge: '✓ Recommended',
+    badgeClass: 'bg-green-100 text-green-700',
+    description: 'PAM is the recommended access method for this platform.',
+    requiresConfirmation: false,
+    requiresJustification: false
+  },
+  not_recommended: {
+    badge: '⚠️ Not Recommended',
+    badgeClass: 'bg-amber-100 text-amber-700',
+    description: 'Native delegation/RBAC options are preferred. Use PAM only for legacy constraints or client-mandated requirements.',
+    requiresConfirmation: true,
+    requiresJustification: false
+  },
+  break_glass_only: {
+    badge: '🚨 Break-Glass Only',
+    badgeClass: 'bg-red-100 text-red-700',
+    description: 'PAM should only be used in emergency break-glass scenarios. Full justification required.',
+    requiresConfirmation: true,
+    requiresJustification: true
+  }
 };
 
 export default function PlatformConfigPage() {
