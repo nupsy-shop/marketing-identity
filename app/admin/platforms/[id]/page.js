@@ -3,9 +3,15 @@
 /**
  * Platform Configuration Page - Plugin-Based Architecture
  * Uses schema-driven forms from plugins for all platform-specific configuration
+ * 
+ * Improvements:
+ * - Platform logos from plugin manifests
+ * - Search and filter for access items
+ * - Confirmation dialogs for destructive actions
+ * - Better accessibility and visual hierarchy
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,8 +19,25 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import SchemaForm from '@/components/SchemaForm';
+import PlatformLogo from '@/components/PlatformLogo';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 // Access Item Type display configuration
 const ACCESS_ITEM_TYPE_CONFIG = {
