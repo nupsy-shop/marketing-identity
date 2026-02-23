@@ -344,41 +344,53 @@ function AppCatalogContent() {
   );
 }
 
-function PlatformCard({ platform, isAdded, isAdding, onAddToAgency, onConfigure }) {
+function PlatformCard({ platform, manifest, isAdded, isAdding, onAddToAgency, onConfigure }) {
+  // Build platform object for logo component with manifest data
+  const platformForLogo = {
+    ...platform,
+    platformKey: manifest?.platformKey || getPlatformKeyFromName(platform.name),
+    logoPath: manifest?.logoPath,
+    brandColor: manifest?.brandColor,
+    icon: manifest?.icon || platform.icon || platform.iconName,
+    displayName: manifest?.displayName || platform.name,
+  };
+
   return (
     <Card className={`hover:shadow-lg transition-all duration-200 border-2 group ${isAdded ? 'border-green-300 bg-green-50/30' : 'hover:border-primary/50'}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between mb-3">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-            {platform.iconName ? (
-              <i className={`${platform.iconName} text-2xl text-primary`}></i>
-            ) : (
-              <i className="fas fa-cube text-2xl text-primary"></i>
-            )}
-          </div>
+          <PlatformLogo platform={platformForLogo} size="lg" />
           <div className="flex gap-1 flex-wrap justify-end">
             {isAdded && (
               <Badge className="bg-green-100 text-green-700 border-green-200">
-                <i className="fas fa-check mr-1"></i>Added
+                <i className="fas fa-check mr-1" aria-hidden="true"></i>Added
+              </Badge>
+            )}
+            {manifest && (
+              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                <i className="fas fa-plug mr-1" aria-hidden="true"></i>Plugin
               </Badge>
             )}
             {platform.oauthSupported && (
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                <i className="fas fa-key mr-1"></i>OAuth
+                <i className="fas fa-key mr-1" aria-hidden="true"></i>OAuth
               </Badge>
             )}
           </div>
         </div>
-        <CardTitle className="text-lg leading-tight">{platform.name}</CardTitle>
+        <CardTitle className="text-lg leading-tight">{manifest?.displayName || platform.name}</CardTitle>
         <CardDescription className="text-sm line-clamp-3">
-          {platform.description || platform.notes || 'Marketing platform integration'}
+          {manifest?.description || platform.description || platform.notes || 'Marketing platform integration'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <Badge className={platform.tier === 1 ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-100 text-blue-700 border-blue-200'}>
-            {platform.tier === 1 ? <><i className="fas fa-star mr-1"></i>Tier 1 — Asset Level</> : <><i className="fas fa-layer-group mr-1"></i>Tier 2 — Platform Level</>}
+            {platform.tier === 1 ? <><i className="fas fa-star mr-1" aria-hidden="true"></i>Tier 1 — Asset Level</> : <><i className="fas fa-layer-group mr-1" aria-hidden="true"></i>Tier 2 — Platform Level</>}
           </Badge>
+          {manifest?.category && (
+            <Badge variant="outline">{manifest.category}</Badge>
+          )}
         </div>
 
         {platform.accessPatterns && platform.accessPatterns.length > 0 && (
@@ -389,7 +401,7 @@ function PlatformCard({ platform, isAdded, isAdding, onAddToAgency, onConfigure 
             <div className="space-y-1">
               {platform.accessPatterns.map((ap, idx) => (
                 <div key={idx} className="text-xs flex items-start gap-2">
-                  <i className="fas fa-check-circle text-green-500 mt-0.5 flex-shrink-0"></i>
+                  <i className="fas fa-check-circle text-green-500 mt-0.5 flex-shrink-0" aria-hidden="true"></i>
                   <div>
                     <span className="font-medium">{ap.label}</span>
                     {ap.description && (
@@ -408,7 +420,7 @@ function PlatformCard({ platform, isAdded, isAdding, onAddToAgency, onConfigure 
             className="w-full border-green-300 text-green-700 hover:bg-green-50"
             onClick={onConfigure}
           >
-            <i className="fas fa-cog mr-2"></i>Configure Access Items
+            <i className="fas fa-cog mr-2" aria-hidden="true"></i>Configure Access Items
           </Button>
         ) : (
           <Button
@@ -418,9 +430,9 @@ function PlatformCard({ platform, isAdded, isAdding, onAddToAgency, onConfigure 
             disabled={isAdding}
           >
             {isAdding ? (
-              <><i className="fas fa-spinner fa-spin mr-2"></i>Adding...</>
+              <><i className="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>Adding...</>
             ) : (
-              <><i className="fas fa-plus mr-2"></i>Add to Agency</>
+              <><i className="fas fa-plus mr-2" aria-hidden="true"></i>Add to Agency</>
             )}
           </Button>
         )}
