@@ -984,6 +984,85 @@ export default function PlatformConfigPage() {
           </CardHeader>
         </Card>
 
+        {/* Platform Integration (Agency OAuth) */}
+        {pluginManifest && (
+          <PlatformIntegrationCard 
+            platformKey={pluginManifest.platformKey} 
+            manifest={pluginManifest} 
+          />
+        )}
+
+        {/* Supported Access Types */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <i className="fas fa-layer-group text-primary" aria-hidden="true"></i>
+                Supported Access Types
+              </CardTitle>
+              <CardDescription>
+                Access methods available for this platform with their capabilities
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {pluginManifest?.supportedAccessItemTypes?.map(itemType => {
+                const type = typeof itemType === 'string' ? itemType : itemType.type;
+                const label = typeof itemType === 'object' ? itemType.label : ACCESS_ITEM_TYPE_CONFIG[type]?.label;
+                const description = typeof itemType === 'object' ? itemType.description : ACCESS_ITEM_TYPE_CONFIG[type]?.desc;
+                const config = ACCESS_ITEM_TYPE_CONFIG[normalizeItemType(type)] || {};
+                const capabilities = pluginManifest?.accessTypeCapabilities?.[type] || {};
+                
+                return (
+                  <div key={type} className="p-3 border rounded-lg bg-slate-50/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-8 h-8 rounded flex items-center justify-center`}
+                        style={{ backgroundColor: `var(--${config.color}-100, #e0e7ff)` }}>
+                        <i className={`${config.icon || 'fas fa-cog'} text-sm`} aria-hidden="true"></i>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{label || type}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">{description}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {capabilities.clientOAuthSupported && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          <i className="fas fa-plug mr-1" aria-hidden="true"></i>OAuth
+                        </Badge>
+                      )}
+                      {capabilities.canGrantAccess && (
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          <i className="fas fa-check mr-1" aria-hidden="true"></i>Auto-Grant
+                        </Badge>
+                      )}
+                      {capabilities.canVerifyAccess && (
+                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                          <i className="fas fa-shield-halved mr-1" aria-hidden="true"></i>Verify
+                        </Badge>
+                      )}
+                      {capabilities.requiresEvidenceUpload && (
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                          <i className="fas fa-file-upload mr-1" aria-hidden="true"></i>Evidence
+                        </Badge>
+                      )}
+                      {!capabilities.clientOAuthSupported && !capabilities.canGrantAccess && !capabilities.canVerifyAccess && (
+                        <Badge variant="outline" className="text-xs">Manual</Badge>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {(!pluginManifest?.supportedAccessItemTypes || pluginManifest.supportedAccessItemTypes.length === 0) && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No access types defined in plugin manifest.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Role Templates */}
         <Card>
           <CardHeader className="pb-3">
