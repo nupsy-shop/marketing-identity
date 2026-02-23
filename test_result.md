@@ -1289,16 +1289,7 @@ backend:
         comment: "✅ Platform-Specific Constraints working perfectly! Snowflake correctly rejects NAMED_INVITE creation with proper error message 'Item type \"NAMED_INVITE\" is not supported by Snowflake. Supported types: GROUP_ACCESS, PROXY_TOKEN'. Platform validation rules enforced correctly."
 
 test_plan:
-  current_focus:
-    - "Plugin System API - GET /api/plugins"
-    - "Plugin System API - Individual Plugin Details" 
-    - "Plugin Schema API - Agency Config Schema"
-    - "Plugin Schema API - Client Target Schema"
-    - "Plugin Validation API - Agency Config Validation"
-    - "Plugin Access Types API - Supported Access Types"
-    - "Plugin-Based Access Item Creation"
-    - "Plugin-Based Onboarding Enhancement"
-    - "Platform-Specific Constraints Testing"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
