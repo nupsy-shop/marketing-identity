@@ -108,7 +108,9 @@ def main():
     # Test HubSpot plugin manifest
     status, data = test_get_request(f"{API_BASE}/plugins/hubspot", "HubSpot Plugin Manifest")
     if status == 200 and isinstance(data, dict):
-        automation_caps = data.get('automationCapabilities', {})
+        # Handle API response wrapper
+        manifest_data = data.get('data', {}).get('manifest', data)
+        automation_caps = manifest_data.get('automationCapabilities', {})
         discover_supported = automation_caps.get('discoverTargetsSupported', False)
         target_types = automation_caps.get('targetTypes', [])
         
@@ -116,7 +118,7 @@ def main():
             print("✅ HubSpot: discoverTargetsSupported=true, targetTypes includes PORTAL")
             test_results["plugin_manifest_updates"].append("HubSpot: PASS")
         else:
-            print("❌ HubSpot: Missing discoverTargetsSupported or PORTAL in targetTypes")
+            print(f"❌ HubSpot: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
             test_results["plugin_manifest_updates"].append("HubSpot: FAIL")
     else:
         print("❌ HubSpot: Failed to get plugin manifest")
@@ -125,7 +127,9 @@ def main():
     # Test Salesforce plugin manifest
     status, data = test_get_request(f"{API_BASE}/plugins/salesforce", "Salesforce Plugin Manifest")
     if status == 200 and isinstance(data, dict):
-        automation_caps = data.get('automationCapabilities', {})
+        # Handle API response wrapper
+        manifest_data = data.get('data', {}).get('manifest', data)
+        automation_caps = manifest_data.get('automationCapabilities', {})
         discover_supported = automation_caps.get('discoverTargetsSupported', False)
         target_types = automation_caps.get('targetTypes', [])
         
@@ -133,7 +137,7 @@ def main():
             print("✅ Salesforce: discoverTargetsSupported=true, targetTypes includes ORG")
             test_results["plugin_manifest_updates"].append("Salesforce: PASS")
         else:
-            print("❌ Salesforce: Missing discoverTargetsSupported or ORG in targetTypes")
+            print(f"❌ Salesforce: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
             test_results["plugin_manifest_updates"].append("Salesforce: FAIL")
     else:
         print("❌ Salesforce: Failed to get plugin manifest")
@@ -142,7 +146,9 @@ def main():
     # Test Snowflake plugin manifest
     status, data = test_get_request(f"{API_BASE}/plugins/snowflake", "Snowflake Plugin Manifest")
     if status == 200 and isinstance(data, dict):
-        automation_caps = data.get('automationCapabilities', {})
+        # Handle API response wrapper
+        manifest_data = data.get('data', {}).get('manifest', data)
+        automation_caps = manifest_data.get('automationCapabilities', {})
         discover_supported = automation_caps.get('discoverTargetsSupported', False)
         target_types = automation_caps.get('targetTypes', [])
         
@@ -153,7 +159,7 @@ def main():
             print("✅ Snowflake: discoverTargetsSupported=true, targetTypes includes ACCOUNT, WAREHOUSE, DATABASE")
             test_results["plugin_manifest_updates"].append("Snowflake: PASS")
         else:
-            print("❌ Snowflake: Missing discoverTargetsSupported or expected targetTypes")
+            print(f"❌ Snowflake: discoverTargetsSupported={discover_supported}, targetTypes={target_types}")
             test_results["plugin_manifest_updates"].append("Snowflake: FAIL")
     else:
         print("❌ Snowflake: Failed to get plugin manifest")
