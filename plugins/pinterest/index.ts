@@ -22,6 +22,8 @@ class PinterestPlugin extends BasePlugin {
     category: 'Paid Media',
     description: 'Pinterest advertising for visual discovery',
     icon: 'fab fa-pinterest',
+    logoPath: '/logos/pinterest.svg',
+    brandColor: '#E60023',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
