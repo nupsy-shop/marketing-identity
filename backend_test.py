@@ -260,6 +260,7 @@ class BackendTester:
         # Test HubSpot grant-access - should return 501 "not supported"
         try:
             response = self.post("/api/oauth/hubspot/grant-access", {
+                "accessToken": "fake_token",
                 "target": {"portalId": "12345"},
                 "role": "admin",
                 "identity": "user@example.com",
