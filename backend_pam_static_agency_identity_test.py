@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List
 import uuid
 
 # Base URL from environment
-BASE_URL = "https://conditional-config.preview.emergentagent.com"
+BASE_URL = "https://plugin-driven-pam.preview.emergentagent.com"
 
 class PAMStaticAgencyIdentityTester:
     def __init__(self, base_url: str):

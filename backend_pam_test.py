@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://conditional-config.preview.emergentagent.com"
+BASE_URL = "https://plugin-driven-pam.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 # Test data

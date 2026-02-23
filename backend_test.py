@@ -10,7 +10,7 @@ import sys
 from typing import Dict, Any, Optional
 
 # Base URL from environment
-BASE_URL = "https://conditional-config.preview.emergentagent.com"
+BASE_URL = "https://plugin-driven-pam.preview.emergentagent.com"
 
 class PluginValidationTester:
     def __init__(self, base_url: str):
