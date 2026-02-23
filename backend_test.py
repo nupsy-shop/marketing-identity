@@ -320,12 +320,15 @@ def main():
     # Test GET /api/plugins - Should return all plugins
     status, data = test_get_request(f"{API_BASE}/plugins", "All Plugins List")
     
-    if status == 200 and isinstance(data, list):
-        if len(data) >= 15:
-            print(f"✅ Plugins List: Returns {len(data)} plugins")
+    if status == 200:
+        # Handle API response wrapper
+        plugins_data = data.get('data', data) if isinstance(data, dict) else data
+        
+        if isinstance(plugins_data, list) and len(plugins_data) >= 15:
+            print(f"✅ Plugins List: Returns {len(plugins_data)} plugins")
             test_results["regression_tests"].append("Plugins List: PASS")
         else:
-            print(f"❌ Plugins List: Expected 15+ plugins, got {len(data)}")
+            print(f"❌ Plugins List: Expected 15+ plugins, got {len(plugins_data) if isinstance(plugins_data, list) else 'non-list'}")
             test_results["regression_tests"].append("Plugins List: FAIL")
     else:
         print("❌ Plugins List: Failed to get plugins list")
