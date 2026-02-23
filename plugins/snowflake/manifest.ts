@@ -19,7 +19,13 @@ export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   pamRecommendation: 'break_glass_only', pamRationale: 'Snowflake supports SSO, key-pair auth, and named users. PAM should only be used for emergency break-glass scenarios.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { oauthSupported: true, apiVerificationSupported: true, automatedProvisioningSupported: true };
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
+  oauthSupported: true, 
+  apiVerificationSupported: true, 
+  automatedProvisioningSupported: true,
+  discoverTargetsSupported: true,
+  targetTypes: ['ACCOUNT', 'WAREHOUSE', 'DATABASE'],
+};
 
 export const SNOWFLAKE_MANIFEST: PluginManifest = {
   platformKey: 'snowflake', displayName: 'Snowflake', pluginVersion: '2.1.0', category: 'Data Warehouse',
