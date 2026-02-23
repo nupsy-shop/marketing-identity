@@ -21,6 +21,41 @@ async function getBody(request) {
   }
 }
 
+// Helper to get platform key from display name
+function getPlatformKeyFromName(name) {
+  if (!name) return null;
+  const normalized = name.toLowerCase();
+  
+  const keyMap = {
+    'google ads': 'google-ads',
+    'meta': 'meta',
+    'facebook': 'meta',
+    'google analytics': 'ga4',
+    'ga4': 'ga4',
+    'google search console': 'google-search-console',
+    'search console': 'google-search-console',
+    'snowflake': 'snowflake',
+    'dv360': 'dv360',
+    'display & video 360': 'dv360',
+    'the trade desk': 'trade-desk',
+    'trade desk': 'trade-desk',
+    'tiktok': 'tiktok',
+    'snapchat': 'snapchat',
+    'linkedin': 'linkedin',
+    'pinterest': 'pinterest',
+    'hubspot': 'hubspot',
+    'salesforce': 'salesforce',
+    'google tag manager': 'gtm',
+    'gtm': 'gtm',
+    'universal analytics': 'ga-ua',
+  };
+  
+  for (const [key, value] of Object.entries(keyMap)) {
+    if (normalized.includes(key)) return value;
+  }
+  return normalized.replace(/[^a-z0-9]/g, '-');
+}
+
 // Map itemType to accessPattern
 const ITEM_TYPE_TO_PATTERN = {
   'NAMED_INVITE': 'HUMAN_INVITE',
