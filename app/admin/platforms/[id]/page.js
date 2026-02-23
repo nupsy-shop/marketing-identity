@@ -40,6 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import SchemaForm from '@/components/SchemaForm';
 import PlatformLogo from '@/components/PlatformLogo';
+import PlatformIntegrationCard from '@/components/PlatformIntegrationCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import CustomRoleDialog from '@/components/CustomRoleDialog';
 import { validateAccessItemLabel, formatConfigKey } from '@/lib/validation';
