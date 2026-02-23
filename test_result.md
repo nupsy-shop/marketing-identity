@@ -1560,15 +1560,18 @@ pam_governance_tests:
 
   - task: "Plugin-Driven Role Template Validation"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "API should reject roles not in plugin roleTemplates. Meta PARTNER_DELEGATION allows only 'admin' and 'analyst' roles."
+      - working: true
+        agent: "testing"
+        comment: "✅ Plugin-Driven Role Template Validation WORKING PERFECTLY! Successfully tested: Meta PARTNER_DELEGATION correctly rejects invalid role 'superuser' with error: 'Role \"superuser\" is not allowed for PARTNER_DELEGATION. Allowed roles: Admin, Analyst'. Plugin manifest roleTemplates validation enforcing role constraints correctly."
 
   - task: "Agency Config Asset Separation"
     implemented: true
