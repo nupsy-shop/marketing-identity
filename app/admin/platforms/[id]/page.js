@@ -424,8 +424,92 @@ export default function PlatformConfigPage() {
     const platformKey = getPlatformKey(agencyPlatform.platform?.name);
     const pluginItemType = ITEM_TYPE_MAP[selectedItemType] || selectedItemType;
     
-    // Validate PAM requirements if SHARED_ACCOUNT
-    if (normalizeItemType(selectedItemType) === 'SHARED_ACCOUNT' && securityCapabilities) {
+    // ═══ STRICT PAM FIELD VALIDATION ═══
+    if (normalizeItemType(selectedItemType) === 'SHARED_ACCOUNT') {
+      const pamOwnership = agencyConfig.pamOwnership;
+      const identityPurpose = agencyConfig.identityPurpose;
+      const identityStrategy = agencyConfig.pamIdentityStrategy;
+      
+      // Ownership is always required
+      if (!pamOwnership) {
+        toast({ 
+          title: 'Validation Error', 
+          description: 'Please select credential ownership (Client-Owned or Agency-Owned).',
+          variant: 'destructive' 
+        });
+        return;
+      }
+      
+      // AGENCY_OWNED validation
+      if (pamOwnership === 'AGENCY_OWNED') {
+        // Identity Purpose required
+        if (!identityPurpose) {
+          toast({ 
+            title: 'Validation Error', 
+            description: 'Please select an identity purpose.',
+            variant: 'destructive' 
+          });
+          return;
+        }
+        
+        // INTEGRATION_NON_HUMAN: require integrationIdentityId
+        if (identityPurpose === 'INTEGRATION_NON_HUMAN') {
+          if (!agencyConfig.integrationIdentityId) {
+            toast({ 
+              title: 'Validation Error', 
+              description: 'Please select an integration identity for non-human access.',
+              variant: 'destructive' 
+            });
+            return;
+          }
+        }
+        
+        // HUMAN_INTERACTIVE: validate based on strategy
+        if (identityPurpose === 'HUMAN_INTERACTIVE') {
+          if (!identityStrategy) {
+            toast({ 
+              title: 'Validation Error', 
+              description: 'Please select an identity strategy.',
+              variant: 'destructive' 
+            });
+            return;
+          }
+          
+          // STATIC_AGENCY_IDENTITY: require agencyIdentityId
+          if (identityStrategy === 'STATIC_AGENCY_IDENTITY') {
+            if (!agencyConfig.agencyIdentityId) {
+              toast({ 
+                title: 'Agency Identity Required', 
+                description: 'Please select an Agency Identity, or create one first via "Manage Identities".',
+                variant: 'destructive' 
+              });
+              return;
+            }
+          }
+          
+          // CLIENT_DEDICATED_IDENTITY: require identityType and namingTemplate
+          if (identityStrategy === 'CLIENT_DEDICATED_IDENTITY') {
+            if (!agencyConfig.pamIdentityType) {
+              toast({ 
+                title: 'Validation Error', 
+                description: 'Please select an identity type (Mailbox or Group).',
+                variant: 'destructive' 
+              });
+              return;
+            }
+            if (!agencyConfig.pamNamingTemplate) {
+              toast({ 
+                title: 'Validation Error', 
+                description: 'Please provide a naming template for client-dedicated identities.',
+                variant: 'destructive' 
+              });
+              return;
+            }
+          }
+        }
+      }
+      
+      // PAM Confirmation and Justification validation
       const pamConfig = getPamConfig();
       
       // Check confirmation requirement
