@@ -28,22 +28,23 @@ import type {
   VerificationContext,
   AccessItemType
 } from '../../lib/plugins/types';
-import type { AdPlatformPlugin } from '../common/plugin.interface';
-import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, IncomingRequest } from '../common/types';
+import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
+import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, IncomingRequest, DiscoverTargetsResult } from '../common/types';
 
 // Import modular components
 import { GA4_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
-import { authorize, refreshToken } from './auth';
-import { getAllAccountsAndProperties, checkUserAccess } from './api/management';
+import { authorize, refreshToken, isGA4OAuthConfigured, getOAuthConfig, GA4OAuthNotConfiguredError } from './auth';
+import { getAllAccountsAndProperties, checkUserAccess, listAllAccountSummaries } from './api/management';
 import { runReport } from './api/reporting';
 import { mapGA4Accounts, mapGA4Properties } from './mappers/account.mapper';
 import { mapGA4Report } from './mappers/report.mapper';
 import { NamedInviteAgencySchema, GroupAccessAgencySchema, SharedAccountAgencySchema } from './schemas/agency';
 import { NamedInviteClientSchema, GroupAccessClientSchema, SharedAccountClientSchema } from './schemas/client';
+import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 
 // ─── GA4 Plugin Implementation ─────────────────────────────────────────────────
 
-class GA4Plugin implements PlatformPlugin, AdPlatformPlugin {
+class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin {
   // Plugin identifier
   readonly name = 'ga4';
   
