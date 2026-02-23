@@ -539,7 +539,8 @@ class PAMStaticAgencyIdentityTester:
                 "pamOwnership": "AGENCY_OWNED",
                 "identityPurpose": "HUMAN_INTERACTIVE", 
                 "pamIdentityStrategy": "STATIC_AGENCY_IDENTITY",
-                "agencyIdentityId": self.test_agency_identity_id
+                "agencyIdentityId": self.test_agency_identity_id,
+                "pamConfirmation": True
             }
         }
         
