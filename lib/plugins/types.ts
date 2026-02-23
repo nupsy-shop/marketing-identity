@@ -109,16 +109,40 @@ export interface AccessItemTypeMetadata {
 export interface PluginManifest {
   platformKey: string;
   displayName: string;
-  category: 'Paid Media' | 'Analytics' | 'Martech' | 'Data' | 'CRM' | 'Tag Management' | 'Ecommerce' | 'Social';
+  category: 'Paid Media' | 'Analytics' | 'Martech' | 'Data' | 'CRM' | 'Tag Management' | 'Ecommerce' | 'Social' | 'SEO' | 'Data Warehouse' | 'E-commerce';
   description: string;
   icon: string; // Font Awesome class for fallback
   logoPath?: string; // Path to SVG logo (e.g., '/logos/google-ads.svg')
   brandColor?: string; // Primary brand color (hex)
   tier: 1 | 2 | 3;
-  supportedAccessItemTypes: AccessItemType[];
-  supportedRoleTemplates: RoleTemplate[];
+  clientFacing: boolean;
+  
+  // Access item types supported by this plugin (single source of truth)
+  supportedAccessItemTypes: AccessItemTypeMetadata[];
+  
+  // Security capabilities - PAM governance
+  securityCapabilities: SecurityCapabilities;
+  
+  // Automation capabilities
   automationCapabilities: AutomationCapabilities;
+  
   pluginVersion: string;
+}
+
+// Legacy interface for backward compatibility
+export interface LegacyRoleTemplate {
+  key: string;
+  label: string;
+  description?: string;
+}
+
+// Helper to get role templates for a specific item type
+export function getRoleTemplatesForItemType(
+  manifest: PluginManifest, 
+  itemType: AccessItemType
+): RoleTemplate[] {
+  const itemMeta = manifest.supportedAccessItemTypes.find(t => t.type === itemType);
+  return itemMeta?.roleTemplates || [];
 }
 
 // ─── Validation Result ─────────────────────────────────────────────────────────
