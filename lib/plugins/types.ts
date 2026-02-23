@@ -87,6 +87,96 @@ export interface AutomationCapabilities {
   targetTypes?: ('ACCOUNT' | 'PROPERTY' | 'ORG' | 'WORKSPACE' | 'AD_ACCOUNT' | 'SITE' | 'PROJECT' | 'PORTAL' | 'BUSINESS' | 'CONTAINER' | 'WAREHOUSE' | 'DATABASE')[];
 }
 
+// ─── Access Type Capabilities (Per-AccessItemType) ─────────────────────────────
+
+/**
+ * Defines the connection and provisioning capabilities for each access item type.
+ * This drives the entire onboarding flow UI and backend logic.
+ */
+export interface AccessTypeCapability {
+  /** Does the platform support client OAuth at onboarding? */
+  clientOAuthSupported: boolean;
+  /** Can we programmatically grant the requested access via API? */
+  canGrantAccess: boolean;
+  /** Can we verify a manual step using the client OAuth token? */
+  canVerifyAccess: boolean;
+  /** Does this flow require evidence upload and attestation? */
+  requiresEvidenceUpload: boolean;
+}
+
+/**
+ * Maps each AccessItemType to its connection capabilities.
+ * Used to determine the correct onboarding flow for each access type.
+ */
+export type AccessTypeCapabilities = {
+  [key in AccessItemType]?: AccessTypeCapability;
+};
+
+// ─── OAuth Token Scope ─────────────────────────────────────────────────────────
+
+/**
+ * Distinguishes between agency-level and client-level OAuth tokens.
+ * - AGENCY: Created from admin "Platform Integration" page; used for discovery and agency config
+ * - CLIENT: Created during client onboarding; used for client-specific discovery and verification
+ */
+export type OAuthScope = 'AGENCY' | 'CLIENT';
+
+// ─── Connector Response Types ──────────────────────────────────────────────────
+
+/**
+ * Standard response type for plugin connector operations (grant, verify, etc.)
+ */
+export interface ConnectorResponse<T = void> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  errorCode?: string;
+  /** Platform-specific details for debugging */
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Context for granting access via plugin API
+ */
+export interface GrantAccessContext {
+  /** OAuth auth result with tokens */
+  auth: {
+    accessToken: string;
+    refreshToken?: string;
+    tokenType?: string;
+  };
+  /** Client target information (property, account, etc.) */
+  target: Record<string, unknown>;
+  /** Role to grant (from roleTemplates) */
+  role: string;
+  /** Identity to grant access to (email, group, etc.) */
+  identity: string;
+  /** Access item type being granted */
+  accessItemType: AccessItemType;
+  /** Additional platform-specific options */
+  options?: Record<string, unknown>;
+}
+
+/**
+ * Context for verifying access via plugin API
+ */
+export interface VerifyAccessContext {
+  /** OAuth auth result with tokens */
+  auth: {
+    accessToken: string;
+    refreshToken?: string;
+    tokenType?: string;
+  };
+  /** Client target information (property, account, etc.) */
+  target: Record<string, unknown>;
+  /** Role to verify */
+  role: string;
+  /** Identity to check for */
+  identity: string;
+  /** Access item type being verified */
+  accessItemType: AccessItemType;
+}
+
 // ─── Security Capabilities (PAM Governance) ────────────────────────────────────
 
 export interface SecurityCapabilities {
