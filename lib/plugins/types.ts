@@ -83,7 +83,9 @@ export interface PluginManifest {
   displayName: string;
   category: 'Paid Media' | 'Analytics' | 'Martech' | 'Data' | 'CRM' | 'Tag Management' | 'Ecommerce' | 'Social';
   description: string;
-  icon: string; // Font Awesome class or URL
+  icon: string; // Font Awesome class for fallback
+  logoPath?: string; // Path to SVG logo (e.g., '/logos/google-ads.svg')
+  brandColor?: string; // Primary brand color (hex)
   tier: 1 | 2 | 3;
   supportedAccessItemTypes: AccessItemType[];
   supportedRoleTemplates: RoleTemplate[];
