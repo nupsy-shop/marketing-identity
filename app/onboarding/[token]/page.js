@@ -523,6 +523,132 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
           </div>
         )}
         
+        {/* ─── Capability-Driven OAuth Flow ─────────────────────────────────────── */}
+        {canUseOAuth && !isPAM && (
+          <div className="space-y-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <i className="fas fa-plug text-primary"></i>
+                <span className="font-medium text-sm">Quick Connect</span>
+              </div>
+              <CapabilityBadges capabilities={capabilities} />
+            </div>
+            
+            {/* Step 1: Connect via OAuth */}
+            {!clientToken && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Connect your {platform?.name} account to {canGrantAccess ? 'automatically grant access' : 'verify your setup'}.
+                </p>
+                <Button 
+                  onClick={handleOAuthConnect} 
+                  disabled={oauthConnecting}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {oauthConnecting ? (
+                    <><i className="fas fa-spinner fa-spin mr-2"></i>Connecting...</>
+                  ) : (
+                    <><i className="fas fa-plug mr-2"></i>Connect {platform?.name}</>
+                  )}
+                </Button>
+              </div>
+            )}
+            
+            {/* Step 2: Connected - discover targets */}
+            {clientToken && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-green-700 bg-green-50 p-2 rounded">
+                  <i className="fas fa-check-circle"></i>
+                  <span className="text-sm font-medium">Connected to {platform?.name}</span>
+                </div>
+                
+                {/* Discover targets button */}
+                {discoveredTargets.length === 0 && (
+                  <Button 
+                    onClick={handleDiscoverTargets} 
+                    disabled={discoveringTargets}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {discoveringTargets ? (
+                      <><i className="fas fa-spinner fa-spin mr-2"></i>Discovering...</>
+                    ) : (
+                      <><i className="fas fa-search mr-2"></i>Find Accounts/Properties</>
+                    )}
+                  </Button>
+                )}
+                
+                {/* Target selector */}
+                {discoveredTargets.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm">Select Target Account/Property</Label>
+                    <Select 
+                      value={selectedTarget?.externalId} 
+                      onValueChange={(val) => setSelectedTarget(discoveredTargets.find(t => t.externalId === val))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose target..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {discoveredTargets.map(target => (
+                          <SelectItem key={target.externalId} value={target.externalId}>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">{target.targetType}</Badge>
+                              <span>{target.displayName}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Action buttons based on capabilities */}
+                {selectedTarget && (
+                  <div className="space-y-2 pt-2">
+                    {/* Grant Access button (if platform supports it) */}
+                    {canGrantAccess && (
+                      <Button 
+                        onClick={handleGrantAccess} 
+                        disabled={grantingAccess}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        {grantingAccess ? (
+                          <><i className="fas fa-spinner fa-spin mr-2"></i>Granting Access...</>
+                        ) : (
+                          <><i className="fas fa-user-plus mr-2"></i>Grant Access Automatically</>
+                        )}
+                      </Button>
+                    )}
+                    
+                    {/* Verify Access button (if grant not available but verify is) */}
+                    {!canGrantAccess && canVerifyAccess && (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Complete the manual steps above, then verify your setup.
+                        </p>
+                        <Button 
+                          onClick={handleVerifyAccess} 
+                          disabled={verifyingAccess}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          {verifyingAccess ? (
+                            <><i className="fas fa-spinner fa-spin mr-2"></i>Verifying...</>
+                          ) : (
+                            <><i className="fas fa-shield-check mr-2"></i>Verify Access</>
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* Client Target Schema Form (from plugin) */}
         {item.clientTargetSchema && Object.keys(item.clientTargetSchema).length > 0 && (
           <SchemaForm
