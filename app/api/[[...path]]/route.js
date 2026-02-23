@@ -1271,6 +1271,21 @@ export async function POST(request, { params }) {
         return NextResponse.json({ success: false, error: 'refreshToken is required' }, { status: 400 });
       }
 
+      // Check if OAuth provider is configured (fail fast with clear message)
+      const providerKey = getProviderForPlatform(platformKey);
+      if (providerKey && !isProviderConfigured(providerKey)) {
+        const providerConfig = getProviderConfig(providerKey);
+        return NextResponse.json({ 
+          success: false, 
+          error: `${providerConfig?.displayName || platformKey} OAuth is not configured. Please set the required environment variables.`,
+          details: {
+            provider: providerKey,
+            requiredEnvVars: providerConfig?.envVars ? [providerConfig.envVars.clientId, providerConfig.envVars.clientSecret] : [],
+            developerPortalUrl: providerConfig?.developerPortalUrl || ''
+          }
+        }, { status: 501 });
+      }
+
       const plugin = PluginRegistry.get(platformKey);
       if (!plugin) {
         return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
@@ -1294,6 +1309,14 @@ export async function POST(request, { params }) {
           }
         });
       } catch (error) {
+        // Handle OAuthNotConfiguredError specifically
+        if (error instanceof OAuthNotConfiguredError) {
+          return NextResponse.json({ 
+            success: false, 
+            error: error.message,
+            details: error.toJSON()
+          }, { status: 501 });
+        }
         return NextResponse.json({ 
           success: false, 
           error: `Token refresh failed: ${error.message}` 
