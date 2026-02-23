@@ -174,6 +174,50 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
   const identityToAdd = getIdentityToAdd();
   const platformKey = platform?.pluginKey || platform?.slug;
   
+  // ── Recover OAuth session after callback redirect ────────────────────────────
+  useEffect(() => {
+    // Check if we're returning from OAuth callback for this item
+    const storedItemId = sessionStorage.getItem('oauth_item_id');
+    const storedTokenId = sessionStorage.getItem('oauth_token_id');
+    const storedAccessToken = sessionStorage.getItem('oauth_access_token');
+    const storedTargets = sessionStorage.getItem('oauth_targets');
+    
+    if (storedItemId === item.id && storedAccessToken) {
+      // Recover OAuth state
+      setClientToken({
+        tokenId: storedTokenId,
+        accessToken: storedAccessToken,
+        tokenType: sessionStorage.getItem('oauth_token_type') || 'Bearer',
+      });
+      
+      // Recover discovered targets if available
+      if (storedTargets) {
+        try {
+          const targets = JSON.parse(storedTargets);
+          setDiscoveredTargets(targets);
+          // Auto-select if only one target
+          if (targets.length === 1) {
+            setSelectedTarget(targets[0]);
+          }
+        } catch (e) {
+          console.warn('Failed to parse stored targets:', e);
+        }
+      }
+      
+      // Clear session storage for this item (keep it clean)
+      sessionStorage.removeItem('oauth_item_id');
+      sessionStorage.removeItem('oauth_token_id');
+      sessionStorage.removeItem('oauth_access_token');
+      sessionStorage.removeItem('oauth_token_type');
+      sessionStorage.removeItem('oauth_targets');
+      
+      toast({ 
+        title: 'Connected!', 
+        description: `Successfully connected to ${platform?.name || 'platform'}` 
+      });
+    }
+  }, [item.id, platform?.name, toast]);
+  
   // ── OAuth Flow Handlers ────────────────────────────────────────────────────
   
   const handleOAuthConnect = async () => {
