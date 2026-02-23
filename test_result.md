@@ -1823,6 +1823,66 @@ backend:
         agent: "testing"
         comment: "✅ OAuth flow integration working correctly! Complete OAuth endpoint verification successful: (1) Plugin OAuth capability detection working via manifest automationCapabilities, (2) OAuth endpoints properly routed for LinkedIn, HubSpot, Salesforce, Snowflake, (3) Proper error handling for missing credentials and invalid tokens, (4) Non-OAuth platforms correctly rejected. OAuth implementation ready for production with proper credentials configuration."
 
+  - task: "Phase 1-3 Plugin Capabilities Endpoints"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Plugin capabilities endpoints working perfectly. GET /api/plugins/ga4/capabilities returns accessTypeCapabilities with canGrantAccess=true for NAMED_INVITE/GROUP_ACCESS, canGrantAccess=false for SHARED_ACCOUNT. GET /api/plugins/ga4/capabilities/NAMED_INVITE returns specific capability with 4 roleTemplates. LinkedIn has canGrantAccess=false for all types. Salesforce has canGrantAccess=true for NAMED_INVITE."
+
+  - task: "Phase 1-3 Grant Access Enforcement"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Grant access enforcement working correctly. POST /api/oauth/ga4/grant-access returns 501 'not implemented' when grantAccess method missing from plugin. POST /api/oauth/linkedin/grant-access returns 501 'not supported' when canGrantAccess=false. POST /api/oauth/hubspot/grant-access returns 501 for unsupported platforms."
+
+  - task: "Phase 1-3 Verify Access Enforcement"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Verify access enforcement working correctly. POST /api/oauth/ga4/verify-access returns 501 'not implemented' when verifyAccess method missing from plugin. POST /api/oauth/linkedin/verify-access returns 501 'not supported' when canVerifyAccess=false."
+
+  - task: "Phase 1-3 OAuth Token Scope DB Schema"
+    implemented: true
+    working: true
+    file: "/app/lib/db.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ OAuth token scope DB schema verified. GET /api/oauth/tokens endpoint works and returns empty list initially. Database schema in db.js shows oauth_tokens table has scope (AGENCY/CLIENT), tenantId, and tenantType columns as required."
+
+  - task: "Phase 1-3 Plugin Manifest Validation"
+    implemented: true
+    working: true
+    file: "/app/lib/plugins/loader.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Plugin manifest validation successful. GET /api/plugins returns exactly 15 plugins, all with version 2.2.0. All 15 plugins have accessTypeCapabilities field in their manifests. Plugin system properly initialized and functional."
+
 agent_communication:
   - agent: "testing"
     message: "🎉 OAUTH FLOW TESTING FOR PLUGIN-BASED PLATFORM SYSTEM COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (5/5 test categories passed). Comprehensive testing results: ✅ OAuth Support Verification - LinkedIn, HubSpot, Salesforce, Snowflake correctly show automationCapabilities.oauthSupported: true; Google Ads, Meta, TikTok correctly show oauthSupported: false, ✅ OAuth Start Endpoints - Non-OAuth platforms properly rejected with 'Plugin does not support OAuth' error; OAuth platforms return expected credential missing errors (CLIENT_ID/CLIENT_SECRET not configured), ✅ OAuth Callback Endpoints - LinkedIn callback properly handles invalid codes with structured error responses, ✅ OAuth Fetch Accounts - LinkedIn fetch-accounts returns proper structured response with empty accounts array for invalid tokens, ✅ OAuth Flow Integration - All OAuth endpoints properly routed and functional with correct error handling. OAuth implementation is PRODUCTION-READY pending OAuth credentials configuration (CLIENT_ID/CLIENT_SECRET environment variables for each platform)."
