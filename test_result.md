@@ -1153,17 +1153,113 @@ agent_communication:
     message: "🎉 POSTGRESQL DATABASE MIGRATION TO NEON CLOUD TESTING COMPLETED SUCCESSFULLY! 🎉 Comprehensive testing results: 13/15 tests passed (86.7% success rate). ✅ MAJOR SUCCESSES: (1) Platform Catalog APIs - All 15 platforms seeded successfully, filtering by clientFacing/tier working, single platform retrieval working, (2) Client CRUD - Full lifecycle testing passed (create, read, update, delete, validation), (3) Agency Platform APIs - Complete CRUD operations working, access items management functional, (4) Access Request Lifecycle - End-to-end flow working (create, retrieve, client relationships), (5) Onboarding APIs - Token-based access working, attestation endpoints functional, invalid token handling correct, (6) Integration Identities CRUD - All operations working correctly, (7) Audit Logs - Proper audit trail creation and retrieval, (8) End-to-End Workflow - Complete 6-step workflow successful (client → platform → access item → access request → attestation → audit logs), (9) Data Persistence - PostgreSQL data persists correctly across requests, relationships maintained, (10) Error Handling - Proper 404/400 status codes for validation errors. ⚠️ MINOR NOTES: 2 expected validation behaviors (PAM item creation requires valid agency platform ID, access requests return 404 for non-existent clients before structure validation - both correct behaviors). The PostgreSQL database integration with Neon cloud is PRODUCTION-READY and fully functional!"
 
 backend:
-  - task: "PostgreSQL Database Migration - Neon Cloud Integration"
+  - task: "Plugin System API - GET /api/plugins"
     implemented: true
-    working: true
-    file: "/app/lib/db.js"
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-      - working: true
-        agent: "testing"
-        comment: "✅ PostgreSQL Database Migration to Neon Cloud SUCCESSFUL! Comprehensive testing of 15 test categories completed with 86.7% success rate (13/15 tests passed). All major API endpoints working correctly: Platform Catalog (15 platforms seeded, filtering working), Client CRUD (full lifecycle), Agency Platforms (CRUD + access items), Access Requests (complete lifecycle), Onboarding (token-based flow), Integration Identities (CRUD), Audit Logs (proper tracking), End-to-End Workflow (6-step complete flow), Data Persistence (PostgreSQL data integrity maintained), Error Handling (proper validation). Database connection via pg Pool with SSL to Neon cloud working perfectly. All data persists correctly and relationships are maintained."
+      - working: "NA"
+        agent: "main"
+        comment: "Plugin system API endpoints implemented with PluginRegistry returning 15 registered plugins. Needs comprehensive testing against https://access-mgmt-postgres.preview.emergentagent.com/api backend."
+
+  - task: "Plugin System API - Individual Plugin Details"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GET /api/plugins/:platformKey endpoint implemented to return plugin manifest with supportedAccessItemTypes and supportedRoleTemplates. Needs testing with google-ads plugin."
+
+  - task: "Plugin Schema API - Agency Config Schema"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GET /api/plugins/:platformKey/schema/agency-config?accessItemType=X endpoint implemented with Zod to JSON Schema conversion. Needs testing with Google Ads PARTNER_DELEGATION to return managerAccountId field."
+
+  - task: "Plugin Schema API - Client Target Schema"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GET /api/plugins/:platformKey/schema/client-target endpoint implemented with JSON Schema generation from plugins. Needs testing for client-side form generation."
+
+  - task: "Plugin Validation API - Agency Config Validation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/plugins/:platformKey/validate/agency-config endpoint implemented using plugin validators. Needs testing with valid/invalid Google Ads managerAccountId."
+
+  - task: "Plugin Access Types API - Supported Access Types"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GET /api/plugins/:platformKey/access-types endpoint implemented. Needs testing that Snowflake does NOT include NAMED_INVITE in supported types."
+
+  - task: "Plugin-Based Access Item Creation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/agency/platforms/:id/items with plugin-based validation. Needs testing creating Partner Delegation for Google Ads with agencyConfigJson containing managerAccountId."
+
+  - task: "Plugin-Based Onboarding Enhancement"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GET /api/onboarding/:token enhanced to include clientTargetSchema (JSON Schema), pluginInstructions (step-by-step array), and verificationMode from plugins. Needs comprehensive testing."
+
+  - task: "Platform-Specific Constraints Testing"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Platform supportedItemTypes validation implemented. Needs testing that Snowflake rejects NAMED_INVITE creation and Google Ads accepts PARTNER_DELEGATION."
 
 test_plan:
   current_focus: []
