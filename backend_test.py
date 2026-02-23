@@ -1,337 +1,381 @@
 #!/usr/bin/env python3
 """
-Backend testing for Plugin-Driven PAM Governance Server-side Validation
-Testing the validateAgainstPluginRules() function in the API route
+Modular Advertising Platform Plugin System Backend Test
+Tests the newly implemented GA4 plugin refactored into modular architecture
 """
 
 import requests
 import json
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, List, Any
 
-# Base URL from environment
+# Backend URL from environment
 BASE_URL = "https://plugin-driven-pam.preview.emergentagent.com"
 
-class PluginValidationTester:
-    def __init__(self, base_url: str):
-        self.base_url = base_url
-        self.session = requests.Session()
-        self.session.headers.update({
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        })
+def make_request(method: str, endpoint: str, data: Dict = None) -> Dict:
+    """Make HTTP request to backend API"""
+    url = f"{BASE_URL}{endpoint}"
     
-    def run_test(self, test_name: str, test_func):
-        """Run a single test and report results"""
-        try:
-            print(f"\n🧪 Testing: {test_name}")
-            result = test_func()
-            if result:
-                print(f"✅ PASS: {test_name}")
-                return True
-            else:
-                print(f"❌ FAIL: {test_name}")
-                return False
-        except Exception as e:
-            print(f"💥 ERROR in {test_name}: {str(e)}")
+    try:
+        if method.upper() == 'GET':
+            response = requests.get(url, timeout=30)
+        elif method.upper() == 'POST':
+            response = requests.post(url, json=data, timeout=30)
+        elif method.upper() == 'PUT':
+            response = requests.put(url, json=data, timeout=30)
+        elif method.upper() == 'DELETE':
+            response = requests.delete(url, timeout=30)
+        elif method.upper() == 'PATCH':
+            response = requests.patch(url, json=data, timeout=30)
+        else:
+            print(f"❌ Unsupported HTTP method: {method}")
+            return {"success": False, "error": f"Unsupported method: {method}"}
+        
+        return response.json() if response.text else {"success": True}
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request failed for {method} {endpoint}: {str(e)}")
+        return {"success": False, "error": str(e)}
+    except json.JSONDecodeError as e:
+        print(f"❌ Invalid JSON response for {method} {endpoint}: {str(e)}")
+        return {"success": False, "error": f"Invalid JSON: {str(e)}"}
+
+def test_plugin_api_verification():
+    """Test Plugin API Verification"""
+    print("\n🔍 Testing Plugin API Verification...")
+    
+    # Test GET /api/plugins - should list all 15 plugins
+    print("1. Testing GET /api/plugins")
+    result = make_request('GET', '/api/plugins')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get plugins: {result.get('error')}")
+        return False
+    
+    plugins = result.get('data', [])
+    print(f"✅ Found {len(plugins)} plugins")
+    
+    if len(plugins) != 15:
+        print(f"❌ Expected 15 plugins, got {len(plugins)}")
+        return False
+    
+    # Test GET /api/plugins/ga4 - should return GA4 plugin with version 2.1.0
+    print("2. Testing GET /api/plugins/ga4")
+    result = make_request('GET', '/api/plugins/ga4')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get GA4 plugin: {result.get('error')}")
+        return False
+    
+    ga4_plugin = result.get('data', {})
+    manifest = ga4_plugin.get('manifest', {})
+    
+    # Verify GA4 plugin details
+    if manifest.get('pluginVersion') != '2.1.0':
+        print(f"❌ Expected GA4 version 2.1.0, got {manifest.get('pluginVersion')}")
+        return False
+    
+    print(f"✅ GA4 plugin version: {manifest.get('pluginVersion')}")
+    
+    # Verify GA4 manifest includes required fields
+    supported_types = manifest.get('supportedAccessItemTypes', [])
+    security_caps = manifest.get('securityCapabilities', {})
+    automation_caps = manifest.get('automationCapabilities', {})
+    
+    # Check supportedAccessItemTypes includes NAMED_INVITE, GROUP_ACCESS, SHARED_ACCOUNT
+    expected_types = ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT']
+    found_types = []
+    
+    for item_type in supported_types:
+        if isinstance(item_type, dict):
+            found_types.append(item_type.get('type'))
+        else:
+            found_types.append(item_type)
+    
+    for expected in expected_types:
+        if expected not in found_types:
+            print(f"❌ Missing access item type: {expected}")
             return False
     
-    def get_meta_platform_id(self) -> Optional[str]:
-        """Get a Meta platform ID for testing"""
-        try:
-            response = self.session.get(f"{self.base_url}/api/agency/platforms")
-            if response.status_code == 200:
-                platforms = response.json().get('data', [])
-                for platform in platforms:
-                    if platform.get('platform', {}).get('name', '').lower() in ['meta', 'facebook', 'meta business manager']:
-                        return platform['id']
-            
-            # If no existing Meta platform, create one
-            # First get Meta platform from catalog
-            catalog_response = self.session.get(f"{self.base_url}/api/platforms")
-            if catalog_response.status_code != 200:
-                print(f"Failed to get platforms catalog: {catalog_response.status_code}")
-                return None
-                
-            catalog_platforms = catalog_response.json().get('data', [])
-            meta_platform = None
-            for platform in catalog_platforms:
-                if 'meta' in platform.get('name', '').lower() or 'facebook' in platform.get('name', '').lower():
-                    meta_platform = platform
-                    break
-            
-            if not meta_platform:
-                print("Meta platform not found in catalog")
-                return None
-            
-            # Create agency platform
-            create_response = self.session.post(f"{self.base_url}/api/agency/platforms", json={
-                'platformId': meta_platform['id']
-            })
-            
-            if create_response.status_code == 200:
-                return create_response.json()['data']['id']
-            else:
-                print(f"Failed to create agency platform: {create_response.status_code}")
-                return None
-                
-        except Exception as e:
-            print(f"Error getting Meta platform ID: {e}")
-            return None
+    print(f"✅ GA4 supports access types: {found_types}")
     
-    def test_1_plugin_driven_item_type_validation(self) -> bool:
-        """
-        Test Case 1: Plugin-Driven Item Type Validation
-        - Find a Meta platform ID
-        - POST to /api/agency/platforms/{id}/items with itemType: "PROXY_TOKEN" (which Meta doesn't support)
-        - Expected: 400 error with message about unsupported item type
-        - Meta only supports: PARTNER_DELEGATION, NAMED_INVITE, SHARED_ACCOUNT
-        """
-        meta_platform_id = self.get_meta_platform_id()
-        if not meta_platform_id:
-            print("Could not get Meta platform ID")
-            return False
-        
-        print(f"Using Meta platform ID: {meta_platform_id}")
-        
-        # Try to create PROXY_TOKEN item (unsupported by Meta)
-        response = self.session.post(
-            f"{self.base_url}/api/agency/platforms/{meta_platform_id}/items",
-            json={
-                "itemType": "PROXY_TOKEN",
-                "label": "Test Proxy Token",
-                "role": "admin",
-                "agencyConfigJson": {
-                    "businessManagerId": "123456789"
-                }
-            }
-        )
-        
-        if response.status_code != 400:
-            print(f"Expected 400, got {response.status_code}: {response.text}")
-            return False
-        
-        error_data = response.json()
-        error_message = error_data.get('error', '')
-        
-        if 'not supported' not in error_message.lower() and 'proxy_token' in error_message.lower():
-            print(f"Expected error about unsupported item type, got: {error_message}")
-            return False
-        
-        print(f"✅ Correctly rejected PROXY_TOKEN for Meta: {error_message}")
-        return True
+    # Check securityCapabilities has pamRecommendation
+    if 'pamRecommendation' not in security_caps:
+        print("❌ Missing pamRecommendation in securityCapabilities")
+        return False
     
-    def test_2_plugin_driven_role_template_validation(self) -> bool:
-        """
-        Test Case 2: Plugin-Driven Role Template Validation
-        - POST to /api/agency/platforms/{id}/items with itemType: "PARTNER_DELEGATION" and role: "superuser"
-        - Expected: 400 error about invalid role
-        - Meta PARTNER_DELEGATION only allows: 'admin', 'analyst'
-        """
-        meta_platform_id = self.get_meta_platform_id()
-        if not meta_platform_id:
-            print("Could not get Meta platform ID")
-            return False
-        
-        # Try to create PARTNER_DELEGATION with invalid role
-        response = self.session.post(
-            f"{self.base_url}/api/agency/platforms/{meta_platform_id}/items",
-            json={
-                "itemType": "PARTNER_DELEGATION",
-                "label": "Test Partner Delegation",
-                "role": "superuser",  # Invalid role for Meta
-                "agencyData": {
-                    "businessManagerId": "123456789012345"  # Include in agencyData for validation
-                },
-                "agencyConfigJson": {
-                    "businessManagerId": "123456789012345"  # Also include in agencyConfigJson
-                }
-            }
-        )
-        
-        if response.status_code != 400:
-            print(f"Expected 400, got {response.status_code}: {response.text}")
-            return False
-        
-        error_data = response.json()
-        error_message = error_data.get('error', '')
-        
-        if 'role' not in error_message.lower() or 'not allowed' not in error_message.lower():
-            print(f"Expected error about invalid role, got: {error_message}")
-            return False
-        
-        print(f"✅ Correctly rejected invalid role 'superuser': {error_message}")
-        return True
+    print(f"✅ GA4 pamRecommendation: {security_caps.get('pamRecommendation')}")
     
-    def test_3_pam_confirmation_validation(self) -> bool:
-        """
-        Test Case 3: PAM Confirmation Validation (for SHARED_ACCOUNT)
-        - POST to /api/agency/platforms/{id}/items with:
-          - itemType: "SHARED_ACCOUNT" 
-          - agencyConfigJson: { pamOwnership: "AGENCY_OWNED" } (missing pamConfirmation)
-        - Expected: 400 error requiring PAM confirmation
-        """
-        meta_platform_id = self.get_meta_platform_id()
-        if not meta_platform_id:
-            print("Could not get Meta platform ID")
-            return False
-        
-        # Try to create SHARED_ACCOUNT without PAM confirmation
-        response = self.session.post(
-            f"{self.base_url}/api/agency/platforms/{meta_platform_id}/items",
-            json={
-                "itemType": "SHARED_ACCOUNT",
-                "label": "Test Shared Account",
-                "role": "admin",
-                "agencyConfigJson": {
-                    "pamOwnership": "AGENCY_OWNED"
-                    # Missing pamConfirmation
-                }
-            }
-        )
-        
-        if response.status_code != 400:
-            print(f"Expected 400, got {response.status_code}: {response.text}")
-            return False
-        
-        error_data = response.json()
-        error_message = error_data.get('error', '')
-        
-        if 'pam confirmation' not in error_message.lower():
-            print(f"Expected error about PAM confirmation, got: {error_message}")
-            return False
-        
-        print(f"✅ Correctly required PAM confirmation: {error_message}")
-        return True
+    # Check automationCapabilities exists
+    if not automation_caps:
+        print("❌ Missing automationCapabilities")
+        return False
     
-    def test_4_agency_config_asset_separation(self) -> bool:
-        """
-        Test Case 4: Agency Config Asset Separation
-        - POST to /api/agency/platforms/{id}/items with:
-          - agencyConfigJson containing "clientAccountId" or similar client asset fields
-        - Expected: 400 error about client-side asset IDs not allowed
-        """
-        meta_platform_id = self.get_meta_platform_id()
-        if not meta_platform_id:
-            print("Could not get Meta platform ID")
-            return False
-        
-        # Try to create item with client asset ID in agency config
-        response = self.session.post(
-            f"{self.base_url}/api/agency/platforms/{meta_platform_id}/items",
-            json={
-                "itemType": "PARTNER_DELEGATION",
-                "label": "Test Asset Separation",
-                "role": "admin",
-                "agencyData": {
-                    "businessManagerId": "123456789012345",
-                    "clientAccountId": "client-account-123"  # This should be rejected
-                },
-                "agencyConfigJson": {
-                    "businessManagerId": "123456789012345",  
-                    "clientAccountId": "client-account-123"  # This should be rejected
-                }
-            }
-        )
-        
-        if response.status_code != 400:
-            print(f"Expected 400, got {response.status_code}: {response.text}")
-            return False
-        
-        error_data = response.json()
-        error_message = error_data.get('error', '')
-        
-        if 'client-side asset' not in error_message.lower() and 'clientaccountid' not in error_message.lower():
-            print(f"Expected error about client-side assets, got: {error_message}")
-            return False
-        
-        print(f"✅ Correctly rejected client asset ID in agency config: {error_message}")
-        return True
+    print("✅ GA4 automationCapabilities present")
     
-    def test_5_valid_creation_control_test(self) -> bool:
-        """
-        Test Case 5: Valid Creation (Control Test)
-        - POST to /api/agency/platforms/{id}/items with valid data:
-          - itemType: "PARTNER_DELEGATION"
-          - label: "Test Partner Access"
-          - role: "admin"
-          - agencyConfigJson: { businessManagerId: "123456789" }
-        - Expected: 200 success
-        """
-        meta_platform_id = self.get_meta_platform_id()
-        if not meta_platform_id:
-            print("Could not get Meta platform ID")
-            return False
-        
-        # Try to create valid item
-        response = self.session.post(
-            f"{self.base_url}/api/agency/platforms/{meta_platform_id}/items",
-            json={
-                "itemType": "PARTNER_DELEGATION",
-                "label": "Test Partner Access",
-                "role": "admin",  # Valid role
-                "agencyData": {
-                    "businessManagerId": "123456789012345"  # Valid agency config
-                },
-                "agencyConfigJson": {
-                    "businessManagerId": "123456789012345"  # Valid agency config with longer ID
-                }
-            }
-        )
-        
-        if response.status_code not in [200, 201]:
-            print(f"Expected 200/201, got {response.status_code}: {response.text}")
-            return False
-        
-        response_data = response.json()
-        if not response_data.get('success'):
-            print(f"Response indicated failure: {response_data}")
-            return False
-        
-        print(f"✅ Successfully created valid item: {response_data.get('data', {}).get('id', 'unknown')}")
-        return True
+    return True
+
+def test_schema_generation():
+    """Test Schema Generation endpoints"""
+    print("\n🔍 Testing Schema Generation...")
+    
+    # Test NAMED_INVITE schema - should return schema with humanIdentityStrategy field
+    print("1. Testing GET /api/plugins/ga4/schema/agency-config?accessItemType=NAMED_INVITE")
+    result = make_request('GET', '/api/plugins/ga4/schema/agency-config?accessItemType=NAMED_INVITE')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get NAMED_INVITE schema: {result.get('error')}")
+        return False
+    
+    schema = result.get('data', {})
+    properties = schema.get('properties', {})
+    
+    if 'humanIdentityStrategy' not in properties:
+        print("❌ Missing humanIdentityStrategy field in NAMED_INVITE schema")
+        return False
+    
+    print("✅ NAMED_INVITE schema includes humanIdentityStrategy field")
+    
+    # Test GROUP_ACCESS schema - should return schema with serviceAccountEmail field
+    print("2. Testing GET /api/plugins/ga4/schema/agency-config?accessItemType=GROUP_ACCESS")
+    result = make_request('GET', '/api/plugins/ga4/schema/agency-config?accessItemType=GROUP_ACCESS')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get GROUP_ACCESS schema: {result.get('error')}")
+        return False
+    
+    schema = result.get('data', {})
+    properties = schema.get('properties', {})
+    
+    if 'serviceAccountEmail' not in properties:
+        print("❌ Missing serviceAccountEmail field in GROUP_ACCESS schema")
+        return False
+    
+    print("✅ GROUP_ACCESS schema includes serviceAccountEmail field")
+    
+    # Test SHARED_ACCOUNT schema - should return PAM schema with specific fields
+    print("3. Testing GET /api/plugins/ga4/schema/agency-config?accessItemType=SHARED_ACCOUNT")
+    result = make_request('GET', '/api/plugins/ga4/schema/agency-config?accessItemType=SHARED_ACCOUNT')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get SHARED_ACCOUNT schema: {result.get('error')}")
+        return False
+    
+    schema = result.get('data', {})
+    properties = schema.get('properties', {})
+    
+    # Check for PAM schema fields
+    expected_pam_fields = ['pamOwnership', 'identityPurpose', 'identityStrategy', 'agencyIdentityId']
+    missing_fields = []
+    
+    for field in expected_pam_fields:
+        if field not in properties:
+            missing_fields.append(field)
+    
+    if missing_fields:
+        print(f"❌ Missing PAM schema fields: {missing_fields}")
+        return False
+    
+    print(f"✅ SHARED_ACCOUNT schema includes PAM fields: {list(properties.keys())}")
+    
+    return True
+
+def test_pam_schema_validation():
+    """Test PAM Schema Validation Rules via API calls"""
+    print("\n🔍 Testing PAM Schema Validation Rules...")
+    
+    # Test pamOwnership is required
+    print("1. Testing pamOwnership requirement")
+    test_config = {"identityPurpose": "HUMAN_INTERACTIVE"}
+    result = make_request('POST', '/api/plugins/ga4/validate/agency-config', {
+        'accessItemType': 'SHARED_ACCOUNT',
+        'config': test_config
+    })
+    
+    if result.get('success') and result.get('data', {}).get('valid', True):
+        print("❌ Should have failed validation without pamOwnership")
+        return False
+    
+    print("✅ Correctly rejects config without pamOwnership")
+    
+    # Test AGENCY_OWNED requires identityPurpose
+    print("2. Testing AGENCY_OWNED requires identityPurpose")
+    test_config = {"pamOwnership": "AGENCY_OWNED"}
+    result = make_request('POST', '/api/plugins/ga4/validate/agency-config', {
+        'accessItemType': 'SHARED_ACCOUNT',
+        'config': test_config
+    })
+    
+    if result.get('success') and result.get('data', {}).get('valid', True):
+        print("❌ Should have failed validation without identityPurpose for AGENCY_OWNED")
+        return False
+    
+    print("✅ Correctly rejects AGENCY_OWNED config without identityPurpose")
+    
+    # Test HUMAN_INTERACTIVE requires identityStrategy
+    print("3. Testing HUMAN_INTERACTIVE requires identityStrategy")
+    test_config = {
+        "pamOwnership": "AGENCY_OWNED",
+        "identityPurpose": "HUMAN_INTERACTIVE"
+    }
+    result = make_request('POST', '/api/plugins/ga4/validate/agency-config', {
+        'accessItemType': 'SHARED_ACCOUNT',
+        'config': test_config
+    })
+    
+    if result.get('success') and result.get('data', {}).get('valid', True):
+        print("❌ Should have failed validation without identityStrategy for HUMAN_INTERACTIVE")
+        return False
+    
+    print("✅ Correctly rejects HUMAN_INTERACTIVE config without identityStrategy")
+    
+    # Test STATIC_AGENCY_IDENTITY requires agencyIdentityId
+    print("4. Testing STATIC_AGENCY_IDENTITY requires agencyIdentityId")
+    test_config = {
+        "pamOwnership": "AGENCY_OWNED",
+        "identityPurpose": "HUMAN_INTERACTIVE",
+        "identityStrategy": "STATIC_AGENCY_IDENTITY"
+    }
+    result = make_request('POST', '/api/plugins/ga4/validate/agency-config', {
+        'accessItemType': 'SHARED_ACCOUNT',
+        'config': test_config
+    })
+    
+    if result.get('success') and result.get('data', {}).get('valid', True):
+        print("❌ Should have failed validation without agencyIdentityId for STATIC_AGENCY_IDENTITY")
+        return False
+    
+    print("✅ Correctly rejects STATIC_AGENCY_IDENTITY config without agencyIdentityId")
+    
+    # Test CLIENT_DEDICATED_IDENTITY requires pamNamingTemplate
+    print("5. Testing CLIENT_DEDICATED_IDENTITY requires pamNamingTemplate")
+    test_config = {
+        "pamOwnership": "AGENCY_OWNED",
+        "identityPurpose": "HUMAN_INTERACTIVE",
+        "identityStrategy": "CLIENT_DEDICATED_IDENTITY"
+    }
+    result = make_request('POST', '/api/plugins/ga4/validate/agency-config', {
+        'accessItemType': 'SHARED_ACCOUNT',
+        'config': test_config
+    })
+    
+    if result.get('success') and result.get('data', {}).get('valid', True):
+        print("❌ Should have failed validation without pamNamingTemplate for CLIENT_DEDICATED_IDENTITY")
+        return False
+    
+    print("✅ Correctly rejects CLIENT_DEDICATED_IDENTITY config without pamNamingTemplate")
+    
+    return True
+
+def test_client_target_schema():
+    """Test Client Target Schema endpoints"""
+    print("\n🔍 Testing Client Target Schema...")
+    
+    # Test SHARED_ACCOUNT client target schema - should include propertyId as required
+    print("1. Testing GET /api/plugins/ga4/schema/client-target?accessItemType=SHARED_ACCOUNT")
+    result = make_request('GET', '/api/plugins/ga4/schema/client-target?accessItemType=SHARED_ACCOUNT')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get SHARED_ACCOUNT client target schema: {result.get('error')}")
+        return False
+    
+    schema = result.get('data', {})
+    properties = schema.get('properties', {})
+    required_fields = schema.get('required', [])
+    
+    if 'propertyId' not in properties:
+        print("❌ Missing propertyId field in SHARED_ACCOUNT client target schema")
+        return False
+    
+    if 'propertyId' not in required_fields:
+        print("❌ propertyId is not required in SHARED_ACCOUNT client target schema")
+        return False
+    
+    print("✅ SHARED_ACCOUNT client target schema includes propertyId as required field")
+    
+    return True
+
+def test_other_plugin_integrity():
+    """Test Other Plugin Integrity - verify other plugins still work"""
+    print("\n🔍 Testing Other Plugin Integrity...")
+    
+    # Test Meta plugin - should return v2.0.0
+    print("1. Testing GET /api/plugins/meta")
+    result = make_request('GET', '/api/plugins/meta')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get Meta plugin: {result.get('error')}")
+        return False
+    
+    meta_plugin = result.get('data', {})
+    manifest = meta_plugin.get('manifest', {})
+    
+    if manifest.get('pluginVersion') != '2.0.0':
+        print(f"❌ Expected Meta version 2.0.0, got {manifest.get('pluginVersion')}")
+        return False
+    
+    print(f"✅ Meta plugin version: {manifest.get('pluginVersion')}")
+    
+    # Test Google Ads plugin - should return v2.0.0
+    print("2. Testing GET /api/plugins/google-ads")
+    result = make_request('GET', '/api/plugins/google-ads')
+    
+    if not result.get('success'):
+        print(f"❌ Failed to get Google Ads plugin: {result.get('error')}")
+        return False
+    
+    google_ads_plugin = result.get('data', {})
+    manifest = google_ads_plugin.get('manifest', {})
+    
+    if manifest.get('pluginVersion') != '2.0.0':
+        print(f"❌ Expected Google Ads version 2.0.0, got {manifest.get('pluginVersion')}")
+        return False
+    
+    print(f"✅ Google Ads plugin version: {manifest.get('pluginVersion')}")
+    
+    return True
 
 def main():
-    print("🚀 Starting Plugin-Driven PAM Governance Server-side Validation Testing")
-    print(f"Base URL: {BASE_URL}")
+    """Run all tests for Modular Advertising Platform Plugin System"""
+    print("🚀 Starting Modular Advertising Platform Plugin System Backend Tests")
+    print(f"Backend URL: {BASE_URL}")
     
-    tester = PluginValidationTester(BASE_URL)
-    
-    test_results = []
-    
-    # Run all test cases
     tests = [
-        ("Plugin-Driven Item Type Validation", tester.test_1_plugin_driven_item_type_validation),
-        ("Plugin-Driven Role Template Validation", tester.test_2_plugin_driven_role_template_validation),
-        ("PAM Confirmation Validation", tester.test_3_pam_confirmation_validation),
-        ("Agency Config Asset Separation", tester.test_4_agency_config_asset_separation),
-        ("Valid Creation (Control Test)", tester.test_5_valid_creation_control_test),
+        ("Plugin API Verification", test_plugin_api_verification),
+        ("Schema Generation", test_schema_generation),
+        ("PAM Schema Validation Rules", test_pam_schema_validation),
+        ("Client Target Schema", test_client_target_schema),
+        ("Other Plugin Integrity", test_other_plugin_integrity),
     ]
     
+    passed = 0
+    total = len(tests)
+    
     for test_name, test_func in tests:
-        result = tester.run_test(test_name, test_func)
-        test_results.append((test_name, result))
+        try:
+            print(f"\n{'='*60}")
+            print(f"🧪 Running: {test_name}")
+            print('='*60)
+            
+            if test_func():
+                print(f"✅ {test_name}: PASSED")
+                passed += 1
+            else:
+                print(f"❌ {test_name}: FAILED")
+                
+        except Exception as e:
+            print(f"❌ {test_name}: ERROR - {str(e)}")
     
-    # Summary
     print(f"\n{'='*60}")
-    print("🏁 PLUGIN-DRIVEN PAM GOVERNANCE VALIDATION TEST SUMMARY")
-    print(f"{'='*60}")
-    
-    passed = sum(1 for _, result in test_results if result)
-    total = len(test_results)
-    
-    for test_name, result in test_results:
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{status}: {test_name}")
-    
-    print(f"\n📊 RESULTS: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
+    print(f"🏁 Test Results: {passed}/{total} tests passed")
+    print('='*60)
     
     if passed == total:
-        print("🎉 ALL TESTS PASSED! Plugin-driven PAM governance validation is working correctly.")
-        return 0
+        print("🎉 All tests passed! The Modular Advertising Platform Plugin System is working correctly.")
+        return True
     else:
-        print("⚠️  SOME TESTS FAILED! Please review the validation logic.")
-        return 1
+        print(f"⚠️  {total - passed} test(s) failed. Please review the issues above.")
+        return False
 
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == '__main__':
+    success = main()
+    sys.exit(0 if success else 1)
