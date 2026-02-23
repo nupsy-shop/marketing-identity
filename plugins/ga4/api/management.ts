@@ -192,6 +192,44 @@ export async function checkUserAccess(
 // ─── Combined Operations ───────────────────────────────────────────────────
 
 /**
+ * List all account summaries (efficient endpoint for discovering accounts/properties)
+ * This is the preferred method for target discovery as it's a single API call
+ */
+export interface AccountSummary {
+  name: string;
+  account: string;
+  displayName: string;
+  propertySummaries?: PropertySummary[];
+}
+
+export interface PropertySummary {
+  property: string;
+  displayName: string;
+  name?: string;
+  parent?: string;
+}
+
+export async function listAllAccountSummaries(auth: AuthResult): Promise<AccountSummary[]> {
+  const client = createClient(auth);
+  const summaries: AccountSummary[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const params = pageToken ? `?pageToken=${pageToken}` : '';
+    const response = await client.get<{ accountSummaries?: AccountSummary[]; nextPageToken?: string }>(
+      `/accountSummaries${params}`
+    );
+    
+    if (response.accountSummaries) {
+      summaries.push(...response.accountSummaries);
+    }
+    pageToken = response.nextPageToken;
+  } while (pageToken);
+
+  return summaries;
+}
+
+/**
  * Get all accounts with their properties as a flat list
  */
 export async function getAllAccountsAndProperties(auth: AuthResult): Promise<Account[]> {
