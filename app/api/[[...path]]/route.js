@@ -732,6 +732,58 @@ export async function GET(request, { params }) {
       });
     }
 
+    // GET /api/plugins/:platformKey/capabilities - Get access type capabilities for a platform
+    if (path.match(/^plugins\/[^/]+\/capabilities$/)) {
+      const platformKey = path.split('/')[1];
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          platformKey,
+          accessTypeCapabilities: plugin.manifest.accessTypeCapabilities || {},
+          supportedAccessItemTypes: plugin.manifest.supportedAccessItemTypes?.map(t => ({
+            type: t.type,
+            label: t.label,
+            description: t.description,
+            roleTemplates: t.roleTemplates
+          })) || [],
+          automationCapabilities: plugin.manifest.automationCapabilities,
+          securityCapabilities: plugin.manifest.securityCapabilities
+        }
+      });
+    }
+
+    // GET /api/plugins/:platformKey/capabilities/:accessItemType - Get specific access type capability
+    if (path.match(/^plugins\/[^/]+\/capabilities\/[^/]+$/)) {
+      const parts = path.split('/');
+      const platformKey = parts[1];
+      const accessItemType = parts[3];
+      
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      const capabilities = getAccessTypeCapability(plugin.manifest, accessItemType);
+      const itemTypeMeta = plugin.manifest.supportedAccessItemTypes?.find(t => t.type === accessItemType);
+
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          platformKey,
+          accessItemType,
+          capabilities,
+          roleTemplates: itemTypeMeta?.roleTemplates || [],
+          label: itemTypeMeta?.label,
+          description: itemTypeMeta?.description
+        }
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('GET error:', error);
