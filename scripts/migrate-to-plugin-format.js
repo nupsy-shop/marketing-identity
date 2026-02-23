@@ -174,22 +174,21 @@ async function migrate() {
     const result = await client.query(`
       SELECT 
         ai.id,
-        ai.item_type,
+        ai."itemType" as item_type,
         ai.role,
-        ai.agency_data,
-        ai.human_identity_strategy,
-        ai.agency_group_email,
-        ai.identity_purpose,
-        ai.integration_identity_id,
-        ai.naming_template,
-        ai.pam_config,
+        ai."agencyData" as agency_data,
+        ai."humanIdentityStrategy" as human_identity_strategy,
+        ai."agencyGroupEmail" as agency_group_email,
+        ai."identityPurpose" as identity_purpose,
+        ai."integrationIdentityId" as integration_identity_id,
+        ai."pamConfig" as pam_config,
         ai.agency_config_json,
         ai.platform_key,
         ai.migration_status,
         cp.name as platform_name
       FROM access_items ai
-      LEFT JOIN agency_platforms ap ON ai.agency_platform_id = ap.id
-      LEFT JOIN catalog_platforms cp ON ap.platform_id = cp.id
+      LEFT JOIN agency_platforms ap ON ai."agencyPlatformId" = ap.id
+      LEFT JOIN catalog_platforms cp ON ap."platformId" = cp.id
       WHERE ai.migration_status IS NULL OR ai.migration_status = 'LEGACY'
     `);
     
