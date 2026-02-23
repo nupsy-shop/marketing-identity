@@ -1063,39 +1063,64 @@ export default function PlatformConfigPage() {
                   {/* Basic Fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-medium">
+                      <Label htmlFor="item-label" className="text-sm font-medium">
                         Label <span className="text-destructive">*</span>
                       </Label>
                       <Input
+                        id="item-label"
                         value={formLabel}
-                        onChange={(e) => setFormLabel(e.target.value)}
+                        onChange={(e) => {
+                          setFormLabel(e.target.value);
+                          if (labelError) setLabelError('');
+                        }}
                         placeholder="e.g., Standard Analytics Access"
-                        className="mt-1"
+                        className={`mt-1 ${labelError ? 'border-destructive' : ''}`}
+                        aria-invalid={!!labelError}
+                        aria-describedby={labelError ? 'label-error' : 'label-hint'}
                       />
-                      <p className="text-xs text-muted-foreground mt-1">A friendly name for this access template</p>
+                      {labelError ? (
+                        <p id="label-error" className="text-xs text-destructive mt-1 flex items-center gap-1">
+                          <i className="fas fa-exclamation-circle" aria-hidden="true"></i>
+                          {labelError}
+                        </p>
+                      ) : (
+                        <p id="label-hint" className="text-xs text-muted-foreground mt-1">A friendly name for this access template (3-100 chars)</p>
+                      )}
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">
+                      <Label htmlFor="role-select" className="text-sm font-medium">
                         Role Template <span className="text-destructive">*</span>
                       </Label>
                       <select
+                        id="role-select"
                         className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
                         value={selectedRole}
                         onChange={(e) => setSelectedRole(e.target.value)}
+                        aria-describedby="role-hint"
                       >
                         <option value="">Select role...</option>
-                        {roleTemplates.map(role => (
-                          <option key={role.key} value={role.key}>{role.label}</option>
-                        ))}
+                        <optgroup label="Platform Roles">
+                          {roleTemplates.map(role => (
+                            <option key={role.key} value={role.key}>{role.label}</option>
+                          ))}
+                        </optgroup>
+                        {customRoles.length > 0 && (
+                          <optgroup label="Custom Roles">
+                            {customRoles.map(role => (
+                              <option key={role.key} value={role.key}>{role.label} (Custom)</option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
-                      <p className="text-xs text-muted-foreground mt-1">Permission level to request</p>
+                      <p id="role-hint" className="text-xs text-muted-foreground mt-1">Permission level to request</p>
                     </div>
                   </div>
 
                   {/* Notes */}
                   <div>
-                    <Label className="text-sm font-medium">Notes (Optional)</Label>
+                    <Label htmlFor="item-notes" className="text-sm font-medium">Notes (Optional)</Label>
                     <Input
+                      id="item-notes"
                       value={formNotes}
                       onChange={(e) => setFormNotes(e.target.value)}
                       placeholder="Internal notes about this access template"
@@ -1115,7 +1140,7 @@ export default function PlatformConfigPage() {
                     />
                   ) : (
                     <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground">
-                      <i className="fas fa-info-circle mr-2"></i>
+                      <i className="fas fa-info-circle mr-2" aria-hidden="true"></i>
                       No additional configuration required for this access type
                     </div>
                   )}
