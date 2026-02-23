@@ -2084,6 +2084,30 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ success: true, data: updated });
     }
 
+    // PATCH /api/oauth/tokens/:id - Update OAuth token
+    if (path.match(/^oauth\/tokens\/[^/]+$/)) {
+      const tokenId = path.split('/')[2];
+      const token = await db.getOAuthTokenById(tokenId);
+      if (!token) {
+        return NextResponse.json({ success: false, error: 'OAuth token not found' }, { status: 404 });
+      }
+      
+      const allowedUpdates = ['isActive', 'metadata', 'scope', 'tenantId', 'tenantType'];
+      const updates = {};
+      for (const key of allowedUpdates) {
+        if (body[key] !== undefined) {
+          updates[key] = body[key];
+        }
+      }
+      
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json({ success: false, error: 'No valid updates provided' }, { status: 400 });
+      }
+      
+      const updated = await db.updateOAuthToken(tokenId, updates);
+      return NextResponse.json({ success: true, data: updated });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('PATCH error:', error);
