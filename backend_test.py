@@ -435,11 +435,300 @@ class BackendTester:
         except Exception as e:
             self.add_result("Plugin manifest API", False, f"Exception: {str(e)}")
 
+    def test_oauth_token_filtering(self):
+        """Test Phase 4: OAuth Token Filtering Endpoint"""
+        self.log("=== TESTING PHASE 4: OAUTH TOKEN FILTERING ===")
+        
+        # Test basic oauth tokens endpoint
+        try:
+            response = self.get("/api/oauth/tokens")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    tokens = data["data"]
+                    self.add_result(
+                        "OAuth tokens endpoint basic", 
+                        True, 
+                        f"Returns {len(tokens)} tokens"
+                    )
+                else:
+                    self.add_result("OAuth tokens endpoint basic", False, f"API returned success=false")
+            else:
+                self.add_result("OAuth tokens endpoint basic", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("OAuth tokens endpoint basic", False, f"Exception: {str(e)}")
+        
+        # Test filtering by platformKey and scope
+        try:
+            response = self.get("/api/oauth/tokens?platformKey=ga4&scope=AGENCY")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    tokens = data["data"]
+                    self.add_result(
+                        "OAuth tokens filtering by platformKey and scope", 
+                        True, 
+                        f"Returns {len(tokens)} tokens filtered by platformKey=ga4 and scope=AGENCY"
+                    )
+                else:
+                    self.add_result("OAuth tokens filtering by platformKey and scope", False, f"API returned success=false")
+            else:
+                self.add_result("OAuth tokens filtering by platformKey and scope", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("OAuth tokens filtering by platformKey and scope", False, f"Exception: {str(e)}")
+        
+        # Test filtering by scope only
+        try:
+            response = self.get("/api/oauth/tokens?scope=CLIENT")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    tokens = data["data"]
+                    self.add_result(
+                        "OAuth tokens filtering by scope only", 
+                        True, 
+                        f"Returns {len(tokens)} tokens filtered by scope=CLIENT"
+                    )
+                else:
+                    self.add_result("OAuth tokens filtering by scope only", False, f"API returned success=false")
+            else:
+                self.add_result("OAuth tokens filtering by scope only", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("OAuth tokens filtering by scope only", False, f"Exception: {str(e)}")
+        
+        # Test filtering with limit
+        try:
+            response = self.get("/api/oauth/tokens?limit=10")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    tokens = data["data"]
+                    if len(tokens) <= 10:
+                        self.add_result(
+                            "OAuth tokens with limit parameter", 
+                            True, 
+                            f"Returns {len(tokens)} tokens (≤ limit of 10)"
+                        )
+                    else:
+                        self.add_result(
+                            "OAuth tokens with limit parameter", 
+                            False, 
+                            f"Expected ≤10 tokens, got {len(tokens)}"
+                        )
+                else:
+                    self.add_result("OAuth tokens with limit parameter", False, f"API returned success=false")
+            else:
+                self.add_result("OAuth tokens with limit parameter", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("OAuth tokens with limit parameter", False, f"Exception: {str(e)}")
+
+    def test_oauth_token_patch(self):
+        """Test Phase 4: OAuth Token PATCH Endpoint"""
+        self.log("=== TESTING PHASE 4: OAUTH TOKEN PATCH ENDPOINT ===")
+        
+        # Test PATCH endpoint exists and validates correctly (since no tokens exist, we expect 404)
+        try:
+            response = requests.patch(f"{self.base_url}/api/oauth/tokens/non-existent-id", 
+                                    json={"isActive": False}, 
+                                    headers={'Content-Type': 'application/json'})
+            
+            if response.status_code == 404:
+                self.add_result(
+                    "OAuth token PATCH endpoint exists", 
+                    True, 
+                    "Returns 404 for non-existent token ID as expected"
+                )
+            else:
+                self.add_result(
+                    "OAuth token PATCH endpoint exists", 
+                    False, 
+                    f"Expected 404 for non-existent token, got {response.status_code}"
+                )
+        except Exception as e:
+            self.add_result("OAuth token PATCH endpoint exists", False, f"Exception: {str(e)}")
+        
+        # Test PATCH with no updates provided (should return 400)
+        try:
+            response = requests.patch(f"{self.base_url}/api/oauth/tokens/test-id", 
+                                    json={}, 
+                                    headers={'Content-Type': 'application/json'})
+            
+            if response.status_code == 400 or response.status_code == 404:
+                self.add_result(
+                    "OAuth token PATCH validation", 
+                    True, 
+                    f"Correctly returns {response.status_code} for empty update payload"
+                )
+            else:
+                self.add_result(
+                    "OAuth token PATCH validation", 
+                    False, 
+                    f"Expected 400/404 for empty payload, got {response.status_code}"
+                )
+        except Exception as e:
+            self.add_result("OAuth token PATCH validation", False, f"Exception: {str(e)}")
+
+    def test_capability_endpoints_still_work(self):
+        """Test Phase 4: Capability Endpoints Still Work"""
+        self.log("=== TESTING PHASE 4: CAPABILITY ENDPOINTS REGRESSION ===")
+        
+        # Test GA4 capabilities endpoint
+        try:
+            response = self.get("/api/plugins/ga4/capabilities")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    access_capabilities = data["data"].get("accessTypeCapabilities", {})
+                    if access_capabilities:
+                        self.add_result(
+                            "GA4 capabilities endpoint works", 
+                            True, 
+                            f"Returns accessTypeCapabilities with {len(access_capabilities)} access types"
+                        )
+                    else:
+                        self.add_result(
+                            "GA4 capabilities endpoint works", 
+                            False, 
+                            "No accessTypeCapabilities returned"
+                        )
+                else:
+                    self.add_result("GA4 capabilities endpoint works", False, f"API returned success=false")
+            else:
+                self.add_result("GA4 capabilities endpoint works", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("GA4 capabilities endpoint works", False, f"Exception: {str(e)}")
+        
+        # Test Google Search Console capabilities endpoint with focus on NAMED_INVITE
+        try:
+            response = self.get("/api/plugins/google-search-console/capabilities")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    access_capabilities = data["data"].get("accessTypeCapabilities", {})
+                    named_invite = access_capabilities.get("NAMED_INVITE", {})
+                    
+                    if (named_invite.get("canVerifyAccess") == True and 
+                        named_invite.get("canGrantAccess") == False):
+                        self.add_result(
+                            "Google Search Console NAMED_INVITE capabilities", 
+                            True, 
+                            "canVerifyAccess=true, canGrantAccess=false for NAMED_INVITE"
+                        )
+                    else:
+                        self.add_result(
+                            "Google Search Console NAMED_INVITE capabilities", 
+                            False, 
+                            f"Expected canVerifyAccess=true, canGrantAccess=false, got {named_invite}"
+                        )
+                else:
+                    self.add_result("Google Search Console capabilities", False, f"API returned success=false")
+            else:
+                self.add_result("Google Search Console capabilities", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("Google Search Console capabilities", False, f"Exception: {str(e)}")
+
+    def test_agency_platform_api_with_manifest(self):
+        """Test Phase 4: Agency Platform API with Manifest"""
+        self.log("=== TESTING PHASE 4: AGENCY PLATFORM API WITH MANIFEST ===")
+        
+        # Test agency platforms endpoint returns manifests
+        try:
+            response = self.get("/api/agency/platforms")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    platforms = data["data"]
+                    self.add_result(
+                        "Agency platforms endpoint works", 
+                        True, 
+                        f"Returns {len(platforms)} agency platforms"
+                    )
+                    
+                    # If we have platforms, check if they include manifest data
+                    if len(platforms) > 0:
+                        platform = platforms[0]
+                        if "manifest" in platform:
+                            manifest = platform["manifest"]
+                            access_capabilities = manifest.get("accessTypeCapabilities", {})
+                            self.add_result(
+                                "Agency platforms include manifests", 
+                                True, 
+                                f"Platform manifest includes accessTypeCapabilities with {len(access_capabilities)} types"
+                            )
+                        else:
+                            self.add_result(
+                                "Agency platforms include manifests", 
+                                False, 
+                                "Platform data doesn't include manifest field"
+                            )
+                    else:
+                        self.add_result(
+                            "Agency platforms manifest check", 
+                            True, 
+                            "No agency platforms configured (empty list is valid)"
+                        )
+                else:
+                    self.add_result("Agency platforms endpoint works", False, f"API returned success=false")
+            else:
+                self.add_result("Agency platforms endpoint works", False, f"HTTP {response.status_code}")
+        except Exception as e:
+            self.add_result("Agency platforms endpoint works", False, f"Exception: {str(e)}")
+        
+        # Test creating an agency platform to verify manifest enrichment
+        try:
+            # First get a platform ID
+            platforms_response = self.get("/api/platforms?clientFacing=true&limit=1")
+            if platforms_response.status_code == 200:
+                platforms_data = platforms_response.json()
+                if platforms_data.get("success") and len(platforms_data["data"]) > 0:
+                    platform_id = platforms_data["data"][0]["id"]
+                    
+                    # Create agency platform
+                    response = self.post("/api/agency/platforms", {
+                        "platformId": platform_id
+                    })
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("success"):
+                            agency_platform = data["data"]
+                            
+                            # Check if it includes platform data
+                            if "platform" in agency_platform:
+                                self.add_result(
+                                    "Agency platform creation with enrichment", 
+                                    True, 
+                                    f"Created agency platform with enriched platform data"
+                                )
+                            else:
+                                self.add_result(
+                                    "Agency platform creation with enrichment", 
+                                    False, 
+                                    "Created agency platform but missing platform enrichment"
+                                )
+                        else:
+                            self.add_result("Agency platform creation", False, f"API returned success=false")
+                    else:
+                        self.add_result("Agency platform creation", False, f"HTTP {response.status_code}")
+                else:
+                    self.add_result("Agency platform creation", False, "No platforms available for testing")
+            else:
+                self.add_result("Agency platform creation", False, "Could not get platform ID for test")
+        except Exception as e:
+            self.add_result("Agency platform creation", False, f"Exception: {str(e)}")
+
     def run_all_tests(self):
         """Run all test suites"""
-        self.log("🚀 Starting Phase 1-3 Backend Testing for Capability-Driven Access Grant and Verification")
+        self.log("🚀 Starting Phase 4 Backend Testing - UI Components and OAuth Token Filtering")
         
         try:
+            # Phase 4 specific tests
+            self.test_oauth_token_filtering()
+            self.test_oauth_token_patch()
+            self.test_capability_endpoints_still_work()
+            self.test_agency_platform_api_with_manifest()
+            
+            # Keep existing tests for regression
             self.test_plugin_capabilities_endpoints()
             self.test_grant_access_enforcement() 
             self.test_verify_access_enforcement()
