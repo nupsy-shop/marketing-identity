@@ -2,7 +2,7 @@
  * Salesforce Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -27,10 +27,33 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
   targetTypes: ['ORG'],
 };
 
+// Salesforce REST APIs support user/permission management
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // Salesforce API can create users
+    canVerifyAccess: true,     // Can query User/PermissionSetAssignment
+    requiresEvidenceUpload: false
+  },
+  GROUP_ACCESS: {
+    clientOAuthSupported: true,
+    canGrantAccess: true,      // Can create integration users
+    canVerifyAccess: true,
+    requiresEvidenceUpload: false
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
+
 export const SALESFORCE_MANIFEST: PluginManifest = {
-  platformKey: 'salesforce', displayName: 'Salesforce', pluginVersion: '2.1.0', category: 'CRM',
+  platformKey: 'salesforce', displayName: 'Salesforce', pluginVersion: '2.2.0', category: 'CRM',
   description: 'Salesforce CRM and Marketing Cloud', tier: 1, clientFacing: true,
   icon: 'fab fa-salesforce', logoPath: '/logos/salesforce.svg', brandColor: '#00A1E0',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default SALESFORCE_MANIFEST;
