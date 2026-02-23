@@ -967,16 +967,26 @@ export async function POST(request, { params }) {
 
     // POST /api/integration-identities - Create integration identity
     if (path === 'integration-identities') {
-      const { name, type, identifier, description, metadata } = body || {};
+      const { name, type, identifier, description, platformId, metadata } = body || {};
       if (!name || !type || !identifier) {
         return NextResponse.json({ success: false, error: 'name, type, and identifier are required' }, { status: 400 });
       }
+      
+      // Validate platformId if provided
+      if (platformId) {
+        const platform = await db.getCatalogPlatformById(platformId);
+        if (!platform) {
+          return NextResponse.json({ success: false, error: 'Invalid platformId - platform not found' }, { status: 400 });
+        }
+      }
+      
       const identity = await db.createIntegrationIdentity({
         id: uuidv4(),
         name,
         type,
         identifier,
         description,
+        platformId: platformId || null,
         isActive: true,
         metadata
       });
