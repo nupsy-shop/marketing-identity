@@ -1068,6 +1068,19 @@ export default function PlatformConfigPage() {
           </Card>
         )}
       </div>
+      
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => !open && setConfirmDialog({ open: false, item: null })}
+        title={`Delete "${confirmDialog.item?.label}"?`}
+        description={`This will permanently delete this access item. Any existing access requests using this item will still work, but no new requests can be created with it.`}
+        confirmLabel="Delete Item"
+        variant="destructive"
+        icon="fas fa-trash"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
+    </TooltipProvider>
   );
 }
