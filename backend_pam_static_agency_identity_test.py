@@ -65,11 +65,11 @@ class PAMStaticAgencyIdentityTester:
                 return False
                 
             platforms = platforms_response.json().get('data', [])
-            # Find a platform that supports SHARED_ACCOUNT or SHARED_ACCOUNT
+            # Find a platform that supports SHARED_ACCOUNT (required for PAM validation tests)
             pam_platform = None
             for platform in platforms:
                 supported_types = platform.get('supportedItemTypes', [])
-                if 'SHARED_ACCOUNT' in supported_types or 'SHARED_ACCOUNT' in supported_types:
+                if 'SHARED_ACCOUNT' in supported_types:
                     pam_platform = platform
                     break
                     
