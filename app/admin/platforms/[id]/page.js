@@ -414,16 +414,19 @@ export default function PlatformConfigPage() {
       
       const data = await res.json();
       if (data.success) {
-        toast({ title: 'Success', description: editingItem ? 'Item updated' : 'Item added' });
+        toast({ 
+          title: editingItem ? '✓ Access Item Updated' : '✓ Access Item Created',
+          description: `"${formattedLabel}" has been ${editingItem ? 'updated' : 'added'} successfully.`
+        });
         setShowAddForm(false);
         setEditingItem(null);
         resetForm();
         fetchData();
       } else {
-        toast({ title: 'Error', description: data.error || 'Failed to save', variant: 'destructive' });
+        toast({ title: 'Error', description: data.error || 'Failed to save. Please try again.', variant: 'destructive' });
       }
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to save item', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to save item. Please check your connection.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -438,6 +441,7 @@ export default function PlatformConfigPage() {
     setFormNotes('');
     setSelectedRole('');
     setValidationErrors({});
+    setLabelError('');
   };
 
   // Handle edit
@@ -447,6 +451,7 @@ export default function PlatformConfigPage() {
     setFormLabel(item.label || '');
     setFormNotes(item.notes || '');
     setSelectedRole(item.role || '');
+    setLabelError('');
     
     // Reconstruct agency config from stored data
     const config = item.agencyConfigJson ? { ...item.agencyConfigJson } : {};
