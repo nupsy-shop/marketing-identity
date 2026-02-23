@@ -269,9 +269,9 @@ async function migrate() {
     
     // Migrate client_provided_target to client_target_json
     const requestItems = await client.query(`
-      SELECT id, client_provided_target 
+      SELECT id, "clientProvidedTarget" as client_provided_target 
       FROM access_request_items 
-      WHERE client_provided_target IS NOT NULL 
+      WHERE "clientProvidedTarget" IS NOT NULL 
       AND (client_target_json IS NULL OR client_target_json = '{}')
     `);
     
