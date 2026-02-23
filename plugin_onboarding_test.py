@@ -102,7 +102,7 @@ class PluginOnboardingTester:
                 return False
             
             # Verify plugin structure
-            if data and not all('platformKey' in plugin and 'manifest' in plugin for plugin in data):
+            if data and not all('platformKey' in plugin and 'displayName' in plugin for plugin in data):
                 self.log_result("Plugin API - List All Plugins", False,
                               "Plugin structure missing required fields")
                 return False
