@@ -375,6 +375,3 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
     </Card>
   );
 }
-
-// Need to add Label import
-import { Label } from '@/components/ui/label';
