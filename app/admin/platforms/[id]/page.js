@@ -718,75 +718,188 @@ export default function PlatformConfigPage() {
 
         {/* Access Items */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <i className="fas fa-layer-group text-primary"></i>
+                <i className="fas fa-layer-group text-primary" aria-hidden="true"></i>
                 Access Items
               </CardTitle>
               <CardDescription>Define reusable access templates for client requests</CardDescription>
             </div>
             <Button onClick={() => { resetForm(); setShowAddForm(true); }}>
-              <i className="fas fa-plus mr-2"></i> Add Access Item
+              <i className="fas fa-plus mr-2" aria-hidden="true"></i> Add Access Item
             </Button>
           </CardHeader>
           <CardContent>
-            {/* Existing items */}
-            {agencyPlatform.accessItems?.length > 0 ? (
-              <div className="space-y-3">
-                {agencyPlatform.accessItems.map(item => {
-                  const typeConfig = ACCESS_ITEM_TYPE_CONFIG[item.itemType] || {};
-                  return (
-                    <div 
-                      key={item.id} 
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-lg bg-${typeConfig.color || 'gray'}-100 flex items-center justify-center`}>
-                          <i className={`${typeConfig.icon || 'fas fa-cog'} text-lg text-${typeConfig.color || 'gray'}-600`}></i>
-                        </div>
-                        <div>
-                          <p className="font-semibold">{item.label}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {typeConfig.label || item.itemType}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              Role: {item.role}
-                            </span>
-                          </div>
-                          {/* Show key agency config details */}
-                          {item.agencyData && Object.keys(item.agencyData).length > 0 && (
-                            <div className="flex gap-2 mt-1">
-                              {Object.entries(item.agencyData).slice(0, 2).map(([key, value]) => (
-                                <Badge key={key} variant="secondary" className="text-xs font-mono">
-                                  {String(value).substring(0, 20)}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                          {item.agencyGroupEmail && (
-                            <Badge variant="secondary" className="text-xs font-mono mt-1">
-                              {item.agencyGroupEmail}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
-                          <i className="fas fa-pen text-muted-foreground"></i>
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
-                          <i className="fas fa-trash text-destructive"></i>
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* Search and Filter Bar - only show if items exist */}
+            {agencyPlatform.accessItems?.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-3 mb-4 pb-4 border-b">
+                <div className="flex-1">
+                  <Label htmlFor="item-search" className="sr-only">Search access items</Label>
+                  <div className="relative">
+                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true"></i>
+                    <Input
+                      id="item-search"
+                      placeholder="Search items..."
+                      value={itemSearchQuery}
+                      onChange={(e) => setItemSearchQuery(e.target.value)}
+                      className="pl-10"
+                      aria-label="Search access items"
+                    />
+                  </div>
+                </div>
+                {availableItemTypes.length > 1 && (
+                  <Select value={itemTypeFilter} onValueChange={setItemTypeFilter}>
+                    <SelectTrigger className="w-[180px]" aria-label="Filter by type">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {availableItemTypes.map(type => (
+                        <SelectItem key={type} value={type}>
+                          {ACCESS_ITEM_TYPE_CONFIG[type]?.label || type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Select value={itemSortBy} onValueChange={setItemSortBy}>
+                  <SelectTrigger className="w-[150px]" aria-label="Sort by">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="label">By Name</SelectItem>
+                    <SelectItem value="type">By Type</SelectItem>
+                    <SelectItem value="role">By Role</SelectItem>
+                    <SelectItem value="date">By Date</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+            )}
+            
+            {/* Items list */}
+            {agencyPlatform.accessItems?.length > 0 ? (
+              <>
+                {/* Results info */}
+                {(itemSearchQuery || itemTypeFilter !== 'all') && (
+                  <p className="text-sm text-muted-foreground mb-3" role="status">
+                    Showing {filteredAccessItems.length} of {agencyPlatform.accessItems.length} items
+                  </p>
+                )}
+                
+                {filteredAccessItems.length > 0 ? (
+                  <div className="space-y-3" role="list" aria-label="Access items list">
+                    {filteredAccessItems.map(item => {
+                      const typeConfig = ACCESS_ITEM_TYPE_CONFIG[item.itemType] || {};
+                      const typeColorClasses = {
+                        blue: 'bg-blue-100 text-blue-600',
+                        green: 'bg-green-100 text-green-600',
+                        purple: 'bg-purple-100 text-purple-600',
+                        orange: 'bg-orange-100 text-orange-600',
+                        red: 'bg-red-100 text-red-600',
+                        gray: 'bg-gray-100 text-gray-600',
+                      };
+                      const colorClass = typeColorClasses[typeConfig.color] || typeColorClasses.gray;
+                      
+                      return (
+                        <div 
+                          key={item.id} 
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors"
+                          role="listitem"
+                        >
+                          <div className="flex items-center gap-4">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClass.split(' ')[0]}`}>
+                                  <i className={`${typeConfig.icon || 'fas fa-cog'} text-lg ${colorClass.split(' ')[1]}`} aria-hidden="true"></i>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{typeConfig.desc || item.itemType}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <div>
+                              <p className="font-semibold text-base">{item.label}</p>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <Badge variant="outline" className="text-xs">
+                                  {typeConfig.label || item.itemType}
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  <i className="fas fa-shield-halved mr-1" aria-hidden="true"></i>
+                                  {item.role}
+                                </Badge>
+                              </div>
+                              {/* Show key agency config details */}
+                              {item.agencyData && Object.keys(item.agencyData).length > 0 && (
+                                <div className="flex gap-2 mt-2 flex-wrap">
+                                  {Object.entries(item.agencyData).slice(0, 3).map(([key, value]) => (
+                                    <Badge key={key} variant="outline" className="text-xs font-mono bg-slate-50">
+                                      {key}: {String(value).substring(0, 25)}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                              {item.agencyGroupEmail && (
+                                <Badge variant="outline" className="text-xs font-mono mt-2 bg-slate-50">
+                                  <i className="fas fa-envelope mr-1" aria-hidden="true"></i>
+                                  {item.agencyGroupEmail}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" aria-label={`Actions for ${item.label}`}>
+                                <i className="fas fa-ellipsis-v" aria-hidden="true"></i>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(item)}>
+                                <i className="fas fa-pen mr-2 w-4" aria-hidden="true"></i>
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                navigator.clipboard.writeText(item.id);
+                                toast({ title: 'Copied', description: 'Item ID copied to clipboard' });
+                              }}>
+                                <i className="fas fa-copy mr-2 w-4" aria-hidden="true"></i>
+                                Copy ID
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => openDeleteDialog(item)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <i className="fas fa-trash mr-2 w-4" aria-hidden="true"></i>
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <i className="fas fa-search text-3xl mb-3 opacity-50" aria-hidden="true"></i>
+                    <p className="font-medium">No items match your search</p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => {
+                        setItemSearchQuery('');
+                        setItemTypeFilter('all');
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                <i className="fas fa-inbox text-5xl mb-4 opacity-50"></i>
+                <i className="fas fa-inbox text-5xl mb-4 opacity-50" aria-hidden="true"></i>
                 <p className="font-medium">No access items configured yet</p>
                 <p className="text-sm mt-1">Add items to enable this platform for client requests</p>
               </div>
