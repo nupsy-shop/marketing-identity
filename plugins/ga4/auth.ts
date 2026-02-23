@@ -3,8 +3,8 @@
  * Google OAuth logic for GA4 Admin API and Data API
  */
 
-import type { AuthParams, AuthResult } from '../../common/types';
-import { buildAuthorizationUrl, exchangeCodeForTokens, refreshAccessToken, generateState, type OAuthConfig } from '../../common/utils/auth';
+import type { AuthParams, AuthResult } from '../common/types';
+import { buildAuthorizationUrl, exchangeCodeForTokens, refreshAccessToken, generateState, type OAuthConfig } from '../common/utils/auth';
 
 // ─── Google OAuth Configuration ─────────────────────────────────────────────
 
