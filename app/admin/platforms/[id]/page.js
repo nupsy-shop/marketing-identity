@@ -1359,6 +1359,8 @@ export default function PlatformConfigPage() {
                   </div>
                   
                   {/* PAM Configuration Section (for SHARED_ACCOUNT type) */}
+                  {/* Global gating rules - derived from itemType + ownership + identityPurpose + identityStrategy */}
+                  {/* No platformKey checks - applies to ALL plugins supporting SHARED_ACCOUNT */}
                   {normalizeItemType(selectedItemType) === 'SHARED_ACCOUNT' && (
                     <div className="space-y-4 p-4 border-2 border-amber-200 rounded-lg bg-amber-50/50">
                       <div className="flex items-center gap-2 mb-2">
@@ -1366,7 +1368,7 @@ export default function PlatformConfigPage() {
                         <h4 className="font-semibold text-amber-800">PAM Configuration</h4>
                       </div>
                       
-                      {/* PAM Ownership */}
+                      {/* PAM Ownership - Always shown for SHARED_ACCOUNT */}
                       <div>
                         <Label htmlFor="pam-ownership" className="text-sm font-medium">
                           Credential Ownership <span className="text-destructive">*</span>
@@ -1375,7 +1377,21 @@ export default function PlatformConfigPage() {
                           id="pam-ownership"
                           className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
                           value={agencyConfig.pamOwnership || ''}
-                          onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamOwnership: e.target.value }))}
+                          onChange={(e) => {
+                            // Clear dependent fields when ownership changes
+                            setAgencyConfig(prev => ({ 
+                              pamOwnership: e.target.value,
+                              // Clear all identity generation fields when switching
+                              identityPurpose: undefined,
+                              pamIdentityStrategy: undefined,
+                              pamIdentityType: undefined,
+                              pamNamingTemplate: undefined,
+                              pamCheckoutDurationMinutes: undefined,
+                              pamApprovalRequired: undefined,
+                              agencyIdentityId: undefined,
+                              integrationIdentityId: undefined
+                            }));
+                          }}
                         >
                           <option value="">Select ownership...</option>
                           <option value="CLIENT_OWNED">Client-Owned (client provides credentials)</option>
@@ -1386,10 +1402,27 @@ export default function PlatformConfigPage() {
                         </p>
                       </div>
                       
-                      {/* Agency-Owned specific fields */}
+                      {/* ═══ RULE A: CLIENT_OWNED ═══ */}
+                      {/* Hide ALL PAM identity generation fields - credentials collected in client request flow */}
+                      {agencyConfig.pamOwnership === 'CLIENT_OWNED' && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <i className="fas fa-info-circle text-blue-600 mt-0.5" aria-hidden="true"></i>
+                            <div className="text-sm text-blue-800">
+                              <p className="font-medium">Client-Owned Credentials</p>
+                              <p className="text-xs mt-1">
+                                The client will provide their own account credentials during the access request flow. 
+                                No identity generation or checkout policy configuration is needed here.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* ═══ RULE B: AGENCY_OWNED ═══ */}
                       {agencyConfig.pamOwnership === 'AGENCY_OWNED' && (
                         <>
-                          {/* Identity Purpose */}
+                          {/* Identity Purpose - Required for AGENCY_OWNED */}
                           <div>
                             <Label htmlFor="identity-purpose" className="text-sm font-medium">
                               Identity Purpose <span className="text-destructive">*</span>
@@ -1398,7 +1431,20 @@ export default function PlatformConfigPage() {
                               id="identity-purpose"
                               className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
                               value={agencyConfig.identityPurpose || ''}
-                              onChange={(e) => setAgencyConfig(prev => ({ ...prev, identityPurpose: e.target.value }))}
+                              onChange={(e) => {
+                                // Clear dependent fields when purpose changes
+                                setAgencyConfig(prev => ({ 
+                                  ...prev,
+                                  identityPurpose: e.target.value,
+                                  pamIdentityStrategy: undefined,
+                                  pamIdentityType: undefined,
+                                  pamNamingTemplate: undefined,
+                                  pamCheckoutDurationMinutes: undefined,
+                                  pamApprovalRequired: undefined,
+                                  agencyIdentityId: undefined,
+                                  integrationIdentityId: undefined
+                                }));
+                              }}
                             >
                               <option value="">Select purpose...</option>
                               <option value="HUMAN_INTERACTIVE">Human Interactive (users log in)</option>
@@ -1409,10 +1455,37 @@ export default function PlatformConfigPage() {
                             </p>
                           </div>
                           
-                          {/* Human Interactive specific fields */}
+                          {/* ═══ RULE B1: INTEGRATION_NON_HUMAN ═══ */}
+                          {/* Hide checkout fields + naming generation, require integrationIdentityId */}
+                          {agencyConfig.identityPurpose === 'INTEGRATION_NON_HUMAN' && (
+                            <div>
+                              <Label htmlFor="integration-identity" className="text-sm font-medium">
+                                Integration Identity <span className="text-destructive">*</span>
+                              </Label>
+                              <select
+                                id="integration-identity"
+                                className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                                value={agencyConfig.integrationIdentityId || ''}
+                                onChange={(e) => setAgencyConfig(prev => ({ ...prev, integrationIdentityId: e.target.value }))}
+                              >
+                                <option value="">Select integration identity...</option>
+                                {integrationIdentities.map(identity => (
+                                  <option key={identity.id} value={identity.id}>
+                                    {identity.name} ({identity.type})
+                                  </option>
+                                ))}
+                                <option value="__create_new__">+ Create New Integration Identity</option>
+                              </select>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Service account or integration identity for automated/non-human access. No checkout policy applies.
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* ═══ RULE B2: HUMAN_INTERACTIVE ═══ */}
                           {agencyConfig.identityPurpose === 'HUMAN_INTERACTIVE' && (
                             <>
-                              {/* Identity Strategy */}
+                              {/* Identity Strategy - Required for HUMAN_INTERACTIVE */}
                               <div>
                                 <Label htmlFor="identity-strategy" className="text-sm font-medium">
                                   Identity Strategy <span className="text-destructive">*</span>
@@ -1421,10 +1494,21 @@ export default function PlatformConfigPage() {
                                   id="identity-strategy"
                                   className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
                                   value={agencyConfig.pamIdentityStrategy || ''}
-                                  onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamIdentityStrategy: e.target.value }))}
+                                  onChange={(e) => {
+                                    // Clear dependent fields when strategy changes
+                                    setAgencyConfig(prev => ({ 
+                                      ...prev,
+                                      pamIdentityStrategy: e.target.value,
+                                      pamIdentityType: undefined,
+                                      pamNamingTemplate: undefined,
+                                      pamCheckoutDurationMinutes: undefined,
+                                      pamApprovalRequired: undefined,
+                                      agencyIdentityId: undefined
+                                    }));
+                                  }}
                                 >
                                   <option value="">Select strategy...</option>
-                                  <option value="STATIC_AGENCY_IDENTITY">Static Agency Identity (single shared email)</option>
+                                  <option value="STATIC_AGENCY_IDENTITY">Static Agency Identity (pre-configured shared identity)</option>
                                   <option value="CLIENT_DEDICATED_IDENTITY">Client-Dedicated Identity (unique per client)</option>
                                 </select>
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -1432,9 +1516,38 @@ export default function PlatformConfigPage() {
                                 </p>
                               </div>
                               
-                              {/* Client-Dedicated Identity fields */}
+                              {/* ═══ RULE B2a: STATIC_AGENCY_IDENTITY ═══ */}
+                              {/* Show agencyIdentityId dropdown, HIDE: identityType, namingTemplate, checkout policy */}
+                              {agencyConfig.pamIdentityStrategy === 'STATIC_AGENCY_IDENTITY' && (
+                                <div>
+                                  <Label htmlFor="agency-identity" className="text-sm font-medium">
+                                    Agency Identity <span className="text-destructive">*</span>
+                                  </Label>
+                                  <select
+                                    id="agency-identity"
+                                    className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
+                                    value={agencyConfig.agencyIdentityId || ''}
+                                    onChange={(e) => setAgencyConfig(prev => ({ ...prev, agencyIdentityId: e.target.value }))}
+                                  >
+                                    <option value="">Select agency identity...</option>
+                                    {agencyIdentities.map(identity => (
+                                      <option key={identity.id} value={identity.id}>
+                                        {identity.name} ({identity.email})
+                                      </option>
+                                    ))}
+                                    <option value="__create_new__">+ Configure New Agency Identity</option>
+                                  </select>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Select a pre-configured agency identity. This is a shared identity managed at the agency level.
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {/* ═══ RULE B2b: CLIENT_DEDICATED_IDENTITY ═══ */}
+                              {/* Require identityType, show naming template + checkout policy (MAILBOX only for checkout) */}
                               {agencyConfig.pamIdentityStrategy === 'CLIENT_DEDICATED_IDENTITY' && (
                                 <>
+                                  {/* Identity Type - Required */}
                                   <div>
                                     <Label htmlFor="pam-identity-type" className="text-sm font-medium">
                                       Identity Type <span className="text-destructive">*</span>
@@ -1449,11 +1562,15 @@ export default function PlatformConfigPage() {
                                       <option value="MAILBOX">Mailbox (dedicated email account)</option>
                                       <option value="GROUP">Group (Google/M365 group alias)</option>
                                     </select>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Type of dedicated identity to generate for each client.
+                                    </p>
                                   </div>
                                   
+                                  {/* Naming Template - Only for CLIENT_DEDICATED_IDENTITY */}
                                   <div>
                                     <Label htmlFor="pam-naming-template" className="text-sm font-medium">
-                                      Naming Template
+                                      Naming Template <span className="text-destructive">*</span>
                                     </Label>
                                     <Input
                                       id="pam-naming-template"
@@ -1465,66 +1582,50 @@ export default function PlatformConfigPage() {
                                     <p className="text-xs text-muted-foreground mt-1">
                                       Template for generating dedicated identity names. Use {'{client}'} as placeholder.
                                     </p>
+                                    {agencyConfig.pamNamingTemplate && (
+                                      <p className="text-xs text-blue-600 mt-1">
+                                        Preview: {agencyConfig.pamNamingTemplate.replace('{client}', 'acme-corp')}
+                                      </p>
+                                    )}
                                   </div>
+                                  
+                                  {/* Checkout Policy - Only for MAILBOX type */}
+                                  {agencyConfig.pamIdentityType === 'MAILBOX' && (
+                                    <div className="pt-3 border-t space-y-3">
+                                      <p className="text-sm font-medium text-slate-700">Checkout Policy (Mailbox Only)</p>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <Label htmlFor="checkout-duration" className="text-sm font-medium">
+                                            Max Checkout Duration (minutes)
+                                          </Label>
+                                          <Input
+                                            id="checkout-duration"
+                                            type="number"
+                                            min="5"
+                                            max="480"
+                                            value={agencyConfig.pamCheckoutDurationMinutes || 60}
+                                            onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamCheckoutDurationMinutes: parseInt(e.target.value) || 60 }))}
+                                            className="mt-1"
+                                          />
+                                        </div>
+                                        <div className="flex items-center gap-3 pt-6">
+                                          <input
+                                            type="checkbox"
+                                            id="approval-required"
+                                            checked={agencyConfig.pamApprovalRequired || false}
+                                            onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamApprovalRequired: e.target.checked }))}
+                                            className="w-4 h-4"
+                                          />
+                                          <Label htmlFor="approval-required" className="text-sm">
+                                            Require approval for checkout
+                                          </Label>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </>
                               )}
-                              
-                              {/* Checkout Policy */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
-                                <div>
-                                  <Label htmlFor="checkout-duration" className="text-sm font-medium">
-                                    Max Checkout Duration (minutes)
-                                  </Label>
-                                  <Input
-                                    id="checkout-duration"
-                                    type="number"
-                                    min="5"
-                                    max="480"
-                                    value={agencyConfig.pamCheckoutDurationMinutes || 60}
-                                    onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamCheckoutDurationMinutes: parseInt(e.target.value) || 60 }))}
-                                    className="mt-1"
-                                  />
-                                </div>
-                                <div className="flex items-center gap-3 pt-6">
-                                  <input
-                                    type="checkbox"
-                                    id="approval-required"
-                                    checked={agencyConfig.pamApprovalRequired || false}
-                                    onChange={(e) => setAgencyConfig(prev => ({ ...prev, pamApprovalRequired: e.target.checked }))}
-                                    className="w-4 h-4"
-                                  />
-                                  <Label htmlFor="approval-required" className="text-sm">
-                                    Require approval for checkout
-                                  </Label>
-                                </div>
-                              </div>
                             </>
-                          )}
-                          
-                          {/* Integration Non-Human specific fields */}
-                          {agencyConfig.identityPurpose === 'INTEGRATION_NON_HUMAN' && (
-                            <div>
-                              <Label htmlFor="integration-identity" className="text-sm font-medium">
-                                Integration Identity
-                              </Label>
-                              <select
-                                id="integration-identity"
-                                className="w-full mt-1 border rounded-md px-3 py-2 bg-background text-sm"
-                                value={agencyConfig.integrationIdentityId || ''}
-                                onChange={(e) => setAgencyConfig(prev => ({ ...prev, integrationIdentityId: e.target.value }))}
-                              >
-                                <option value="">Select or create identity...</option>
-                                {integrationIdentities.map(identity => (
-                                  <option key={identity.id} value={identity.id}>
-                                    {identity.name} ({identity.type})
-                                  </option>
-                                ))}
-                                <option value="__create_new__">+ Create New Integration Identity</option>
-                              </select>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Service account or integration identity to use for this PAM access
-                              </p>
-                            </div>
                           )}
                         </>
                       )}
