@@ -248,6 +248,7 @@ def main():
         test_results["oauth_flows_unconfigured"].append("LinkedIn Discover: FAIL")
     
     # Test HubSpot OAuth start
+    payload = {"redirectUri": "https://example.com/callback"}  # Fix payload
     status, data = test_post_request(f"{API_BASE}/oauth/hubspot/start", payload, "HubSpot OAuth Start")
     
     if status == 501:
