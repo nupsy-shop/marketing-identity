@@ -16,7 +16,7 @@ from typing import Dict, Any, Optional
 
 class PostgreSQLDatabaseMigrationTester:
     def __init__(self):
-        self.base_url = "https://access-mgmt-postgres.preview.emergentagent.com/api"
+        self.base_url = "https://plugin-onboard.preview.emergentagent.com/api"
         self.session = None
         self.test_results = []
         self.created_resources = {

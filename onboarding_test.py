@@ -15,7 +15,7 @@ import sys
 import os
 
 # Get base URL from environment
-BASE_URL = "https://access-mgmt-postgres.preview.emergentagent.com"
+BASE_URL = "https://plugin-onboard.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def log_test(test_name, success, details=""):
