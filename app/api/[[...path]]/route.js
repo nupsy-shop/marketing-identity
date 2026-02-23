@@ -1587,6 +1587,96 @@ export async function POST(request, { params }) {
       }
     }
 
+    // POST /api/oauth/tokens/:tokenId/select-target - Select a target for a token
+    if (path.match(/^oauth\/tokens\/[^/]+\/select-target$/)) {
+      const tokenId = path.split('/')[2];
+      const { targetId } = body || {};
+      
+      if (!targetId) {
+        return NextResponse.json({ success: false, error: 'targetId is required' }, { status: 400 });
+      }
+
+      const token = await db.getOAuthTokenById(tokenId);
+      if (!token) {
+        return NextResponse.json({ success: false, error: 'Token not found' }, { status: 404 });
+      }
+
+      const selected = await db.selectAccessibleTarget(tokenId, targetId);
+      if (!selected) {
+        return NextResponse.json({ success: false, error: 'Target not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          tokenId,
+          selectedTarget: {
+            id: selected.id,
+            targetType: selected.targetType,
+            externalId: selected.externalId,
+            displayName: selected.displayName,
+            parentExternalId: selected.parentExternalId,
+            metadata: selected.metadata,
+          }
+        }
+      });
+    }
+
+    // POST /api/oauth/tokens/:tokenId/refresh-targets - Re-discover targets for existing token
+    if (path.match(/^oauth\/tokens\/[^/]+\/refresh-targets$/)) {
+      const tokenId = path.split('/')[2];
+      
+      const token = await db.getOAuthTokenById(tokenId);
+      if (!token) {
+        return NextResponse.json({ success: false, error: 'Token not found' }, { status: 404 });
+      }
+
+      const plugin = PluginRegistry.get(token.platformKey);
+      if (!plugin || !plugin.discoverTargets) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Plugin ${token.platformKey} does not support target discovery` 
+        }, { status: 400 });
+      }
+
+      try {
+        const result = await plugin.discoverTargets({ 
+          success: true, 
+          accessToken: token.accessToken, 
+          tokenType: token.tokenType || 'Bearer' 
+        });
+        
+        if (!result.success) {
+          return NextResponse.json({ 
+            success: false, 
+            error: result.error || 'Target discovery failed'
+          }, { status: 400 });
+        }
+
+        const targets = await db.bulkCreateAccessibleTargets(tokenId, result.targets || []);
+
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            tokenId,
+            targets: targets.map(t => ({
+              id: t.id,
+              targetType: t.targetType,
+              externalId: t.externalId,
+              displayName: t.displayName,
+              parentExternalId: t.parentExternalId,
+              metadata: t.metadata,
+            })),
+          }
+        });
+      } catch (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Target refresh failed: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('POST error:', error);
