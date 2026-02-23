@@ -23,6 +23,8 @@ class GoogleSearchConsolePlugin extends BasePlugin {
     category: 'Analytics',
     description: 'Monitor and maintain your site\'s presence in Google Search results',
     icon: 'fab fa-google',
+    logoPath: '/logos/google-search-console.svg',
+    brandColor: '#458CF5',
     tier: 2,
     supportedAccessItemTypes: [
       AccessItemType.NAMED_INVITE,
