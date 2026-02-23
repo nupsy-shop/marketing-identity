@@ -176,17 +176,16 @@ def main():
     # Test GET /api/oauth/status - Should list all 9 providers
     status, data = test_get_request(f"{API_BASE}/oauth/status", "OAuth Status - All Providers")
     if status == 200 and isinstance(data, dict):
-        providers = data.get('providers', {})
-        expected_providers = ['google', 'linkedin', 'hubspot', 'salesforce', 'snowflake', 'meta', 'tiktok', 'snapchat', 'pinterest']
-        
-        found_providers = list(providers.keys())
-        all_configured_false = all(not provider.get('configured', True) for provider in providers.values())
+        # Handle API response wrapper
+        status_data = data.get('data', data)
+        found_providers = list(status_data.keys())
+        all_configured_false = all(not provider.get('configured', True) for provider in status_data.values())
         
         if len(found_providers) >= 9 and all_configured_false:
             print(f"✅ OAuth Status: Found {len(found_providers)} providers, all showing configured=false")
             test_results["oauth_status_endpoints"].append("Global Status: PASS")
         else:
-            print(f"❌ OAuth Status: Expected 9+ providers with configured=false, got {len(found_providers)}")
+            print(f"❌ OAuth Status: Expected 9+ providers with configured=false, got {len(found_providers)}, configured_false={all_configured_false}")
             test_results["oauth_status_endpoints"].append("Global Status: FAIL")
     else:
         print("❌ OAuth Status: Failed to get provider status")
@@ -195,14 +194,16 @@ def main():
     # Test GET /api/oauth/linkedin/status - Platform specific status
     status, data = test_get_request(f"{API_BASE}/oauth/linkedin/status", "LinkedIn OAuth Status")
     if status == 200 and isinstance(data, dict):
-        configured = data.get('configured', True)
-        required_vars = data.get('requiredEnvVars', [])
+        # Handle API response wrapper
+        status_data = data.get('data', data)
+        configured = status_data.get('configured', True)
+        required_vars = status_data.get('requiredEnvVars', [])
         
         if not configured and 'LINKEDIN_CLIENT_ID' in required_vars and 'LINKEDIN_CLIENT_SECRET' in required_vars:
             print("✅ LinkedIn Status: configured=false with proper required env vars")
             test_results["oauth_status_endpoints"].append("LinkedIn Status: PASS")
         else:
-            print("❌ LinkedIn Status: Expected configured=false with env vars")
+            print(f"❌ LinkedIn Status: configured={configured}, requiredEnvVars={required_vars}")
             test_results["oauth_status_endpoints"].append("LinkedIn Status: FAIL")
     else:
         print("❌ LinkedIn Status: Failed to get LinkedIn status")
