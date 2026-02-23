@@ -379,7 +379,7 @@ class PAMStaticAgencyIdentityTester:
             
         # Test 3: Clean CLIENT_OWNED payload (only pamOwnership) - should be ACCEPTED
         item_data_clean = {
-            "itemType": "SHARED_ACCOUNT_PAM",
+            "itemType": "SHARED_ACCOUNT",
             "label": "Test Clean CLIENT_OWNED PAM Access",
             "role": "admin",
             "agencyConfigJson": {
