@@ -246,7 +246,7 @@ export async function GET(request, { params }) {
     if (path === 'agency/platforms') {
       const agencyPlatforms = await db.getAllAgencyPlatforms();
       
-      // Enrich with plugin manifest data (logoPath, brandColor, etc.)
+      // Enrich with plugin manifest data (full manifest for access type detection)
       const enrichedPlatforms = agencyPlatforms.map(ap => {
         const platformKey = getPlatformKeyFromName(ap.platform?.name);
         if (platformKey && PluginRegistry.has(platformKey)) {
@@ -261,7 +261,9 @@ export async function GET(request, { params }) {
                 logoPath: plugin.manifest.logoPath,
                 brandColor: plugin.manifest.brandColor,
                 category: plugin.manifest.category,
-              }
+              },
+              // Include full manifest for frontend to access supportedAccessItemTypes, securityCapabilities, etc.
+              manifest: plugin.manifest
             };
           }
         }
@@ -279,7 +281,7 @@ export async function GET(request, { params }) {
         return NextResponse.json({ success: false, error: 'Agency platform not found' }, { status: 404 });
       }
       
-      // Enrich with plugin manifest data (logoPath, brandColor, etc.)
+      // Enrich with plugin manifest data (full manifest for frontend)
       const platformKey = getPlatformKeyFromName(ap.platform?.name);
       if (platformKey && PluginRegistry.has(platformKey)) {
         const plugin = PluginRegistry.get(platformKey);
@@ -293,7 +295,9 @@ export async function GET(request, { params }) {
               logoPath: plugin.manifest.logoPath,
               brandColor: plugin.manifest.brandColor,
               category: plugin.manifest.category,
-            }
+            },
+            // Include full manifest for frontend to access supportedAccessItemTypes, securityCapabilities, etc.
+            manifest: plugin.manifest
           };
           return NextResponse.json({ success: true, data: enrichedAp });
         }
