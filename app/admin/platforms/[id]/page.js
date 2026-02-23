@@ -220,32 +220,52 @@ export default function PlatformConfigPage() {
       if (platformData.success) {
         setAgencyPlatform(platformData.data);
         
-        // Fetch plugin manifest and security capabilities
-        const platformKey = getPlatformKey(platformData.data.platform?.name);
-        if (platformKey) {
-          try {
-            const pluginRes = await fetch(`/api/plugins/${platformKey}`);
-            const pluginData = await pluginRes.json();
-            if (pluginData.success) {
-              const manifest = pluginData.data.manifest;
-              setPluginManifest(manifest);
-              
-              // Extract security capabilities from manifest
-              if (manifest.securityCapabilities) {
-                setSecurityCapabilities(manifest.securityCapabilities);
-              }
-              
-              // Extract access item type metadata (new format)
-              if (manifest.supportedAccessItemTypes?.length > 0) {
-                const metadata = manifest.supportedAccessItemTypes;
-                // Check if it's the new format with type objects
-                if (typeof metadata[0] === 'object' && metadata[0].type) {
-                  setAccessItemTypeMetadata(metadata);
+        // Use manifest from API response (single source of truth)
+        // The API enriches agency platform with the full plugin manifest
+        const manifest = platformData.data.manifest;
+        if (manifest) {
+          console.log('Using manifest from API:', manifest.platformKey, 'types:', manifest.supportedAccessItemTypes?.length);
+          setPluginManifest(manifest);
+          
+          // Extract security capabilities from manifest
+          if (manifest.securityCapabilities) {
+            setSecurityCapabilities(manifest.securityCapabilities);
+          }
+          
+          // Extract access item type metadata (new format with type objects)
+          if (manifest.supportedAccessItemTypes?.length > 0) {
+            const metadata = manifest.supportedAccessItemTypes;
+            // Check if it's the new format with type objects
+            if (typeof metadata[0] === 'object' && metadata[0].type) {
+              setAccessItemTypeMetadata(metadata);
+            }
+          }
+        } else {
+          // Fallback: Fetch plugin manifest separately if not in API response
+          const platformKey = getPlatformKey(platformData.data.platform?.name);
+          if (platformKey) {
+            try {
+              const pluginRes = await fetch(`/api/plugins/${platformKey}`);
+              const pluginData = await pluginRes.json();
+              if (pluginData.success && pluginData.data?.manifest) {
+                const fallbackManifest = pluginData.data.manifest;
+                console.log('Using fallback manifest from plugin API:', fallbackManifest.platformKey);
+                setPluginManifest(fallbackManifest);
+                
+                if (fallbackManifest.securityCapabilities) {
+                  setSecurityCapabilities(fallbackManifest.securityCapabilities);
+                }
+                
+                if (fallbackManifest.supportedAccessItemTypes?.length > 0) {
+                  const metadata = fallbackManifest.supportedAccessItemTypes;
+                  if (typeof metadata[0] === 'object' && metadata[0].type) {
+                    setAccessItemTypeMetadata(metadata);
+                  }
                 }
               }
+            } catch (e) {
+              console.log('Plugin not found for platform, using legacy mode');
             }
-          } catch (e) {
-            console.log('Plugin not found for platform, using legacy mode');
           }
         }
       }
