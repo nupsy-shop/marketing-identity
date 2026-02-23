@@ -620,15 +620,22 @@ export default function PlatformConfigPage() {
   }
 
   const platform = agencyPlatform.platform;
+  
+  // Build platform object for logo component
+  const platformForLogo = {
+    ...platform,
+    logoPath: platform?.logoPath || `/logos/${platform?.platformKey || 'default'}.svg`,
+  };
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-8">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => router.push('/admin/platforms')}>
-              <i className="fas fa-arrow-left mr-2"></i> All Platforms
+              <i className="fas fa-arrow-left mr-2" aria-hidden="true"></i> All Platforms
             </Button>
           </div>
         </div>
@@ -637,26 +644,48 @@ export default function PlatformConfigPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                <i className={`${platform?.icon || 'fas fa-cube'} text-2xl text-primary`}></i>
-              </div>
+              <PlatformLogo platform={platformForLogo} size="xl" />
               <div>
-                <CardTitle className="text-xl">{platform?.name}</CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline">{platform?.category}</Badge>
-                  <span>•</span>
-                  <span>{agencyPlatform.accessItems?.length || 0} access items configured</span>
+                <CardTitle className="text-2xl">{platform?.displayName || platform?.name}</CardTitle>
+                <CardDescription className="flex items-center gap-3 mt-2">
+                  <Badge variant="outline" className="text-sm">{platform?.category || platform?.domain}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {agencyPlatform.accessItems?.length || 0} access item{agencyPlatform.accessItems?.length !== 1 ? 's' : ''} configured
+                  </span>
+                  {pluginManifest && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="secondary" className="text-xs">
+                          <i className="fas fa-plug mr-1" aria-hidden="true"></i>
+                          Plugin v{pluginManifest.pluginVersion}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Platform managed by plugin system</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </CardDescription>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
-                {agencyPlatform.isEnabled ? 'Enabled' : 'Disabled'}
-              </span>
-              <Switch 
-                checked={agencyPlatform.isEnabled} 
-                onCheckedChange={handleToggleEnabled}
-              />
+            <div className="flex items-center gap-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${agencyPlatform.isEnabled ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {agencyPlatform.isEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                    <Switch 
+                      checked={agencyPlatform.isEnabled} 
+                      onCheckedChange={handleToggleEnabled}
+                      aria-label={`${agencyPlatform.isEnabled ? 'Disable' : 'Enable'} ${platform?.name}`}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{agencyPlatform.isEnabled ? 'Platform available for access requests' : 'Platform disabled for requests'}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </CardHeader>
         </Card>
