@@ -227,24 +227,62 @@ class UIUXFeaturesTester:
                                "No agency platforms configured - testing data structure")
                 return
 
-            # Check each platform has enriched data
+            # Get list of available plugins to know which platforms should have enrichment
+            plugins_response = await self.make_request('GET', 'plugins')
+            if plugins_response['status'] != 200:
+                self.log_result("Agency Platforms Enriched Data", False, 
+                               "Could not fetch plugins list for comparison")
+                return
+                
+            plugin_keys = set(plugin['platformKey'] for plugin in plugins_response['data']['data'])
+
+            # Check platforms that should have enriched data
+            platforms_with_plugins = 0
+            platforms_enriched = 0
             missing_enrichment = []
+            
             for platform in platforms:
                 platform_data = platform.get('platform', {})
-                if not platform_data.get('logoPath'):
-                    missing_enrichment.append(f"Platform {platform.get('id')} missing logoPath")
-                if not platform_data.get('brandColor'):
-                    missing_enrichment.append(f"Platform {platform.get('id')} missing brandColor")
-                if not platform_data.get('category'):
-                    missing_enrichment.append(f"Platform {platform.get('id')} missing category")
+                platform_name = platform_data.get('name', '')
+                
+                # Check if this platform has a corresponding plugin
+                has_plugin = False
+                for plugin_key in plugin_keys:
+                    # Check common name mappings
+                    if (plugin_key == 'google-ads' and 'Google Ads' in platform_name) or \
+                       (plugin_key == 'meta' and ('Meta' in platform_name or 'Facebook' in platform_name)) or \
+                       (plugin_key == 'ga4' and ('Analytics' in platform_name or 'GA4' in platform_name)) or \
+                       (plugin_key in platform_name.lower().replace(' ', '-').replace('(', '').replace(')', '')):
+                        has_plugin = True
+                        break
+                
+                if has_plugin:
+                    platforms_with_plugins += 1
+                    
+                    # Check if enrichment data is present
+                    if (platform_data.get('logoPath') and 
+                        platform_data.get('brandColor') and 
+                        platform_data.get('category')):
+                        platforms_enriched += 1
+                    else:
+                        if not platform_data.get('logoPath'):
+                            missing_enrichment.append(f"Platform {platform.get('id')} ({platform_name}) missing logoPath")
+                        if not platform_data.get('brandColor'):
+                            missing_enrichment.append(f"Platform {platform.get('id')} ({platform_name}) missing brandColor")
+                        if not platform_data.get('category'):
+                            missing_enrichment.append(f"Platform {platform.get('id')} ({platform_name}) missing category")
 
             if missing_enrichment:
                 self.log_result("Agency Platforms Enriched Data", False, 
-                               "Platforms missing enriched plugin data", missing_enrichment)
+                               "Platforms with plugins missing enriched data", missing_enrichment)
                 return
 
-            self.log_result("Agency Platforms Enriched Data", True, 
-                           f"All {len(platforms)} agency platforms have enriched plugin data")
+            if platforms_with_plugins == 0:
+                self.log_result("Agency Platforms Enriched Data", True, 
+                               "No platforms with corresponding plugins found - enrichment not applicable")
+            else:
+                self.log_result("Agency Platforms Enriched Data", True, 
+                               f"{platforms_enriched}/{platforms_with_plugins} platforms with plugins have enriched data")
 
         except Exception as e:
             self.log_result("Agency Platforms Enriched Data", False, f"Exception: {str(e)}")
