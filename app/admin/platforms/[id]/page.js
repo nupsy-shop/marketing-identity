@@ -9,6 +9,9 @@
  * - Search and filter for access items
  * - Confirmation dialogs for destructive actions
  * - Better accessibility and visual hierarchy
+ * - Naming validation
+ * - Custom role management
+ * - Enhanced toast notifications
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -38,6 +41,8 @@ import { useToast } from '@/hooks/use-toast';
 import SchemaForm from '@/components/SchemaForm';
 import PlatformLogo from '@/components/PlatformLogo';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import CustomRoleDialog from '@/components/CustomRoleDialog';
+import { validateAccessItemLabel, formatConfigKey } from '@/lib/validation';
 
 // Access Item Type display configuration
 const ACCESS_ITEM_TYPE_CONFIG = {
