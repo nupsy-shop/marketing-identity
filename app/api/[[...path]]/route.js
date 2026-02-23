@@ -1678,6 +1678,183 @@ export async function POST(request, { params }) {
       }
     }
 
+    // POST /api/oauth/:platformKey/grant-access - Programmatically grant access
+    if (path.match(/^oauth\/[^/]+\/grant-access$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessToken, tokenType, target, role, identity, accessItemType, options } = body || {};
+      
+      if (!accessToken || !target || !role || !identity || !accessItemType) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'accessToken, target, role, identity, and accessItemType are required' 
+        }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // Check if plugin supports grant access for this access type
+      const capabilities = getAccessTypeCapability(plugin.manifest, accessItemType);
+      if (!capabilities.canGrantAccess) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Platform ${platformKey} does not support programmatic access granting for ${accessItemType}. Manual steps required.`,
+          details: { accessItemType, capabilities }
+        }, { status: 501 });
+      }
+
+      // Check if plugin implements grantAccess method
+      if (!plugin.grantAccess || typeof plugin.grantAccess !== 'function') {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Plugin ${platformKey} declares canGrantAccess=true but grantAccess() method is not implemented.`
+        }, { status: 501 });
+      }
+
+      try {
+        const result = await plugin.grantAccess({
+          auth: { accessToken, tokenType: tokenType || 'Bearer' },
+          target,
+          role,
+          identity,
+          accessItemType,
+          options
+        });
+        
+        if (!result.success) {
+          return NextResponse.json({ 
+            success: false, 
+            error: result.error || 'Grant access failed',
+            details: result.details
+          }, { status: 400 });
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            platformKey,
+            accessItemType,
+            role,
+            identity,
+            granted: true,
+            details: result.data
+          }
+        });
+      } catch (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Grant access failed: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
+    // POST /api/oauth/:platformKey/verify-access - Verify access has been granted
+    if (path.match(/^oauth\/[^/]+\/verify-access$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessToken, tokenType, target, role, identity, accessItemType } = body || {};
+      
+      if (!accessToken || !target || !role || !identity || !accessItemType) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'accessToken, target, role, identity, and accessItemType are required' 
+        }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // Check if plugin supports verification for this access type
+      const capabilities = getAccessTypeCapability(plugin.manifest, accessItemType);
+      if (!capabilities.canVerifyAccess) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Platform ${platformKey} does not support programmatic access verification for ${accessItemType}. Manual attestation required.`,
+          details: { accessItemType, capabilities }
+        }, { status: 501 });
+      }
+
+      // Check if plugin implements verifyAccess method
+      if (!plugin.verifyAccess || typeof plugin.verifyAccess !== 'function') {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Plugin ${platformKey} declares canVerifyAccess=true but verifyAccess() method is not implemented.`
+        }, { status: 501 });
+      }
+
+      try {
+        const result = await plugin.verifyAccess({
+          auth: { accessToken, tokenType: tokenType || 'Bearer' },
+          target,
+          role,
+          identity,
+          accessItemType
+        });
+        
+        if (!result.success) {
+          return NextResponse.json({ 
+            success: false, 
+            error: result.error || 'Verification failed',
+            details: result.details
+          }, { status: 400 });
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            platformKey,
+            accessItemType,
+            role,
+            identity,
+            verified: result.data === true,
+            details: result.details
+          }
+        });
+      } catch (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Access verification failed: ${error.message}` 
+        }, { status: 500 });
+      }
+    }
+
+    // POST /api/oauth/:platformKey/capabilities - Get capabilities for a platform/access type
+    if (path.match(/^oauth\/[^/]+\/capabilities$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessItemType } = body || {};
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // If accessItemType specified, return specific capabilities
+      if (accessItemType) {
+        const capabilities = getAccessTypeCapability(plugin.manifest, accessItemType);
+        return NextResponse.json({ 
+          success: true, 
+          data: {
+            platformKey,
+            accessItemType,
+            capabilities
+          }
+        });
+      }
+
+      // Otherwise return all access type capabilities
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          platformKey,
+          accessTypeCapabilities: plugin.manifest.accessTypeCapabilities || {},
+          supportedAccessItemTypes: plugin.manifest.supportedAccessItemTypes?.map(t => t.type) || []
+        }
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('POST error:', error);
