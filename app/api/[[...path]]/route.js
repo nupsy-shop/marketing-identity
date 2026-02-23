@@ -1503,105 +1503,11 @@ export async function POST(request, { params }) {
         }
       }
 
-      // Fallback: Check legacy provider-based OAuth config
-      const providerKey = getProviderForPlatform(platformKey);
-      if (providerKey && !isProviderConfigured(providerKey)) {
-        const providerConfig = getProviderConfig(providerKey);
-        return NextResponse.json({ 
-          success: false, 
-          error: `${providerConfig?.displayName || platformKey} OAuth is not configured. Please set the required environment variables.`,
-          details: {
-            provider: providerKey,
-            requiredEnvVars: providerConfig?.envVars ? [providerConfig.envVars.clientId, providerConfig.envVars.clientSecret] : [],
-            developerPortalUrl: providerConfig?.developerPortalUrl || ''
-          }
-        }, { status: 501 });
-      }
-
-      const plugin = PluginRegistry.get(platformKey);
-      if (!plugin) {
-        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
-      }
-
-      if (!plugin.handleOAuthCallback && typeof plugin.handleOAuthCallback !== 'function') {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Plugin ${platformKey} does not support OAuth callbacks` 
-        }, { status: 400 });
-      }
-
-      try {
-        const result = await plugin.handleOAuthCallback({ code, state, redirectUri, ...extraParams });
-        
-        if (!result.success) {
-          return NextResponse.json({ success: false, error: result.error }, { status: 400 });
-        }
-
-        let tokenId = null;
-        let targets = [];
-
-        // If persistToken is true, save the token to database
-        if (extraParams.persistToken) {
-          const providerKey = getProviderForPlatform(platformKey);
-          const storedToken = await db.createOAuthToken({
-            platformKey,
-            provider: providerKey || platformKey,
-            accessToken: result.accessToken,
-            refreshToken: result.refreshToken,
-            tokenType: result.tokenType || 'Bearer',
-            expiresAt: result.expiresAt ? new Date(result.expiresAt) : null,
-            scopes: result.scopes || [],
-            metadata: extraParams.metadata || {},
-          });
-          tokenId = storedToken.id;
-
-          // Automatically discover targets if plugin supports it
-          if (plugin.discoverTargets && typeof plugin.discoverTargets === 'function') {
-            try {
-              const discoveryResult = await plugin.discoverTargets(result);
-              if (discoveryResult.success && discoveryResult.targets) {
-                targets = await db.bulkCreateAccessibleTargets(tokenId, discoveryResult.targets);
-              }
-            } catch (discoverError) {
-              console.warn(`[OAuth] Target discovery failed for ${platformKey}:`, discoverError.message);
-            }
-          }
-        }
-
-        return NextResponse.json({ 
-          success: true, 
-          data: {
-            platformKey,
-            tokenId,
-            accessToken: result.accessToken,
-            refreshToken: result.refreshToken,
-            expiresAt: result.expiresAt,
-            tokenType: result.tokenType,
-            scopes: result.scopes,
-            targets: targets.map(t => ({
-              id: t.id,
-              targetType: t.targetType,
-              externalId: t.externalId,
-              displayName: t.displayName,
-              parentExternalId: t.parentExternalId,
-              metadata: t.metadata,
-            })),
-          }
-        });
-      } catch (error) {
-        // Handle OAuthNotConfiguredError specifically
-        if (error instanceof OAuthNotConfiguredError) {
-          return NextResponse.json({ 
-            success: false, 
-            error: error.message,
-            details: error.toJSON()
-          }, { status: 501 });
-        }
-        return NextResponse.json({ 
-          success: false, 
-          error: `OAuth callback failed: ${error.message}` 
-        }, { status: 500 });
-      }
+      // Fallback: Plugin doesn't support handleOAuthCallback
+      return NextResponse.json({ 
+        success: false, 
+        error: `Plugin ${platformKey} does not support OAuth callbacks` 
+      }, { status: 400 });
     }
 
     // POST /api/oauth/:platformKey/refresh - Refresh OAuth token
