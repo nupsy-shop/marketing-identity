@@ -453,21 +453,31 @@ export default function PlatformConfigPage() {
     setShowAddForm(true);
   };
 
-  // Handle delete
-  const handleDelete = async (itemId) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
+  // Handle delete with confirmation
+  const openDeleteDialog = (item) => {
+    setConfirmDialog({
+      open: true,
+      item: item,
+    });
+  };
+  
+  const handleConfirmDelete = async () => {
+    const item = confirmDialog.item;
+    if (!item) return;
     
     try {
-      const res = await fetch(`/api/agency/platforms/${params.id}/items/${itemId}`, {
+      const res = await fetch(`/api/agency/platforms/${params.id}/items/${item.id}`, {
         method: 'DELETE'
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: 'Deleted', description: 'Item removed' });
+        toast({ title: 'Access Item Deleted', description: `"${item.label}" has been removed.` });
         fetchData();
       }
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+    } finally {
+      setConfirmDialog({ open: false, item: null });
     }
   };
 
