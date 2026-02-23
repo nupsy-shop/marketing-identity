@@ -22,6 +22,8 @@ class MetaPlugin extends BasePlugin {
     category: 'Paid Media',
     description: 'Meta Business Suite for Facebook, Instagram, and WhatsApp advertising',
     icon: 'fab fa-meta',
+    logoPath: '/logos/meta.svg',
+    brandColor: '#0668E1',
     tier: 1,
     supportedAccessItemTypes: [
       AccessItemType.PARTNER_DELEGATION,
