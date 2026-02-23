@@ -1575,13 +1575,18 @@ pam_governance_tests:
 
   - task: "Agency Config Asset Separation"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
+        agent: "main"
+        comment: "validateAgainstPluginRules should reject agencyConfig containing client-side asset IDs like clientAccountId, clientPropertyId, etc. to enforce asset separation (agency config vs client onboarding)."
+      - working: true
+        agent: "testing"
+        comment: "✅ Agency Config Asset Separation WORKING PERFECTLY! Successfully tested: validateAgainstPluginRules correctly rejects agency configuration containing client-side asset IDs with error: 'Agency configuration must not contain client-side asset IDs. Found: \"clientAccountId\". Client assets should only be provided during onboarding.' Asset separation enforcement between agency config and client onboarding working correctly."
         agent: "main"
         comment: "API should reject agencyConfigJson containing client asset ID fields like clientAssetId, clientAccountId, clientPropertyId."
 
