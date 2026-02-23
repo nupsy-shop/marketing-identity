@@ -2,7 +2,7 @@
  * LinkedIn Ads Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -27,10 +27,33 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
   targetTypes: ['AD_ACCOUNT'],
 };
 
+// LinkedIn does not have public APIs for user/partner management
+export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
+  PARTNER_DELEGATION: {
+    clientOAuthSupported: true,
+    canGrantAccess: false,     // No public API for partner management
+    canVerifyAccess: false,    // No API to verify partner status
+    requiresEvidenceUpload: true
+  },
+  NAMED_INVITE: {
+    clientOAuthSupported: true,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  },
+  SHARED_ACCOUNT: {
+    clientOAuthSupported: false,
+    canGrantAccess: false,
+    canVerifyAccess: false,
+    requiresEvidenceUpload: true
+  }
+};
+
 export const LINKEDIN_MANIFEST: PluginManifest = {
-  platformKey: 'linkedin', displayName: 'LinkedIn Ads', pluginVersion: '2.1.0', category: 'Paid Media',
+  platformKey: 'linkedin', displayName: 'LinkedIn Ads', pluginVersion: '2.2.0', category: 'Paid Media',
   description: 'LinkedIn Campaign Manager', tier: 1, clientFacing: true,
   icon: 'fab fa-linkedin', logoPath: '/logos/linkedin.svg', brandColor: '#0A66C2',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
+  accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 };
 export default LINKEDIN_MANIFEST;
