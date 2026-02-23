@@ -1,424 +1,363 @@
 #!/usr/bin/env python3
-"""
-Comprehensive Backend Testing for Refactored Modular Plugin Architecture
-Testing all 15 plugins and their capabilities as per review request.
-"""
 
 import requests
 import json
 import sys
-from typing import Dict, Any
+import os
+from urllib.parse import urljoin
 
-# Backend URL from environment
-BASE_URL = "https://plugin-oauth-setup.preview.emergentagent.com/api"
+# Get the base URL from environment
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://plugin-oauth-setup.preview.emergentagent.com')
+API_BASE_URL = urljoin(BASE_URL, '/api')
 
-class PluginArchitectureTest:
-    def __init__(self):
-        self.base_url = BASE_URL
-        self.session = requests.Session()
-        self.test_results = []
-        
-    def log_test(self, test_name: str, success: bool, message: str, data=None):
-        """Log test results"""
-        result = {
-            'test': test_name,
-            'success': success,
-            'message': message,
-            'data': data
-        }
-        self.test_results.append(result)
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status}: {test_name} - {message}")
-        if data and not success:
-            print(f"  Data: {data}")
+def test_oauth_configuration_wiring():
+    """
+    Test the newly implemented OAuth configuration wiring in the Marketing Identity Platform.
     
-    def make_request(self, method: str, endpoint: str, data=None, params=None):
-        """Make HTTP request with error handling"""
-        try:
-            url = f"{self.base_url}/{endpoint.lstrip('/')}"
-            response = self.session.request(method, url, json=data, params=params, timeout=30)
-            
-            try:
-                json_data = response.json()
-            except:
-                json_data = {"raw_response": response.text}
-            
-            return response.status_code, json_data
-        except requests.exceptions.RequestException as e:
-            return 0, {"error": str(e)}
-
-    def test_all_plugins_loading_v210(self):
-        """Test 1: All 15 plugins loading at v2.1.0"""
-        print("\n=== TEST 1: All Plugins Loading at v2.1.0 ===")
-        
-        status_code, response = self.make_request('GET', '/plugins')
-        
-        if status_code != 200:
-            self.log_test("GET /api/plugins", False, f"HTTP {status_code}: {response}")
-            return False
-        
-        if not response.get('success', False):
-            self.log_test("GET /api/plugins", False, f"API returned success=false: {response}")
-            return False
-        
-        plugins = response.get('data', [])
-        
-        # Expected 15 plugins
-        expected_plugins = [
-            'google-ads', 'meta', 'ga4', 'google-search-console', 'snowflake',
-            'dv360', 'trade-desk', 'tiktok', 'snapchat', 'linkedin',
-            'pinterest', 'hubspot', 'salesforce', 'gtm', 'ga-ua'
-        ]
-        
-        if len(plugins) != 15:
-            self.log_test("Plugin Count", False, f"Expected 15 plugins, got {len(plugins)}", {"plugins": [p.get('platformKey') for p in plugins]})
-            return False
-        
-        # Check each plugin exists and has version 2.1.0
-        found_plugins = {}
-        version_issues = []
-        
-        for plugin in plugins:
-            platform_key = plugin.get('platformKey')
-            plugin_version = plugin.get('pluginVersion')
-            
-            if platform_key:
-                found_plugins[platform_key] = plugin_version
-                if plugin_version != '2.1.0':
-                    version_issues.append(f"{platform_key}: {plugin_version}")
-        
-        # Check all expected plugins are present
-        missing_plugins = [p for p in expected_plugins if p not in found_plugins]
-        if missing_plugins:
-            self.log_test("All Plugins Present", False, f"Missing plugins: {missing_plugins}", {"found": list(found_plugins.keys())})
-            return False
-        
-        # Check versions
-        if version_issues:
-            self.log_test("Plugin Versions", False, f"Version issues (expected 2.1.0): {version_issues}")
-            # Note: Some plugins might legitimately be at different versions, so this is a warning not a failure
-        
-        self.log_test("GET /api/plugins", True, f"Successfully returned {len(plugins)} plugins")
-        self.log_test("All Plugins Present", True, f"Found all 15 expected plugins: {list(found_plugins.keys())}")
-        
-        # Test specific plugin details
-        ga4_plugin = next((p for p in plugins if p.get('platformKey') == 'ga4'), None)
-        if ga4_plugin:
-            access_types = ga4_plugin.get('supportedAccessItemTypes', [])
-            expected_ga4_types = ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT']
-            
-            # Extract type names from access item metadata
-            if access_types and isinstance(access_types[0], dict):
-                actual_types = [at.get('type') for at in access_types]
-            else:
-                actual_types = access_types
-            
-            if set(expected_ga4_types).issubset(set(actual_types)):
-                self.log_test("GA4 Access Types", True, f"GA4 supports expected access types: {actual_types}")
-            else:
-                self.log_test("GA4 Access Types", False, f"GA4 missing access types. Expected: {expected_ga4_types}, Got: {actual_types}")
-        
-        return True
-
-    def test_schema_generation_multiple_plugins(self):
-        """Test 2: Schema generation for multiple plugins with different access item types"""
-        print("\n=== TEST 2: Schema Generation for Multiple Plugins ===")
-        
-        # Test cases as specified in review request
-        test_cases = [
-            ('meta', 'agency-config', 'SHARED_ACCOUNT'),
-            ('tiktok', 'agency-config', 'PARTNER_DELEGATION'),
-            ('linkedin', 'agency-config', 'NAMED_INVITE'),
-            ('salesforce', 'agency-config', 'SHARED_ACCOUNT'),  # Should have breakGlassJustification
-            ('snowflake', 'agency-config', 'SHARED_ACCOUNT'),  # Should have breakGlassJustification
-        ]
-        
-        all_passed = True
-        
-        for platform_key, schema_type, access_item_type in test_cases:
-            endpoint = f"/plugins/{platform_key}/schema/{schema_type}?accessItemType={access_item_type}"
-            status_code, response = self.make_request('GET', endpoint)
-            
-            if status_code != 200:
-                self.log_test(f"Schema: {platform_key}/{access_item_type}", False, f"HTTP {status_code}: {response}")
-                all_passed = False
-                continue
-            
-            if not response.get('success', False):
-                self.log_test(f"Schema: {platform_key}/{access_item_type}", False, f"API error: {response}")
-                all_passed = False
-                continue
-            
-            schema_data = response.get('data', {})
-            
-            # Basic schema validation
-            if not schema_data or not isinstance(schema_data, dict):
-                self.log_test(f"Schema: {platform_key}/{access_item_type}", False, "Empty or invalid schema")
-                all_passed = False
-                continue
-            
-            # Check for break glass justification in salesforce and snowflake SHARED_ACCOUNT schemas
-            if platform_key in ['salesforce', 'snowflake'] and access_item_type == 'SHARED_ACCOUNT':
-                properties = schema_data.get('properties', {})
-                has_justification = any(key for key in properties.keys() 
-                                     if 'justification' in key.lower() or 'breakglass' in key.lower() or 'break_glass' in key.lower())
-                
-                if has_justification:
-                    self.log_test(f"Schema: {platform_key}/{access_item_type}", True, f"Schema includes break-glass justification fields")
-                else:
-                    # Check anyOf/oneOf structures
-                    any_of = schema_data.get('anyOf', [])
-                    one_of = schema_data.get('oneOf', [])
-                    has_justification_nested = False
-                    
-                    for variant in any_of + one_of:
-                        if isinstance(variant, dict):
-                            variant_props = variant.get('properties', {})
-                            if any(key for key in variant_props.keys() 
-                                  if 'justification' in key.lower() or 'breakglass' in key.lower()):
-                                has_justification_nested = True
-                                break
-                    
-                    if has_justification_nested:
-                        self.log_test(f"Schema: {platform_key}/{access_item_type}", True, f"Schema includes break-glass justification in nested structure")
-                    else:
-                        # For now, just log as warning since the exact field names may vary
-                        self.log_test(f"Schema: {platform_key}/{access_item_type}", True, f"Schema generated (break-glass fields may be in different structure)")
-            else:
-                self.log_test(f"Schema: {platform_key}/{access_item_type}", True, f"Schema generated successfully")
-        
-        return all_passed
-
-    def test_pam_governance_rules(self):
-        """Test 3: PAM Governance Rules verification"""
-        print("\n=== TEST 3: PAM Governance Rules ===")
-        
-        # Get all plugins first
-        status_code, response = self.make_request('GET', '/plugins')
-        if status_code != 200 or not response.get('success'):
-            self.log_test("PAM Governance Setup", False, "Could not fetch plugins")
-            return False
-        
-        plugins = response.get('data', [])
-        
-        # Test specific PAM recommendations as specified in review request
-        expected_pam_recommendations = {
-            'salesforce': 'break_glass_only',
-            'snowflake': 'break_glass_only',
-            'google-ads': 'not_recommended',
-            'meta': 'not_recommended',
-            'tiktok': 'not_recommended'
-        }
-        
-        all_passed = True
-        
-        for plugin in plugins:
-            platform_key = plugin.get('platformKey')
-            security_caps = plugin.get('securityCapabilities', {})
-            
-            if platform_key in expected_pam_recommendations:
-                expected_rec = expected_pam_recommendations[platform_key]
-                actual_rec = security_caps.get('pamRecommendation')
-                
-                if actual_rec == expected_rec:
-                    self.log_test(f"PAM Recommendation: {platform_key}", True, f"Correct recommendation: {actual_rec}")
-                else:
-                    self.log_test(f"PAM Recommendation: {platform_key}", False, f"Expected: {expected_rec}, Got: {actual_rec}")
-                    all_passed = False
-        
-        # Test security capabilities structure
-        test_platforms = ['google-ads', 'meta', 'salesforce', 'snowflake']
-        for platform_key in test_platforms:
-            plugin = next((p for p in plugins if p.get('platformKey') == platform_key), None)
-            if plugin:
-                security_caps = plugin.get('securityCapabilities', {})
-                
-                # Check for required security capability fields
-                required_fields = ['pamRecommendation', 'supportsCredentialLogin']
-                missing_fields = [f for f in required_fields if f not in security_caps]
-                
-                if missing_fields:
-                    self.log_test(f"Security Capabilities: {platform_key}", False, f"Missing fields: {missing_fields}")
-                    all_passed = False
-                else:
-                    self.log_test(f"Security Capabilities: {platform_key}", True, "Has required security capability fields")
-        
-        return all_passed
-
-    def test_client_target_schemas(self):
-        """Test 4: Client Target Schemas for specific plugins and access types"""
-        print("\n=== TEST 4: Client Target Schemas ===")
-        
-        # Test cases as specified in review request
-        test_cases = [
-            ('google-ads', 'client-target', 'PARTNER_DELEGATION'),  # Should have adAccountId
-            ('gtm', 'client-target', 'NAMED_INVITE'),  # Should have containerId
-        ]
-        
-        all_passed = True
-        
-        for platform_key, schema_type, access_item_type in test_cases:
-            endpoint = f"/plugins/{platform_key}/schema/{schema_type}?accessItemType={access_item_type}"
-            status_code, response = self.make_request('GET', endpoint)
-            
-            if status_code != 200:
-                self.log_test(f"Client Target: {platform_key}/{access_item_type}", False, f"HTTP {status_code}: {response}")
-                all_passed = False
-                continue
-            
-            if not response.get('success', False):
-                self.log_test(f"Client Target: {platform_key}/{access_item_type}", False, f"API error: {response}")
-                all_passed = False
-                continue
-            
-            schema_data = response.get('data', {})
-            
-            if not schema_data or not isinstance(schema_data, dict):
-                self.log_test(f"Client Target: {platform_key}/{access_item_type}", False, "Empty or invalid schema")
-                all_passed = False
-                continue
-            
-            # Check for specific fields
-            properties = schema_data.get('properties', {})
-            
-            if platform_key == 'google-ads' and access_item_type == 'PARTNER_DELEGATION':
-                # Should have adAccountId or similar field
-                account_fields = [k for k in properties.keys() if 'account' in k.lower() or 'ad' in k.lower()]
-                if account_fields:
-                    self.log_test(f"Client Target: {platform_key}/{access_item_type}", True, f"Has account ID fields: {account_fields}")
-                else:
-                    self.log_test(f"Client Target: {platform_key}/{access_item_type}", True, "Schema generated (account fields may be named differently)")
-            
-            elif platform_key == 'gtm' and access_item_type == 'NAMED_INVITE':
-                # Should have containerId or similar field
-                container_fields = [k for k in properties.keys() if 'container' in k.lower()]
-                if container_fields:
-                    self.log_test(f"Client Target: {platform_key}/{access_item_type}", True, f"Has container ID fields: {container_fields}")
-                else:
-                    self.log_test(f"Client Target: {platform_key}/{access_item_type}", True, "Schema generated (container fields may be named differently)")
-            else:
-                self.log_test(f"Client Target: {platform_key}/{access_item_type}", True, "Schema generated successfully")
-        
-        return all_passed
-
-    def test_supported_access_item_types(self):
-        """Test 5: Supported Access Item Types verification"""
-        print("\n=== TEST 5: Supported Access Item Types ===")
-        
-        # Get all plugins
-        status_code, response = self.make_request('GET', '/plugins')
-        if status_code != 200 or not response.get('success'):
-            self.log_test("Access Types Setup", False, "Could not fetch plugins")
-            return False
-        
-        plugins = response.get('data', [])
-        
-        # Test specific platform access item types as specified in review request
-        expected_access_types = {
-            'ga4': ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT'],
-            'google-ads': ['PARTNER_DELEGATION', 'NAMED_INVITE', 'SHARED_ACCOUNT'],
-            'meta': ['PARTNER_DELEGATION', 'NAMED_INVITE', 'SHARED_ACCOUNT']
-        }
-        
-        all_passed = True
-        
-        for platform_key, expected_types in expected_access_types.items():
-            plugin = next((p for p in plugins if p.get('platformKey') == platform_key), None)
-            
-            if not plugin:
-                self.log_test(f"Access Types: {platform_key}", False, f"Plugin not found")
-                all_passed = False
-                continue
-            
-            supported_types = plugin.get('supportedAccessItemTypes', [])
-            
-            # Handle both old and new format
-            if supported_types and isinstance(supported_types[0], dict):
-                # New format with metadata
-                actual_types = [at.get('type') for at in supported_types if at.get('type')]
-            else:
-                # Old format (array of strings)
-                actual_types = supported_types
-            
-            # Check if all expected types are supported
-            missing_types = [t for t in expected_types if t not in actual_types]
-            
-            if missing_types:
-                self.log_test(f"Access Types: {platform_key}", False, f"Missing types: {missing_types}. Has: {actual_types}")
-                all_passed = False
-            else:
-                self.log_test(f"Access Types: {platform_key}", True, f"Supports all expected types: {actual_types}")
-        
-        return all_passed
-
-    def run_all_tests(self):
-        """Run all plugin architecture tests"""
-        print("🚀 Starting Comprehensive Plugin Architecture Testing")
-        print(f"Testing against: {self.base_url}")
-        
-        test_methods = [
-            self.test_all_plugins_loading_v210,
-            self.test_schema_generation_multiple_plugins,
-            self.test_pam_governance_rules,
-            self.test_client_target_schemas,
-            self.test_supported_access_item_types
-        ]
-        
-        overall_success = True
-        
-        for test_method in test_methods:
-            try:
-                success = test_method()
-                if not success:
-                    overall_success = False
-            except Exception as e:
-                print(f"❌ ERROR in {test_method.__name__}: {str(e)}")
-                overall_success = False
-        
-        # Print summary
-        print(f"\n{'='*60}")
-        print("📊 TEST SUMMARY")
-        print(f"{'='*60}")
-        
-        passed_tests = [r for r in self.test_results if r['success']]
-        failed_tests = [r for r in self.test_results if not r['success']]
-        
-        print(f"✅ PASSED: {len(passed_tests)} tests")
-        print(f"❌ FAILED: {len(failed_tests)} tests")
-        
-        if failed_tests:
-            print(f"\n🔍 FAILED TESTS:")
-            for test in failed_tests:
-                print(f"  • {test['test']}: {test['message']}")
-        
-        success_rate = len(passed_tests) / len(self.test_results) * 100 if self.test_results else 0
-        print(f"\n📈 SUCCESS RATE: {success_rate:.1f}%")
-        
-        if overall_success and success_rate > 90:
-            print("\n🎉 PLUGIN ARCHITECTURE TESTING COMPLETED SUCCESSFULLY!")
-            return True
-        else:
-            print(f"\n⚠️  Some tests failed. Plugin architecture may need attention.")
-            return False
-
-if __name__ == "__main__":
-    print("Modular Plugin Architecture Backend Test")
-    print("=" * 50)
+    This test verifies:
+    1. OAuth Status Endpoints
+    2. OAuth Start Endpoints with Unconfigured Credentials (should return 501)
+    3. Error Response Structure
+    4. Regression testing of existing plugin endpoints
+    """
+    print("🚀 Starting OAuth Configuration Wiring Testing...")
+    
+    results = []
+    
+    # ═══ TEST 1: OAuth Status Endpoints ═══
+    print("\n📊 TEST 1: OAuth Status Endpoints")
     
     try:
-        test_runner = PluginArchitectureTest()
-        success = test_runner.run_all_tests()
+        # GET /api/oauth/status - Should return configuration status for all OAuth providers
+        print("  ➤ Testing GET /api/oauth/status...")
+        response = requests.get(f"{API_BASE_URL}/oauth/status", timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and 'data' in data:
+                providers_status = data['data']
+                expected_providers = ['google', 'linkedin', 'hubspot', 'salesforce', 'snowflake', 'meta', 'tiktok', 'snapchat', 'pinterest']
+                
+                found_providers = list(providers_status.keys())
+                print(f"    Found providers: {found_providers}")
+                
+                # Check if all expected providers are present
+                missing_providers = [p for p in expected_providers if p not in found_providers]
+                if missing_providers:
+                    print(f"    ❌ Missing providers: {missing_providers}")
+                    results.append(("OAuth Status All Providers", False, f"Missing providers: {missing_providers}"))
+                else:
+                    # Check that all providers show configured: false (since we have placeholder values)
+                    misconfigured = []
+                    for provider, status in providers_status.items():
+                        if status.get('configured') != False:
+                            misconfigured.append(provider)
+                    
+                    if misconfigured:
+                        print(f"    ❌ Providers incorrectly showing as configured: {misconfigured}")
+                        results.append(("OAuth Status All Providers", False, f"Providers showing configured=true: {misconfigured}"))
+                    else:
+                        print(f"    ✅ All {len(found_providers)} providers correctly show configured=false")
+                        results.append(("OAuth Status All Providers", True, f"All {len(found_providers)} providers correctly unconfigured"))
+            else:
+                print(f"    ❌ Invalid response structure: {data}")
+                results.append(("OAuth Status All Providers", False, f"Invalid response structure"))
+        else:
+            print(f"    ❌ Request failed with status {response.status_code}: {response.text}")
+            results.append(("OAuth Status All Providers", False, f"HTTP {response.status_code}"))
+    except Exception as e:
+        print(f"    ❌ Exception occurred: {e}")
+        results.append(("OAuth Status All Providers", False, str(e)))
+    
+    # Test platform-specific status endpoints
+    platform_tests = [
+        ('linkedin', 'linkedin'),
+        ('ga4', 'google')  # ga4 should map to google provider
+    ]
+    
+    for platform, expected_provider in platform_tests:
+        try:
+            print(f"  ➤ Testing GET /api/oauth/{platform}/status...")
+            response = requests.get(f"{API_BASE_URL}/oauth/{platform}/status", timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success') and 'data' in data:
+                    status_data = data['data']
+                    
+                    # Verify platform key
+                    if status_data.get('platformKey') != platform:
+                        print(f"    ❌ Wrong platformKey: expected {platform}, got {status_data.get('platformKey')}")
+                        results.append((f"OAuth Status {platform}", False, "Wrong platformKey"))
+                        continue
+                    
+                    # Verify provider mapping
+                    if status_data.get('provider') != expected_provider:
+                        print(f"    ❌ Wrong provider mapping: expected {expected_provider}, got {status_data.get('provider')}")
+                        results.append((f"OAuth Status {platform}", False, f"Wrong provider mapping"))
+                        continue
+                    
+                    # Verify OAuth support
+                    if not status_data.get('oauthSupported'):
+                        print(f"    ❌ OAuth support not indicated for {platform}")
+                        results.append((f"OAuth Status {platform}", False, "OAuth support not indicated"))
+                        continue
+                    
+                    # Verify not configured (placeholder values)
+                    if status_data.get('configured') != False:
+                        print(f"    ❌ {platform} incorrectly showing as configured")
+                        results.append((f"OAuth Status {platform}", False, "Incorrectly configured"))
+                        continue
+                    
+                    # Verify required fields are present
+                    required_fields = ['displayName', 'developerPortalUrl', 'requiredEnvVars']
+                    missing_fields = [field for field in required_fields if field not in status_data]
+                    if missing_fields:
+                        print(f"    ❌ Missing fields: {missing_fields}")
+                        results.append((f"OAuth Status {platform}", False, f"Missing fields: {missing_fields}"))
+                        continue
+                    
+                    print(f"    ✅ {platform} status correct: provider={expected_provider}, configured=false")
+                    results.append((f"OAuth Status {platform}", True, f"Correct status for {platform}"))
+                else:
+                    print(f"    ❌ Invalid response structure: {data}")
+                    results.append((f"OAuth Status {platform}", False, "Invalid response structure"))
+            else:
+                print(f"    ❌ Request failed with status {response.status_code}: {response.text}")
+                results.append((f"OAuth Status {platform}", False, f"HTTP {response.status_code}"))
+        except Exception as e:
+            print(f"    ❌ Exception occurred: {e}")
+            results.append((f"OAuth Status {platform}", False, str(e)))
+    
+    # ═══ TEST 2: OAuth Start Endpoints with Unconfigured Credentials ═══
+    print("\n🚫 TEST 2: OAuth Start Endpoints with Unconfigured Credentials")
+    
+    oauth_start_tests = [
+        ('linkedin', 'LinkedIn'),
+        ('hubspot', 'HubSpot'), 
+        ('salesforce', 'Salesforce'),
+        ('snowflake', 'Snowflake')
+    ]
+    
+    for platform, expected_name in oauth_start_tests:
+        try:
+            print(f"  ➤ Testing POST /api/oauth/{platform}/start...")
+            payload = {"redirectUri": "https://example.com/callback"}
+            response = requests.post(f"{API_BASE_URL}/oauth/{platform}/start", 
+                                   json=payload, 
+                                   headers={"Content-Type": "application/json"},
+                                   timeout=30)
+            
+            # Should return 501 Not Implemented with clear error message
+            if response.status_code == 501:
+                data = response.json()
+                
+                # Check response structure
+                if not data.get('success') and 'error' in data:
+                    error_message = data['error']
+                    
+                    # Check that error message mentions the platform and OAuth not configured
+                    expected_messages = [
+                        f"{expected_name} OAuth is not configured",
+                        "not configured",
+                        "environment variables"
+                    ]
+                    
+                    message_found = any(msg.lower() in error_message.lower() for msg in expected_messages)
+                    if not message_found:
+                        print(f"    ❌ Error message doesn't match expected pattern: {error_message}")
+                        results.append((f"OAuth Start {platform} Error Message", False, "Wrong error message"))
+                        continue
+                    
+                    # Check details structure
+                    if 'details' in data:
+                        details = data['details']
+                        required_detail_fields = ['provider', 'requiredEnvVars', 'developerPortalUrl']
+                        missing_detail_fields = [field for field in required_detail_fields if field not in details]
+                        
+                        if missing_detail_fields:
+                            print(f"    ❌ Missing detail fields: {missing_detail_fields}")
+                            results.append((f"OAuth Start {platform} Details", False, f"Missing fields: {missing_detail_fields}"))
+                        else:
+                            # Check that requiredEnvVars is an array
+                            if not isinstance(details.get('requiredEnvVars'), list) or len(details['requiredEnvVars']) == 0:
+                                print(f"    ❌ requiredEnvVars should be a non-empty array")
+                                results.append((f"OAuth Start {platform} Details", False, "Invalid requiredEnvVars"))
+                            else:
+                                print(f"    ✅ {platform} correctly returns 501 with proper error structure")
+                                results.append((f"OAuth Start {platform}", True, f"Correct 501 response for {platform}"))
+                    else:
+                        print(f"    ❌ Missing details object in response")
+                        results.append((f"OAuth Start {platform} Details", False, "Missing details"))
+                else:
+                    print(f"    ❌ Invalid error response structure: {data}")
+                    results.append((f"OAuth Start {platform}", False, "Invalid error response structure"))
+            else:
+                print(f"    ❌ Expected 501, got {response.status_code}: {response.text}")
+                results.append((f"OAuth Start {platform}", False, f"Expected 501, got {response.status_code}"))
+        except Exception as e:
+            print(f"    ❌ Exception occurred: {e}")
+            results.append((f"OAuth Start {platform}", False, str(e)))
+    
+    # ═══ TEST 3: Error Response Structure Validation ═══
+    print("\n🔍 TEST 3: Error Response Structure Deep Validation")
+    
+    # Test one platform in detail for error structure
+    try:
+        print("  ➤ Testing LinkedIn error response structure in detail...")
+        payload = {"redirectUri": "https://example.com/callback"}
+        response = requests.post(f"{API_BASE_URL}/oauth/linkedin/start", 
+                               json=payload, 
+                               headers={"Content-Type": "application/json"},
+                               timeout=30)
+        
+        if response.status_code == 501:
+            data = response.json()
+            
+            # Verify complete structure
+            expected_structure = {
+                'success': False,
+                'error': str,
+                'details': {
+                    'provider': str,
+                    'requiredEnvVars': list,
+                    'developerPortalUrl': str
+                }
+            }
+            
+            structure_errors = []
+            
+            # Check main structure
+            if data.get('success') != False:
+                structure_errors.append("success should be false")
+            
+            if not isinstance(data.get('error'), str) or len(data.get('error', '')) == 0:
+                structure_errors.append("error should be non-empty string")
+            
+            details = data.get('details', {})
+            if not isinstance(details, dict):
+                structure_errors.append("details should be object")
+            else:
+                if details.get('provider') != 'linkedin':
+                    structure_errors.append("details.provider should be 'linkedin'")
+                
+                if not isinstance(details.get('requiredEnvVars'), list) or len(details.get('requiredEnvVars', [])) < 2:
+                    structure_errors.append("details.requiredEnvVars should be array with at least 2 items")
+                else:
+                    # Check that env vars are reasonable
+                    env_vars = details['requiredEnvVars']
+                    if not any('LINKEDIN_CLIENT_ID' in var for var in env_vars):
+                        structure_errors.append("Missing LINKEDIN_CLIENT_ID in requiredEnvVars")
+                    if not any('LINKEDIN_CLIENT_SECRET' in var for var in env_vars):
+                        structure_errors.append("Missing LINKEDIN_CLIENT_SECRET in requiredEnvVars")
+                
+                if not isinstance(details.get('developerPortalUrl'), str) or not details.get('developerPortalUrl', '').startswith('http'):
+                    structure_errors.append("details.developerPortalUrl should be valid URL")
+            
+            if structure_errors:
+                print(f"    ❌ Structure errors: {structure_errors}")
+                results.append(("Error Response Structure", False, f"Structure errors: {structure_errors}"))
+            else:
+                print(f"    ✅ Error response structure is complete and correct")
+                results.append(("Error Response Structure", True, "Complete error response structure"))
+        else:
+            print(f"    ❌ Expected 501 for structure test, got {response.status_code}")
+            results.append(("Error Response Structure", False, f"Wrong status code for structure test"))
+    except Exception as e:
+        print(f"    ❌ Exception in structure test: {e}")
+        results.append(("Error Response Structure", False, str(e)))
+    
+    # ═══ TEST 4: Existing Plugin Endpoints (Regression Testing) ═══
+    print("\n🔄 TEST 4: Existing Plugin Endpoints (Regression Testing)")
+    
+    try:
+        # GET /api/plugins - Should still return all 15 plugins
+        print("  ➤ Testing GET /api/plugins (regression test)...")
+        response = requests.get(f"{API_BASE_URL}/plugins", timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and 'data' in data:
+                plugins = data['data']
+                
+                if len(plugins) >= 15:  # Should have at least 15 plugins
+                    print(f"    ✅ Plugins endpoint working: {len(plugins)} plugins returned")
+                    results.append(("Plugins Regression Test", True, f"{len(plugins)} plugins returned"))
+                else:
+                    print(f"    ❌ Expected at least 15 plugins, got {len(plugins)}")
+                    results.append(("Plugins Regression Test", False, f"Only {len(plugins)} plugins"))
+            else:
+                print(f"    ❌ Invalid response structure: {data}")
+                results.append(("Plugins Regression Test", False, "Invalid response structure"))
+        else:
+            print(f"    ❌ Plugins endpoint failed: {response.status_code}")
+            results.append(("Plugins Regression Test", False, f"HTTP {response.status_code}"))
+    except Exception as e:
+        print(f"    ❌ Exception in plugins test: {e}")
+        results.append(("Plugins Regression Test", False, str(e)))
+    
+    try:
+        # GET /api/plugins/ga4 - Should return plugin details
+        print("  ➤ Testing GET /api/plugins/ga4 (regression test)...")
+        response = requests.get(f"{API_BASE_URL}/plugins/ga4", timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and 'data' in data:
+                plugin_data = data['data']
+                
+                # Check that manifest exists
+                if 'manifest' in plugin_data:
+                    manifest = plugin_data['manifest']
+                    
+                    # Check key fields
+                    if manifest.get('platformKey') == 'ga4' and manifest.get('displayName'):
+                        print(f"    ✅ GA4 plugin details working: {manifest.get('displayName')}")
+                        results.append(("GA4 Plugin Regression Test", True, "GA4 plugin details correct"))
+                    else:
+                        print(f"    ❌ GA4 plugin manifest missing key fields")
+                        results.append(("GA4 Plugin Regression Test", False, "Missing manifest fields"))
+                else:
+                    print(f"    ❌ GA4 plugin missing manifest")
+                    results.append(("GA4 Plugin Regression Test", False, "Missing manifest"))
+            else:
+                print(f"    ❌ Invalid GA4 response structure: {data}")
+                results.append(("GA4 Plugin Regression Test", False, "Invalid response structure"))
+        else:
+            print(f"    ❌ GA4 plugin endpoint failed: {response.status_code}")
+            results.append(("GA4 Plugin Regression Test", False, f"HTTP {response.status_code}"))
+    except Exception as e:
+        print(f"    ❌ Exception in GA4 plugin test: {e}")
+        results.append(("GA4 Plugin Regression Test", False, str(e)))
+    
+    # ═══ TEST SUMMARY ═══
+    print("\n" + "="*80)
+    print("📋 OAUTH CONFIGURATION WIRING TEST RESULTS")
+    print("="*80)
+    
+    passed = 0
+    failed = 0
+    
+    for test_name, success, details in results:
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status:10} | {test_name:<40} | {details}")
         
         if success:
-            print("\nAll plugin architecture tests completed successfully! ✅")
-            sys.exit(0)
+            passed += 1
         else:
-            print("\nSome plugin architecture tests failed! ❌")
-            sys.exit(1)
+            failed += 1
     
-    except KeyboardInterrupt:
-        print("\n\nTest interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n\nUnexpected error: {str(e)}")
-        sys.exit(1)
+    print("="*80)
+    print(f"📊 SUMMARY: {passed} passed, {failed} failed, {passed+failed} total")
+    
+    if failed == 0:
+        print("🎉 ALL OAUTH CONFIGURATION WIRING TESTS PASSED!")
+        return True
+    else:
+        print(f"💥 {failed} TESTS FAILED - OAuth configuration wiring needs attention")
+        return False
+
+if __name__ == "__main__":
+    print(f"🌐 Testing against: {BASE_URL}")
+    success = test_oauth_configuration_wiring()
+    sys.exit(0 if success else 1)
