@@ -1072,6 +1072,21 @@ agent_communication:
         agent: "testing"
         comment: "✅ Plugin-Based Onboarding Flow FULLY OPERATIONAL! 100% SUCCESS RATE (9/9 tests passed). Comprehensive testing completed: ✅ Plugin API Endpoints - GET /api/plugins returns 15 registered plugins, specific plugin retrieval working, schema endpoints (client-target, agency-config) returning valid JSON schemas, roles and access-types endpoints functional, ✅ Enhanced Onboarding API - GET /api/onboarding/:token returns items with clientTargetSchema, pluginInstructions, and verificationMode fields, POST attestation with clientProvidedTarget saves data correctly and updates item status to validated, ✅ Platform Plugin Isolation - Google Ads (2 schema fields) and Meta (4 schema fields) have different schemas and instructions, proper plugin isolation verified, ✅ Plugin Validation Endpoints - Agency config validation, client target validation, and instruction building all working, ✅ Error Handling - All error scenarios handled correctly (404s, 400s, invalid tokens). Plugin architecture with schema-driven forms and dynamic instructions is production-ready."
 
+  - task: "Refactored Modular Plugin Architecture for ALL 15 Plugins"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Refactored plugin architecture to support all 15 plugins with modular design. Each plugin defines supported access types, role templates, and schemas. Forms are dynamically generated from JSON Schema (from Zod) and validation uses plugin validators on the server. Need comprehensive testing of all plugin capabilities."
+      - working: true
+        agent: "testing"
+        comment: "🎉 REFACTORED MODULAR PLUGIN ARCHITECTURE TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (22/22 tests passed). Comprehensive validation completed: ✅ ALL 15 PLUGINS LOADING AT v2.1.0 - GET /api/plugins returns exactly 15 plugins: google-ads, meta, ga4, google-search-console, snowflake, dv360, trade-desk, tiktok, snapchat, linkedin, pinterest, hubspot, salesforce, gtm, ga-ua. ✅ SCHEMA GENERATION FOR MULTIPLE PLUGINS - Meta/TikTok/LinkedIn agency-config schemas working, Salesforce/Snowflake SHARED_ACCOUNT schemas include breakGlassJustification fields for break-glass PAM governance. ✅ PAM GOVERNANCE RULES VERIFIED - Salesforce: break_glass_only, Snowflake: break_glass_only, Google Ads/Meta/TikTok: not_recommended. Security capabilities properly configured. ✅ CLIENT TARGET SCHEMAS - Google Ads PARTNER_DELEGATION includes adAccountId/adAccountName, GTM NAMED_INVITE includes containerId. ✅ SUPPORTED ACCESS ITEM TYPES VERIFIED - GA4: NAMED_INVITE, GROUP_ACCESS, SHARED_ACCOUNT; Google Ads: PARTNER_DELEGATION, NAMED_INVITE, SHARED_ACCOUNT; Meta: PARTNER_DELEGATION, NAMED_INVITE, SHARED_ACCOUNT. The modular plugin architecture is production-ready and fully operational!"
+
 backend:
   - task: "Bug Fix Testing - Named Invite Identity Strategy Restrictions"
     implemented: true
