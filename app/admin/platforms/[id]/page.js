@@ -1152,9 +1152,9 @@ export default function PlatformConfigPage() {
                     </Button>
                     <Button onClick={handleSave} disabled={saving}>
                       {saving ? (
-                        <><i className="fas fa-spinner fa-spin mr-2"></i>Saving...</>
+                        <><i className="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>Saving...</>
                       ) : (
-                        <><i className="fas fa-check mr-2"></i>{editingItem ? 'Update Item' : 'Add Item'}</>
+                        <><i className="fas fa-check mr-2" aria-hidden="true"></i>{editingItem ? 'Update Item' : 'Add Item'}</>
                       )}
                     </Button>
                   </div>
@@ -1175,6 +1175,22 @@ export default function PlatformConfigPage() {
         variant="destructive"
         icon="fas fa-trash"
         onConfirm={handleConfirmDelete}
+      />
+      
+      {/* Custom Role Dialog */}
+      <CustomRoleDialog
+        open={customRoleDialog.open}
+        onOpenChange={(open) => setCustomRoleDialog({ open, editingRole: open ? customRoleDialog.editingRole : null })}
+        platformName={platform?.displayName || platform?.name}
+        existingRoles={[...roleTemplates, ...customRoles]}
+        editingRole={customRoleDialog.editingRole}
+        onSaveRole={(roleData, isEdit) => {
+          if (isEdit) {
+            setCustomRoles(prev => prev.map(r => r.key === roleData.key ? roleData : r));
+          } else {
+            setCustomRoles(prev => [...prev, roleData]);
+          }
+        }}
       />
     </div>
     </TooltipProvider>
