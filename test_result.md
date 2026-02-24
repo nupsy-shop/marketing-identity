@@ -1317,6 +1317,18 @@ test_plan:
         agent: "main"
         comment: "Migrated from in-memory storage to PostgreSQL database on Neon cloud. Created /app/lib/db.js with all database operations using pg Pool. All API endpoints in route.js updated to use db.js functions. Database has 15 seeded platforms, supports all CRUD operations for Clients, Agency Platforms, Access Items, Access Requests, Integration Identities, PAM Sessions, and Audit Logs. Manual curl tests confirm: GET /api/platforms returns 15 platforms, GET /api/clients returns persisted client, POST /api/access-requests creates request with items, attestation flow updates item status. Needs comprehensive backend testing."
 
+  - task: "GA4 Capability-Driven Access Verification Implementation"
+    implemented: true
+    working: "NA"
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GA4 verifyAccess implementation completed per review request. GA4 plugin has verifyAccess method that calls GA4 Admin API to verify user access bindings. Capabilities properly configured: NAMED_INVITE/GROUP_ACCESS have canVerifyAccess=true, SHARED_ACCOUNT has canVerifyAccess=false with requiresEvidenceUpload=true. Grant access returns 501 as canGrantAccess=false. Needs testing of all endpoints per review_request specifications."
+
 agent_communication:
   - agent: "main"
     message: "PostgreSQL database migration to Neon cloud is complete. The /app/lib/db.js file contains all database operations using pg Pool with SSL connection to Neon. All API endpoints in /app/app/api/[[...path]]/route.js have been updated to use these database functions. Manual curl testing confirms: (1) GET /api/platforms - returns 15 seeded platforms from PostgreSQL, (2) GET /api/clients - returns persisted client 'Test Corp', (3) GET /api/agency/platforms - returns configured agency platform with access items, (4) POST /api/access-requests - creates new access request with items, token generated, (5) POST /api/onboarding/:token/items/:itemId/attest - attestation flow updates item status to validated, stores clientProvidedTarget, (6) GET /api/audit-logs - audit log records created. Please run comprehensive backend tests to verify all endpoints work correctly with the PostgreSQL database."
