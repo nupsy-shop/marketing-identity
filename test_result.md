@@ -1956,3 +1956,7 @@ agent_communication:
   - agent: "main"
     message: "Implemented grantAccess for GA4 plugin. CHANGES: (1) Updated GA4 manifest to set canGrantAccess=true for NAMED_INVITE and GROUP_ACCESS, (2) Implemented full grantAccess method in GA4 plugin index.ts that uses GA4 Admin API createAccessBinding to programmatically grant access. Features: validates inputs, checks existing bindings, handles role upgrades gracefully, maps role keys to GA4 roles. Need to test: (1) POST /api/oauth/ga4/grant-access endpoint, (2) Verify canGrantAccess=true in capabilities, (3) Error handling for invalid tokens/targets."
 
+
+  - agent: "main"
+    message: "Implemented grantAccess for GTM and Google Ads plugins. CHANGES: (1) Updated GTM manifest to set canGrantAccess=true for NAMED_INVITE and GROUP_ACCESS, (2) Implemented grantAccess in GTM plugin using createUserPermission API, (3) Updated Google Ads manifest to set canGrantAccess=true for PARTNER_DELEGATION and NAMED_INVITE, (4) Implemented grantAccess in Google Ads plugin using createUserAccessInvitation for NAMED_INVITE and createManagerClientLink for PARTNER_DELEGATION. Need to test: (1) GTM capabilities endpoint, (2) GTM grant-access endpoint, (3) Google Ads capabilities endpoint, (4) Google Ads grant-access endpoint."
+
