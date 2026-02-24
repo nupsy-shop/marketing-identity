@@ -3,8 +3,8 @@
  * OAuth logic for Google Ads API using per-platform credentials
  */
 
-import type { AuthParams, AuthResult } from '../../common/types';
-import { buildAuthorizationUrl, exchangeCodeForTokens, refreshAccessToken, generateState, type OAuthConfig } from '../../common/utils/auth';
+import type { AuthParams, AuthResult } from '../common/types';
+import { buildAuthorizationUrl, exchangeCodeForTokens, refreshAccessToken, generateState, type OAuthConfig } from '../common/utils/auth';
 
 // ─── Google Ads OAuth Configuration ───────────────────────────────────────────
 
