@@ -194,3 +194,73 @@ export async function listAccountsWithContainers(auth: AuthResult): Promise<{ ac
   
   return result;
 }
+
+// ─── User Permission Creation ──────────────────────────────────────────────────
+
+/**
+ * Create a user permission for an account
+ * This grants access to a user on a GTM account and optionally specific containers
+ */
+export async function createUserPermission(
+  auth: AuthResult,
+  accountId: string,
+  userEmail: string,
+  accountPermission: GTMAccountPermission,
+  containerAccess?: GTMContainerAccess[]
+): Promise<GTMUserPermission> {
+  const client = createClient(auth);
+  
+  const body: {
+    emailAddress: string;
+    accountAccess: { permission: GTMAccountPermission };
+    containerAccess?: GTMContainerAccess[];
+  } = {
+    emailAddress: userEmail,
+    accountAccess: { permission: accountPermission },
+  };
+  
+  if (containerAccess && containerAccess.length > 0) {
+    body.containerAccess = containerAccess;
+  }
+  
+  return client.post<GTMUserPermission>(`/accounts/${accountId}/user_permissions`, body);
+}
+
+/**
+ * Update a user permission for an account
+ */
+export async function updateUserPermission(
+  auth: AuthResult,
+  permissionPath: string,
+  accountPermission?: GTMAccountPermission,
+  containerAccess?: GTMContainerAccess[]
+): Promise<GTMUserPermission> {
+  const client = createClient(auth);
+  
+  const body: {
+    accountAccess?: { permission: GTMAccountPermission };
+    containerAccess?: GTMContainerAccess[];
+  } = {};
+  
+  if (accountPermission) {
+    body.accountAccess = { permission: accountPermission };
+  }
+  
+  if (containerAccess) {
+    body.containerAccess = containerAccess;
+  }
+  
+  // permissionPath format: accounts/{accountId}/user_permissions/{permissionId}
+  return client.put<GTMUserPermission>(`/${permissionPath}`, body);
+}
+
+/**
+ * Delete a user permission from an account
+ */
+export async function deleteUserPermission(
+  auth: AuthResult,
+  permissionPath: string
+): Promise<void> {
+  const client = createClient(auth);
+  await client.delete<void>(`/${permissionPath}`);
+}
