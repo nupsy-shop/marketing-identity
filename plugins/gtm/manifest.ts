@@ -28,6 +28,7 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
 };
 
 // GTM API supports user management - grant access via createUserPermission
+// SHARED_ACCOUNT now supports conditional rules based on PAM configuration
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   NAMED_INVITE: {
     clientOAuthSupported: true,
@@ -42,11 +43,47 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
-    clientOAuthSupported: false,
-    canGrantAccess: false,
-    canVerifyAccess: false,
-    requiresEvidenceUpload: true
-  }
+    // Default: evidence/manual flow (for CLIENT_OWNED)
+    default: {
+      clientOAuthSupported: false,
+      canGrantAccess: false,
+      canVerifyAccess: false,
+      requiresEvidenceUpload: true
+    },
+    // Conditional rules for identity-based PAM
+    rules: [
+      // AGENCY_OWNED + HUMAN_INTERACTIVE: Can grant and verify via API
+      {
+        when: { pamOwnership: 'AGENCY_OWNED', identityPurpose: 'HUMAN_INTERACTIVE' },
+        set: {
+          clientOAuthSupported: true,
+          canGrantAccess: true,
+          canVerifyAccess: true,
+          requiresEvidenceUpload: false
+        }
+      },
+      // AGENCY_OWNED + INTEGRATION_NON_HUMAN: Service account access
+      {
+        when: { pamOwnership: 'AGENCY_OWNED', identityPurpose: 'INTEGRATION_NON_HUMAN' },
+        set: {
+          clientOAuthSupported: true,
+          canGrantAccess: true,
+          canVerifyAccess: true,
+          requiresEvidenceUpload: false
+        }
+      },
+      // CLIENT_OWNED: Must use evidence
+      {
+        when: { pamOwnership: 'CLIENT_OWNED' },
+        set: {
+          clientOAuthSupported: false,
+          canGrantAccess: false,
+          canVerifyAccess: false,
+          requiresEvidenceUpload: true
+        }
+      }
+    ]
+  } as AccessTypeCapabilityWithRules
 };
 
 export const GTM_MANIFEST: PluginManifest = {
