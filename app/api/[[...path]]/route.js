@@ -1868,19 +1868,10 @@ export async function POST(request, { params }) {
         return NextResponse.json({ success: false, error: 'accessToken is required' }, { status: 400 });
       }
 
-      // Check if OAuth provider is configured
-      const providerKey = getProviderForPlatform(platformKey);
-      if (providerKey && !isProviderConfigured(providerKey)) {
-        const providerConfig = getProviderConfig(providerKey);
-        return NextResponse.json({ 
-          success: false, 
-          error: `${providerConfig?.displayName || platformKey} OAuth is not configured.`,
-          details: {
-            provider: providerKey,
-            developerPortalUrl: providerConfig?.developerPortalUrl || ''
-          }
-        }, { status: 501 });
-      }
+      // Note: We don't check isProviderConfigured here because:
+      // 1. If the client has a valid accessToken, OAuth already succeeded
+      // 2. Target discovery only needs the access token to call Google APIs
+      // 3. The provider config check is only needed for initiating OAuth flow
 
       const plugin = PluginRegistry.get(platformKey);
       if (!plugin) {
