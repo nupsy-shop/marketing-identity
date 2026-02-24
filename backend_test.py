@@ -466,16 +466,19 @@ def test_gsc_additional_endpoints():
         response = make_request('POST', '/oauth/google-search-console/verify-access', verify_shared_data)
         
         # Should return error for SHARED_ACCOUNT
-        if response and not (response.status_code == 200 and response.json().get('success')):
-            error_msg = response.json().get('error', '').lower() if response and response.json() else ''
-            if 'shared account' in error_msg or 'cannot be verified' in error_msg:
+        if response and response.status_code == 501:
+            print("✅ PASS: GSC verify access properly returns 501 for SHARED_ACCOUNT (not supported)")
+            tests_passed += 1
+        elif response and response.status_code == 200:
+            data = response.json()
+            if not data.get('success') and ('shared account' in data.get('error', '').lower() or 
+                                           'cannot be verified' in data.get('error', '').lower()):
                 print("✅ PASS: GSC verify access properly rejects SHARED_ACCOUNT")
                 tests_passed += 1
             else:
-                print("✅ PASS: GSC verify access returns error for SHARED_ACCOUNT")
-                tests_passed += 1
+                print(f"❌ FAIL: GSC verify access unexpected response for SHARED_ACCOUNT: {data}")
         else:
-            print(f"❌ FAIL: GSC verify access should not support SHARED_ACCOUNT")
+            print(f"❌ FAIL: GSC verify access should handle SHARED_ACCOUNT properly, got: {response.status_code if response else 'No response'}")
             
         # Test 3: GSC Discover Targets - Fake Token
         print("\n📝 Test 3: GSC Discover Targets - Fake Token")
