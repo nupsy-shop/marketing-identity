@@ -25,12 +25,13 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
   targetTypes: ['SITE', 'PROPERTY']
 };
 
-// GSC API can verify owners but cannot add users programmatically
+// GSC API can verify site access but cannot add users programmatically
+// The API only supports listing sites and checking the current user's permission level
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   NAMED_INVITE: {
     clientOAuthSupported: true,
-    canGrantAccess: false,     // No API to add users to properties
-    canVerifyAccess: true,     // Can verify owners via API
+    canGrantAccess: false,     // Search Console API does NOT support adding users
+    canVerifyAccess: true,     // Can verify if connected user has access
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
