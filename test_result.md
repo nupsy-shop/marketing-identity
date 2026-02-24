@@ -2013,3 +2013,116 @@ agent_communication:
   - agent: "testing"
     message: "🎉 GOOGLE SEARCH CONSOLE (GSC) PLUGIN TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (10/10 tests passed). Comprehensive testing per review_request requirements completed: ✅ GSC Capabilities NAMED_INVITE - Returns canGrantAccess=false, canVerifyAccess=true, clientOAuthSupported=true as expected (Search Console API does NOT support programmatic user management), ✅ GSC Capabilities SHARED_ACCOUNT - Returns canGrantAccess=false, canVerifyAccess=false, clientOAuthSupported=false as expected, ✅ GSC OAuth Start - POST /api/oauth/google-search-console/start returns valid Google OAuth URL with proper state and GSC-specific scopes, ✅ GSC OAuth Status - Shows configured=true and oauthSupported=true (GSC OAuth credentials are configured in .env), ✅ GSC Verify Access - POST /api/oauth/google-search-console/verify-access correctly validates required fields (returns 400 for missing fields), handles fake tokens appropriately (returns verification failed as expected), rejects SHARED_ACCOUNT type with 501 'does not support programmatic access verification', ✅ GSC Grant Access - POST /api/oauth/google-search-console/grant-access correctly returns 501 'does not support programmatic access granting' as expected (canGrantAccess=false in manifest), ✅ GSC Target Discovery - POST /api/oauth/google-search-console/discover-targets validates required fields (returns 400 for missing token), handles fake tokens with appropriate errors. FIXED: OAuth URL construction issue in auth.ts (changed authEndpoint/tokenEndpoint to authorizationUrl/tokenUrl to match common auth utils). The GSC plugin is PRODUCTION-READY with proper Search Console API integration, correct capability flags reflecting API limitations, and complete OAuth flow support!"
 
+
+  - agent: "main"
+    message: "Implemented Conditional Capabilities for SHARED_ACCOUNT (PAM) based on pamOwnership/identityPurpose. MAJOR REFACTORING: 
+
+**Problem**: UI was hardcoded to show 'Evidence + Manual' for ALL SHARED_ACCOUNT items, even when identity-based PAM flows (AGENCY_OWNED + HUMAN_INTERACTIVE) should support OAuth + API Verify.
+
+**Solution - Option A Implemented**:
+1. Extended manifest types in /app/lib/plugins/types.ts:
+   - Added AccessTypeCapabilityWithRules interface with `default` and `rules` fields
+   - Added CapabilityCondition interface for matching rules by pamOwnership/identityPurpose/identityStrategy
+   - Added ConditionalCapabilityRule interface with `when` and `set` properties
+   - Added CapabilityConfigContext interface for runtime config
+
+2. Created getEffectiveCapabilities function that:
+   - Evaluates conditional rules based on config context
+   - Returns computed effective capabilities for specific access items
+   - Replaces hardcoded SHARED_ACCOUNT check in getAccessTypeCapability
+
+3. Updated ALL Google plugin manifests (GA4, GTM, Google Ads, GSC) with conditional rules:
+   - AGENCY_OWNED + HUMAN_INTERACTIVE → canVerifyAccess=true, clientOAuthSupported=true, requiresEvidenceUpload=false
+   - AGENCY_OWNED + INTEGRATION_NON_HUMAN → similar capabilities
+   - CLIENT_OWNED → evidence required (original behavior)
+
+4. Added new API endpoint: GET /api/plugins/:platformKey/effective-capabilities
+   - Accepts pamOwnership, identityPurpose, identityStrategy as query params
+   - Returns computed effective capabilities
+
+5. Updated /api/onboarding/:token to compute effective capabilities based on item config
+
+6. Updated /api/oauth/:platformKey/verify-access and grant-access to accept config context
+
+7. Updated UI in onboarding page to use effective capabilities (removed hardcoded !isPAM checks)
+
+**NEEDS TESTING**:
+1. GET /api/plugins/ga4/effective-capabilities?accessItemType=SHARED_ACCOUNT → should return evidence required
+2. GET /api/plugins/ga4/effective-capabilities?accessItemType=SHARED_ACCOUNT&pamOwnership=AGENCY_OWNED&identityPurpose=HUMAN_INTERACTIVE → should return OAuth + verify enabled
+3. GET /api/plugins/ga4/effective-capabilities?accessItemType=SHARED_ACCOUNT&pamOwnership=CLIENT_OWNED → should return evidence required
+4. GET /api/plugins/ga4/effective-capabilities?accessItemType=NAMED_INVITE → should be unchanged (OAuth + grant + verify)
+5. Same tests for GTM, Google Ads, GSC
+6. Verify /api/oauth/ga4/verify-access accepts SHARED_ACCOUNT with AGENCY_OWNED config
+7. Verify /api/oauth/ga4/verify-access rejects SHARED_ACCOUNT with CLIENT_OWNED config"
+
+  - task: "Conditional Capabilities - New API Endpoint"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented GET /api/plugins/:platformKey/effective-capabilities endpoint that accepts accessItemType, pamOwnership, identityPurpose, identityStrategy as query params and returns computed effective capabilities. Manual testing shows it works correctly."
+
+  - task: "Conditional Capabilities - GA4 SHARED_ACCOUNT Rules"
+    implemented: true
+    working: true
+    file: "/app/plugins/ga4/manifest.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added conditional rules to GA4 manifest for SHARED_ACCOUNT. AGENCY_OWNED+HUMAN_INTERACTIVE enables OAuth+verify, CLIENT_OWNED enables evidence. Manual test verified."
+
+  - task: "Conditional Capabilities - GTM/Ads/GSC SHARED_ACCOUNT Rules"
+    implemented: true
+    working: true
+    file: "/app/plugins/gtm/manifest.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added conditional rules to GTM, Google Ads, and GSC manifests for SHARED_ACCOUNT. GSC correctly shows canGrantAccess=false but canVerifyAccess=true for AGENCY_OWNED."
+
+  - task: "Conditional Capabilities - Verify/Grant Endpoints Accept Config"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated /api/oauth/:platformKey/verify-access and grant-access to accept pamOwnership, identityPurpose, identityStrategy in request body and use getEffectiveCapabilities for gate checks."
+
+  - task: "Conditional Capabilities - Onboarding API Uses Effective Capabilities"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated GET /api/onboarding/:token to compute effective capabilities for each item based on pamOwnership/identityPurpose from the AccessRequestItem config."
+
+test_plan:
+  current_focus:
+    - "Conditional Capabilities - New API Endpoint"
+    - "Conditional Capabilities - GA4 SHARED_ACCOUNT Rules"
+    - "Conditional Capabilities - GTM/Ads/GSC SHARED_ACCOUNT Rules"
+    - "Conditional Capabilities - Verify/Grant Endpoints Accept Config"
+    - "Conditional Capabilities - Onboarding API Uses Effective Capabilities"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
