@@ -1992,3 +1992,7 @@ agent_communication:
   - agent: "main"
     message: "Implemented enhanced Target Discovery & Selection UI on onboarding page. CHANGES: (1) Created new TargetDiscoverySelector component with rich UI for discovering and selecting targets, (2) Added search filtering for targets, (3) Added visual grouping for hierarchical targets (accounts/properties), (4) Added auto-discovery after OAuth connection, (5) Added save-target API endpoint to persist selected target, (6) Integrated with onboarding page AccessItemCard component. Need to test: (1) Target discovery endpoint, (2) Save-target endpoint."
 
+
+  - agent: "main"
+    message: "Implemented GSC plugin with OAuth, verifyAccess, and grantAccess. IMPORTANT: Search Console API does NOT support adding users programmatically - grantAccess returns detailed manual instructions. CHANGES: (1) Created auth.ts for GSC OAuth config, (2) Created api/management.ts with listSites, checkSiteAccess, verifyUserAccess, discoverSites functions, (3) Rewrote index.ts with full OAuthCapablePlugin implementation including startOAuth, handleOAuthCallback, discoverTargets, verifyAccess, grantAccess methods. Need to test: (1) GSC capabilities endpoint, (2) GSC OAuth start, (3) GSC verify-access and grant-access endpoints."
+
