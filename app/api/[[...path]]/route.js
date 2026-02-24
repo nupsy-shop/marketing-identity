@@ -958,6 +958,53 @@ export async function GET(request, { params }) {
       });
     }
 
+    // GET /api/plugins/:platformKey/effective-capabilities - Get effective capabilities with config context
+    // Query params: accessItemType, pamOwnership, identityPurpose, identityStrategy
+    if (path.match(/^plugins\/[^/]+\/effective-capabilities$/)) {
+      const platformKey = path.split('/')[1];
+      const accessItemType = url.searchParams.get('accessItemType');
+      const pamOwnership = url.searchParams.get('pamOwnership');
+      const identityPurpose = url.searchParams.get('identityPurpose');
+      const identityStrategy = url.searchParams.get('identityStrategy');
+
+      if (!accessItemType) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'accessItemType query param is required' 
+        }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // Build config context from query params
+      const config = {
+        pamOwnership,
+        identityPurpose,
+        identityStrategy,
+        pamIdentityStrategy: identityStrategy
+      };
+
+      // Get effective capabilities using conditional rules
+      const effectiveCapabilities = getEffectiveCapabilities(plugin.manifest, accessItemType, config);
+      const itemTypeMeta = plugin.manifest.supportedAccessItemTypes?.find(t => t.type === accessItemType);
+
+      return NextResponse.json({ 
+        success: true, 
+        data: {
+          platformKey,
+          accessItemType,
+          config,
+          effectiveCapabilities,
+          roleTemplates: itemTypeMeta?.roleTemplates || [],
+          label: itemTypeMeta?.label,
+          description: itemTypeMeta?.description
+        }
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
   } catch (error) {
     console.error('GET error:', error);
