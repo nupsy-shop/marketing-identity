@@ -646,6 +646,29 @@ export async function GET(request, { params }) {
     // GET /api/oauth/:platformKey/status - Get OAuth configuration status for a specific platform
     if (path.match(/^oauth\/[^/]+\/status$/)) {
       const platformKey = path.split('/')[1];
+      
+      // First check if plugin implements startOAuth (per-platform OAuth)
+      const plugin = PluginRegistry.get(platformKey);
+      if (plugin && plugin.startOAuth && typeof plugin.startOAuth === 'function') {
+        // Use the new per-platform OAuth config
+        const platformConfig = getPlatformConfig(platformKey);
+        const configured = isPlatformOAuthConfigured(platformKey);
+        
+        return NextResponse.json({ 
+          success: true, 
+          data: { 
+            platformKey,
+            provider: platformConfig?.provider || platformKey,
+            oauthSupported: true,
+            configured,
+            displayName: platformConfig?.displayName || plugin.manifest?.displayName,
+            developerPortalUrl: platformConfig?.developerPortalUrl || 'https://console.cloud.google.com/apis/credentials',
+            requiredEnvVars: platformConfig?.envVars ? [platformConfig.envVars.clientId, platformConfig.envVars.clientSecret] : []
+          }
+        });
+      }
+
+      // Fallback to legacy provider-based OAuth config
       const providerKey = getProviderForPlatform(platformKey);
       
       if (!providerKey) {
