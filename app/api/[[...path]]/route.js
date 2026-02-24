@@ -1297,6 +1297,62 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: true, data: finalReq });
     }
 
+    // POST /api/onboarding/:token/items/:itemId/save-target - Save selected target to access item
+    if (path.match(/^onboarding\/[^/]+\/items\/[^/]+\/save-target$/)) {
+      const parts = path.split('/');
+      const token = parts[1];
+      const itemId = parts[3];
+      const { selectedTarget } = body || {};
+
+      if (!selectedTarget) {
+        return NextResponse.json({ success: false, error: 'selectedTarget is required' }, { status: 400 });
+      }
+
+      const req = await db.getAccessRequestByToken(token);
+      if (!req) {
+        return NextResponse.json({ success: false, error: 'Invalid onboarding token' }, { status: 404 });
+      }
+
+      const item = req.items.find(i => i.id === itemId);
+      if (!item) {
+        return NextResponse.json({ success: false, error: 'Item not found in request' }, { status: 404 });
+      }
+
+      // Save the selected target as part of clientProvidedTarget
+      const updatedClientTarget = {
+        ...item.clientProvidedTarget,
+        selectedTarget: {
+          externalId: selectedTarget.externalId,
+          displayName: selectedTarget.displayName,
+          targetType: selectedTarget.targetType,
+          parentExternalId: selectedTarget.parentExternalId,
+          metadata: selectedTarget.metadata
+        }
+      };
+
+      await db.updateAccessRequestItem(req.id, itemId, {
+        clientProvidedTarget: updatedClientTarget
+      });
+
+      await db.createAuditLogEntry({
+        id: uuidv4(),
+        action: 'ACCESS_TARGET_SELECTED',
+        performedBy: 'client',
+        requestId: req.id,
+        itemId,
+        platformId: item.platformId,
+        details: { selectedTarget }
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        data: { 
+          itemId, 
+          selectedTarget: updatedClientTarget.selectedTarget 
+        } 
+      });
+    }
+
     // POST /api/integration-identities - Create integration identity
     if (path === 'integration-identities') {
       const { name, type, identifier, description, platformId, metadata } = body || {};
