@@ -408,12 +408,17 @@ def test_gsc_capabilities():
         response = make_request('POST', '/oauth/google-search-console/grant-access', grant_data)
         
         # Should return error with manual instructions or 501
-        if response and (response.status_code == 501 or 
-                        (response.json().get('error') and 
-                         ('manual' in response.json().get('error', '').lower() or 
-                          'programmatic' in response.json().get('error', '').lower()))):
-            print("✅ PASS: GSC grant access properly returns manual instructions or 501")
+        if response and response.status_code == 501:
+            print("✅ PASS: GSC grant access properly returns 501 (not supported)")
             tests_passed += 1
+        elif response and response.status_code == 200:
+            data = response.json()
+            if not data.get('success') and ('manual' in data.get('error', '').lower() or 
+                                            'programmatic' in data.get('error', '').lower()):
+                print("✅ PASS: GSC grant access properly returns manual instructions")
+                tests_passed += 1
+            else:
+                print(f"❌ FAIL: GSC grant access unexpected success: {data}")
         else:
             print(f"❌ FAIL: GSC grant access should fail with manual instructions, got: {response.status_code if response else 'No response'}")
             
