@@ -488,12 +488,19 @@ def test_gsc_additional_endpoints():
         }
         response = make_request('POST', '/oauth/google-search-console/discover-targets', discover_data)
         
-        # Should return error from Google API for fake token
-        if response and not (response.status_code == 200 and response.json().get('success')):
-            print("✅ PASS: GSC discover targets properly handles fake token with error")
+        # Should return error from Google API for fake token or 501 if not configured
+        if response and response.status_code == 501:
+            print("✅ PASS: GSC discover targets properly returns 501 (not configured/supported)")
             tests_passed += 1
+        elif response and response.status_code == 200:
+            data = response.json()
+            if not data.get('success'):
+                print("✅ PASS: GSC discover targets properly handles fake token with error")
+                tests_passed += 1
+            else:
+                print(f"❌ FAIL: GSC discover targets unexpectedly succeeded with fake token: {data}")
         else:
-            print(f"❌ FAIL: GSC discover targets should fail with fake token")
+            print(f"❌ FAIL: GSC discover targets should handle fake token properly, got: {response.status_code if response else 'No response'}")
             
         # Test 4: GSC Discover Targets - Missing Token
         print("\n📝 Test 4: GSC Discover Targets - Missing Token")
