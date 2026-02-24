@@ -14,7 +14,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 BASE_URL = "https://festive-thompson-4.preview.emergentagent.com"
 API_BASE = urljoin(BASE_URL, "/api/")
 
-def make_request(method, endpoint, data=None, headers=None):
+def make_request(method, endpoint, data=None, headers=None, params=None):
     """Make HTTP request with proper error handling"""
     url = urljoin(API_BASE, endpoint.lstrip('/'))
     default_headers = {'Content-Type': 'application/json'}
@@ -29,6 +29,8 @@ def make_request(method, endpoint, data=None, headers=None):
         }
         
         if method.upper() == 'GET':
+            if params:
+                kwargs['params'] = params
             response = requests.get(url, **kwargs)
         elif method.upper() == 'POST':
             response = requests.post(url, json=data, **kwargs)
