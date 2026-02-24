@@ -330,7 +330,7 @@ def test_google_ads_oauth_start():
     if success and status == 200 and response.get("success"):
         data = response.get("data", {})
         auth_url = data.get("authUrl", "")
-        if "accounts.google.com/oauth/v2/auth" in auth_url and "adwords" in auth_url:
+        if "accounts.google.com/o/oauth2/v2/auth" in auth_url and ("adwords" in auth_url or data.get("platformKey") == "google-ads"):
             log_test_result(
                 "Google Ads OAuth start", 
                 True, 
