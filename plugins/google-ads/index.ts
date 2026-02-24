@@ -98,13 +98,22 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
   // OAuth Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }> {
+  async startOAuth(context: { redirectUri: string; scopes?: string[]; scope?: string }): Promise<{ authUrl: string; state: string }> {
     if (!isGoogleAdsOAuthConfigured()) {
       throw new GoogleAdsOAuthNotConfiguredError();
     }
 
     const config = getOAuthConfig(context.redirectUri);
-    const state = generateState();
+    
+    // Generate state with platformKey metadata for callback routing
+    const stateMetadata = {
+      platformKey: 'google-ads',
+      scope: context.scope || 'AGENCY',
+    };
+    const metadataStr = Buffer.from(JSON.stringify(stateMetadata)).toString('base64url');
+    const randomPart = generateState();
+    const state = `${randomPart}.${metadataStr}`;
+    
     const authUrl = buildAuthorizationUrl(config, state);
 
     return { authUrl, state };
