@@ -5,6 +5,10 @@ import json
 import sys
 import traceback
 from urllib.parse import urljoin
+import urllib3
+
+# Disable SSL warnings for testing
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Base URL from environment
 BASE_URL = "https://oauth-refactor.preview.emergentagent.com"
