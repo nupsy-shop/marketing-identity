@@ -105,12 +105,55 @@ export interface AccessTypeCapability {
 }
 
 /**
+ * Condition for matching capability rules based on PAM configuration.
+ * Used to dynamically compute effective capabilities for SHARED_ACCOUNT.
+ */
+export interface CapabilityCondition {
+  pamOwnership?: 'CLIENT_OWNED' | 'AGENCY_OWNED';
+  identityPurpose?: 'HUMAN_INTERACTIVE' | 'INTEGRATION_NON_HUMAN';
+  identityStrategy?: 'STATIC_AGENCY_IDENTITY' | 'CLIENT_DEDICATED_IDENTITY';
+}
+
+/**
+ * Conditional rule for overriding capabilities based on configuration.
+ * Rules are evaluated in order; later matching rules override earlier ones.
+ */
+export interface ConditionalCapabilityRule {
+  when: CapabilityCondition;
+  set: Partial<AccessTypeCapability>;
+}
+
+/**
+ * Extended capability definition that supports conditional rules.
+ * For SHARED_ACCOUNT, `default` provides base capabilities,
+ * and `rules` can override based on pamOwnership/identityPurpose/identityStrategy.
+ */
+export interface AccessTypeCapabilityWithRules {
+  /** Default capabilities when no rules match */
+  default: AccessTypeCapability;
+  /** Conditional override rules - evaluated in order */
+  rules?: ConditionalCapabilityRule[];
+}
+
+/**
  * Maps each AccessItemType to its connection capabilities.
- * Used to determine the correct onboarding flow for each access type.
+ * For simple cases: directly use AccessTypeCapability.
+ * For conditional logic (e.g., SHARED_ACCOUNT): use AccessTypeCapabilityWithRules.
  */
 export type AccessTypeCapabilities = {
-  [key in AccessItemType]?: AccessTypeCapability;
+  [key in AccessItemType]?: AccessTypeCapability | AccessTypeCapabilityWithRules;
 };
+
+/**
+ * Configuration context for computing effective capabilities.
+ * These values come from the AccessRequestItem/AccessItem configuration.
+ */
+export interface CapabilityConfigContext {
+  pamOwnership?: string;
+  identityPurpose?: string;
+  identityStrategy?: string;
+  pamIdentityStrategy?: string; // Alternative field name
+}
 
 // ─── OAuth Token Scope ─────────────────────────────────────────────────────────
 
