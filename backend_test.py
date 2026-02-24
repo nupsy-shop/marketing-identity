@@ -271,9 +271,244 @@ def test_regression_onboarding_endpoints():
     print(f"\n📊 Regression Tests: {tests_passed}/{total_tests} PASSED")
     return tests_passed, total_tests
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# GOOGLE SEARCH CONSOLE (GSC) PLUGIN TESTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_gsc_capabilities():
+    """Test GSC plugin capabilities endpoints"""
+    print("\n" + "="*80)
+    print("🔥 TESTING GSC CAPABILITIES ENDPOINTS")
+    print("="*80)
+    
+    tests_passed = 0
+    total_tests = 6
+    
+    try:
+        # Test 1: GSC Capabilities NAMED_INVITE
+        print("\n📝 Test 1: GSC Capabilities NAMED_INVITE")
+        response = make_request('GET', '/plugins/google-search-console/capabilities/NAMED_INVITE')
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                capabilities = data['data']['capabilities']
+                # Expected: canGrantAccess=false, canVerifyAccess=true, clientOAuthSupported=true
+                if (capabilities.get('canGrantAccess') == False and 
+                    capabilities.get('canVerifyAccess') == True and 
+                    capabilities.get('clientOAuthSupported') == True):
+                    print("✅ PASS: GSC NAMED_INVITE capabilities correct")
+                    tests_passed += 1
+                else:
+                    print(f"❌ FAIL: GSC NAMED_INVITE capabilities wrong: {capabilities}")
+            else:
+                print(f"❌ FAIL: GSC NAMED_INVITE capabilities API error: {data.get('error')}")
+        else:
+            print("❌ FAIL: GSC NAMED_INVITE capabilities request failed")
+        
+        # Test 2: GSC Capabilities SHARED_ACCOUNT  
+        print("\n📝 Test 2: GSC Capabilities SHARED_ACCOUNT")
+        response = make_request('GET', '/plugins/google-search-console/capabilities/SHARED_ACCOUNT')
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                capabilities = data['data']['capabilities']
+                # Expected: canGrantAccess=false, canVerifyAccess=false, clientOAuthSupported=false
+                if (capabilities.get('canGrantAccess') == False and 
+                    capabilities.get('canVerifyAccess') == False and 
+                    capabilities.get('clientOAuthSupported') == False):
+                    print("✅ PASS: GSC SHARED_ACCOUNT capabilities correct")
+                    tests_passed += 1
+                else:
+                    print(f"❌ FAIL: GSC SHARED_ACCOUNT capabilities wrong: {capabilities}")
+            else:
+                print(f"❌ FAIL: GSC SHARED_ACCOUNT capabilities API error: {data.get('error')}")
+        else:
+            print("❌ FAIL: GSC SHARED_ACCOUNT capabilities request failed")
+            
+        # Test 3: GSC OAuth Start
+        print("\n📝 Test 3: GSC OAuth Start") 
+        oauth_data = {
+            "redirectUri": f"{BASE_URL}/api/oauth/callback"
+        }
+        response = make_request('POST', '/oauth/google-search-console/start', oauth_data)
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                auth_url = data['data'].get('authUrl')
+                state = data['data'].get('state')
+                if auth_url and state and 'accounts.google.com' in auth_url:
+                    print("✅ PASS: GSC OAuth start returns valid Google OAuth URL")
+                    tests_passed += 1
+                else:
+                    print(f"❌ FAIL: GSC OAuth start invalid response: authUrl={auth_url}, state={state}")
+            else:
+                print(f"❌ FAIL: GSC OAuth start API error: {data.get('error')}")
+        else:
+            print("❌ FAIL: GSC OAuth start request failed")
+            
+        # Test 4: GSC OAuth Status
+        print("\n📝 Test 4: GSC OAuth Status")
+        response = make_request('GET', '/oauth/google-search-console/status')
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                oauth_data = data['data']
+                if (oauth_data.get('oauthSupported') == True and 
+                    oauth_data.get('configured') == True and 
+                    oauth_data.get('platformKey') == 'google-search-console'):
+                    print("✅ PASS: GSC OAuth status shows configured and supported")
+                    tests_passed += 1
+                else:
+                    print(f"❌ FAIL: GSC OAuth status wrong values: {oauth_data}")
+            else:
+                print(f"❌ FAIL: GSC OAuth status API error: {data.get('error')}")
+        else:
+            print("❌ FAIL: GSC OAuth status request failed")
+            
+        # Test 5: GSC Verify Access with fake token
+        print("\n📝 Test 5: GSC Verify Access - Fake Token")
+        verify_data = {
+            "auth": {
+                "accessToken": "fake_oauth_token_for_testing",
+                "tokenType": "Bearer"
+            },
+            "target": "https://example.com/",
+            "role": "owner", 
+            "identity": "test@example.com",
+            "accessItemType": "NAMED_INVITE"
+        }
+        response = make_request('POST', '/oauth/google-search-console/verify-access', verify_data)
+        
+        # Should return error from Google API for fake token
+        if response and not (response.status_code == 200 and response.json().get('success')):
+            print("✅ PASS: GSC verify access properly handles fake token with error")
+            tests_passed += 1
+        else:
+            print(f"❌ FAIL: GSC verify access should fail with fake token, got: {response.status_code}")
+            
+        # Test 6: GSC Grant Access (should fail with manual instructions)
+        print("\n📝 Test 6: GSC Grant Access - Should Return Manual Instructions") 
+        grant_data = {
+            "auth": {
+                "accessToken": "fake_oauth_token_for_testing",
+                "tokenType": "Bearer"
+            },
+            "target": "https://example.com/",
+            "role": "owner",
+            "identity": "test@example.com", 
+            "accessItemType": "NAMED_INVITE"
+        }
+        response = make_request('POST', '/oauth/google-search-console/grant-access', grant_data)
+        
+        # Should return error with manual instructions or 501
+        if response and (response.status_code == 501 or 
+                        (response.json().get('error') and 
+                         ('manual' in response.json().get('error', '').lower() or 
+                          'programmatic' in response.json().get('error', '').lower()))):
+            print("✅ PASS: GSC grant access properly returns manual instructions or 501")
+            tests_passed += 1
+        else:
+            print(f"❌ FAIL: GSC grant access should fail with manual instructions, got: {response.status_code if response else 'No response'}")
+            
+    except Exception as e:
+        print(f"❌ FAIL: Exception during GSC capabilities tests: {e}")
+        traceback.print_exc()
+    
+    print(f"\n📊 GSC Capabilities Tests: {tests_passed}/{total_tests} PASSED")
+    return tests_passed, total_tests
+
+def test_gsc_additional_endpoints():
+    """Test additional GSC plugin endpoints"""
+    print("\n" + "="*80)
+    print("🔍 TESTING GSC ADDITIONAL ENDPOINTS")
+    print("="*80)
+    
+    tests_passed = 0
+    total_tests = 4
+    
+    try:
+        # Test 1: GSC Verify Access - Missing Fields
+        print("\n📝 Test 1: GSC Verify Access - Missing Required Fields")
+        verify_data_incomplete = {
+            "accessItemType": "NAMED_INVITE"
+            # Missing auth, target, role, identity
+        }
+        response = make_request('POST', '/oauth/google-search-console/verify-access', verify_data_incomplete)
+        
+        if response and response.status_code == 400:
+            print("✅ PASS: GSC verify access properly rejects missing required fields")
+            tests_passed += 1
+        else:
+            print(f"❌ FAIL: GSC verify access should return 400 for missing fields, got: {response.status_code if response else 'No response'}")
+            
+        # Test 2: GSC Verify Access - SHARED_ACCOUNT type
+        print("\n📝 Test 2: GSC Verify Access - SHARED_ACCOUNT Type")
+        verify_shared_data = {
+            "auth": {
+                "accessToken": "fake_oauth_token_for_testing",
+                "tokenType": "Bearer"
+            },
+            "target": "https://example.com/",
+            "role": "owner",
+            "identity": "test@example.com",
+            "accessItemType": "SHARED_ACCOUNT"
+        }
+        response = make_request('POST', '/oauth/google-search-console/verify-access', verify_shared_data)
+        
+        # Should return error for SHARED_ACCOUNT
+        if response and not (response.status_code == 200 and response.json().get('success')):
+            error_msg = response.json().get('error', '').lower() if response and response.json() else ''
+            if 'shared account' in error_msg or 'cannot be verified' in error_msg:
+                print("✅ PASS: GSC verify access properly rejects SHARED_ACCOUNT")
+                tests_passed += 1
+            else:
+                print("✅ PASS: GSC verify access returns error for SHARED_ACCOUNT")
+                tests_passed += 1
+        else:
+            print(f"❌ FAIL: GSC verify access should not support SHARED_ACCOUNT")
+            
+        # Test 3: GSC Discover Targets - Fake Token
+        print("\n📝 Test 3: GSC Discover Targets - Fake Token")
+        discover_data = {
+            "auth": {
+                "accessToken": "fake_oauth_token_for_testing",
+                "tokenType": "Bearer"
+            }
+        }
+        response = make_request('POST', '/oauth/google-search-console/discover-targets', discover_data)
+        
+        # Should return error from Google API for fake token
+        if response and not (response.status_code == 200 and response.json().get('success')):
+            print("✅ PASS: GSC discover targets properly handles fake token with error")
+            tests_passed += 1
+        else:
+            print(f"❌ FAIL: GSC discover targets should fail with fake token")
+            
+        # Test 4: GSC Discover Targets - Missing Token
+        print("\n📝 Test 4: GSC Discover Targets - Missing Token")
+        discover_data_empty = {}  # No auth token
+        response = make_request('POST', '/oauth/google-search-console/discover-targets', discover_data_empty)
+        
+        if response and response.status_code == 400:
+            print("✅ PASS: GSC discover targets properly rejects missing token")
+            tests_passed += 1
+        else:
+            print(f"❌ FAIL: GSC discover targets should reject missing token, got: {response.status_code if response else 'No response'}")
+            
+    except Exception as e:
+        print(f"❌ FAIL: Exception during GSC additional endpoint tests: {e}")
+        traceback.print_exc()
+    
+    print(f"\n📊 GSC Additional Endpoint Tests: {tests_passed}/{total_tests} PASSED")
+    return tests_passed, total_tests
+
 def main():
-    """Run all Target Discovery and Save Target API tests"""
-    print("🚀 STARTING TARGET DISCOVERY AND SAVE TARGET API TESTING")
+    """Run all Target Discovery, Save Target API, and GSC Plugin tests"""
+    print("🚀 STARTING COMPREHENSIVE BACKEND API TESTING")
     print(f"Testing against: {BASE_URL}")
     
     total_passed = 0
@@ -294,6 +529,16 @@ def main():
     total_passed += passed
     total_tests += tests
     
+    # Test 4: GSC Capabilities Testing
+    passed, tests = test_gsc_capabilities()
+    total_passed += passed
+    total_tests += tests
+    
+    # Test 5: GSC Additional Endpoints Testing
+    passed, tests = test_gsc_additional_endpoints()
+    total_passed += passed
+    total_tests += tests
+    
     # Final Results
     print("\n" + "="*80)
     print("🎯 FINAL TEST RESULTS")
@@ -305,7 +550,8 @@ def main():
     print(f"📈 SUCCESS RATE: {success_rate:.1f}%")
     
     if success_rate >= 80:
-        print("🎉 TARGET DISCOVERY AND SAVE TARGET API TESTING COMPLETED SUCCESSFULLY!")
+        print("🎉 COMPREHENSIVE BACKEND API TESTING COMPLETED SUCCESSFULLY!")
+        print("🔥 GSC PLUGIN TESTING INCLUDED - OAuth, verifyAccess, grantAccess all tested!")
     else:
         print("⚠️  Some tests failed. Please review the implementation.")
     
