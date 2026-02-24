@@ -449,7 +449,7 @@ export async function GET(request, { params }) {
         return NextResponse.json({ success: false, error: 'Invalid onboarding token' }, { status: 404 });
       }
       
-      // Enhance items with plugin schemas, instructions, and capabilities
+      // Enhance items with plugin schemas, instructions, and EFFECTIVE capabilities
       const enhancedItems = await Promise.all((req.items || []).map(async (item) => {
         const platformName = item.platform?.name;
         if (!platformName) return item;
@@ -473,13 +473,25 @@ export async function GET(request, { params }) {
           generatedIdentity: item.resolvedIdentity
         });
         
-        // Get access type capabilities from plugin manifest
-        const accessTypeCapabilities = plugin?.manifest?.accessTypeCapabilities?.[item.itemType] || {
-          clientOAuthSupported: false,
-          canGrantAccess: false,
-          canVerifyAccess: false,
-          requiresEvidenceUpload: true
+        // Build configuration context for effective capabilities
+        // These fields come from the AccessRequestItem (copied from AccessItem at request time)
+        const capabilityConfig = {
+          pamOwnership: item.pamOwnership || item.pamConfig?.ownership,
+          identityPurpose: item.identityPurpose || item.pamConfig?.identityPurpose,
+          identityStrategy: item.pamConfig?.identityStrategy || item.pamIdentityStrategy,
+          pamIdentityStrategy: item.pamConfig?.identityStrategy || item.pamIdentityStrategy
         };
+        
+        // Get EFFECTIVE access type capabilities using conditional rules
+        // This replaces the static lookup with runtime evaluation
+        const accessTypeCapabilities = plugin?.manifest 
+          ? getEffectiveCapabilities(plugin.manifest, item.itemType, capabilityConfig)
+          : {
+              clientOAuthSupported: false,
+              canGrantAccess: false,
+              canVerifyAccess: false,
+              requiresEvidenceUpload: true
+            };
         
         return {
           ...item,
@@ -487,6 +499,8 @@ export async function GET(request, { params }) {
           pluginInstructions: instructions,
           verificationMode: PluginRegistry.getVerificationMode(platformKey, item.itemType),
           accessTypeCapabilities,
+          // Include config context for frontend debugging/display
+          capabilityConfig,
           platform: {
             ...item.platform,
             pluginKey: platformKey
