@@ -119,6 +119,7 @@ const PAM_RECOMMENDATION_CONFIG = {
 export default function PlatformConfigPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   
   // State
