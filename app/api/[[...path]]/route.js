@@ -638,15 +638,18 @@ export async function GET(request, { params }) {
       const error = searchParams.get('error');
       const errorDescription = searchParams.get('error_description');
 
+      // Use public base URL for redirects (not internal 0.0.0.0:3000)
+      const baseUrl = process.env.OAUTH_REDIRECT_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
+
       // Handle OAuth errors from provider
       if (error) {
-        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        const errorUrl = new URL('/admin/platforms', baseUrl);
         errorUrl.searchParams.set('oauth_error', errorDescription || error);
         return NextResponse.redirect(errorUrl);
       }
 
       if (!code) {
-        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        const errorUrl = new URL('/admin/platforms', baseUrl);
         errorUrl.searchParams.set('oauth_error', 'No authorization code received');
         return NextResponse.redirect(errorUrl);
       }
@@ -671,7 +674,7 @@ export async function GET(request, { params }) {
       // If we still don't have platformKey, try to get it from session or default
       if (!platformKey) {
         // For now, return error - we need to know which platform
-        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        const errorUrl = new URL('/admin/platforms', baseUrl);
         errorUrl.searchParams.set('oauth_error', 'Could not determine platform from OAuth state');
         return NextResponse.redirect(errorUrl);
       }
@@ -679,18 +682,18 @@ export async function GET(request, { params }) {
       // Get the plugin
       const plugin = PluginRegistry.get(platformKey);
       if (!plugin || !plugin.handleOAuthCallback) {
-        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        const errorUrl = new URL('/admin/platforms', baseUrl);
         errorUrl.searchParams.set('oauth_error', `Plugin ${platformKey} does not support OAuth`);
         return NextResponse.redirect(errorUrl);
       }
 
       try {
-        // Exchange code for tokens
-        const redirectUri = `${request.nextUrl.origin}/api/oauth/callback`;
+        // Exchange code for tokens - MUST use public URL for redirect_uri
+        const redirectUri = `${baseUrl}/api/oauth/callback`;
         const result = await plugin.handleOAuthCallback({ code, state, redirectUri });
 
         if (!result.success) {
-          const errorUrl = new URL(returnUrl, request.nextUrl.origin);
+          const errorUrl = new URL(returnUrl, baseUrl);
           errorUrl.searchParams.set('oauth_error', result.error || 'Token exchange failed');
           return NextResponse.redirect(errorUrl);
         }
