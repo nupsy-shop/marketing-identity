@@ -153,14 +153,19 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
   const [verifyingAccess, setVerifyingAccess] = useState(false);
   
   const platform = item.platform;
-  const isPAM = item.itemType === 'SHARED_ACCOUNT_PAM';
+  const isPAM = item.itemType === 'SHARED_ACCOUNT_PAM' || item.itemType === 'SHARED_ACCOUNT';
   const isClientOwnedPAM = isPAM && (item.pamConfig?.ownership === 'CLIENT_OWNED' || item.pamOwnership === 'CLIENT_OWNED');
   
-  // Get capabilities from plugin manifest
+  // Get EFFECTIVE capabilities from plugin manifest (already computed with config context)
+  // These capabilities are now dynamic based on pamOwnership/identityPurpose
   const capabilities = item.accessTypeCapabilities || {};
-  const canUseOAuth = capabilities.clientOAuthSupported === true && !isPAM;
-  const canGrantAccess = capabilities.canGrantAccess === true && !isPAM;
-  const canVerifyAccess = capabilities.canVerifyAccess === true && !isPAM;
+  
+  // Use capabilities directly - no longer need to exclude PAM since effective capabilities handle it
+  // CLIENT_OWNED PAM will have clientOAuthSupported=false, AGENCY_OWNED will have true
+  const canUseOAuth = capabilities.clientOAuthSupported === true;
+  const canGrantAccess = capabilities.canGrantAccess === true;
+  const canVerifyAccess = capabilities.canVerifyAccess === true;
+  const requiresEvidence = capabilities.requiresEvidenceUpload === true;
   
   // Get identity to display in instructions
   const getIdentityToAdd = () => {
