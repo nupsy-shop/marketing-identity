@@ -1,394 +1,413 @@
 #!/usr/bin/env python3
 """
-Backend Testing Script for OAuth and Capability-Driven Access Flow Endpoints
-Tests specific endpoints mentioned in the review_request for Marketing Identity Platform
+GA4 Capability-Driven Access Verification Implementation Testing
+
+Tests the GA4 verifyAccess implementation as specified in the review request:
+1. GA4 Verify Access - Missing Parameters (should return 400)
+2. GA4 Verify Access - SHARED_ACCOUNT Type (should return 501) 
+3. GA4 Verify Access - NAMED_INVITE Type with fake token (should return 400 with "not found or is not accessible")
+4. GA4 Grant Access - Should Return 501 (canGrantAccess=false)
+5. GA4 Capabilities - Verify correct flags for NAMED_INVITE and SHARED_ACCOUNT
+
+Base URL: https://agent-onboarding-hub.preview.emergentagent.com
 """
 
 import requests
 import json
 import sys
-from typing import Dict, Any, List
-from dataclasses import dataclass
+from typing import Dict, Any, List, Tuple
 
+# Configuration
+BASE_URL = "https://agent-onboarding-hub.preview.emergentagent.com"
+API_BASE = f"{BASE_URL}/api"
 
-@dataclass
-class TestResult:
-    name: str
-    passed: bool
-    details: str
-    response_data: Any = None
+def log_test_result(test_name: str, success: bool, details: str = ""):
+    """Log test results with consistent formatting"""
+    status = "✅ PASS" if success else "❌ FAIL"
+    print(f"{status} - {test_name}")
+    if details:
+        print(f"   {details}")
+    print()
 
-
-class BackendTester:
-    def __init__(self, base_url: str):
-        self.base_url = base_url.rstrip('/')
-        self.results: List[TestResult] = []
+def make_request(method: str, endpoint: str, data: Dict[Any, Any] = None, 
+                expected_status: int = None) -> Tuple[bool, Dict[Any, Any], int]:
+    """Make HTTP request and return success status, response data, and status code"""
+    url = f"{API_BASE}{endpoint}"
     
-    def log(self, message: str, level: str = "INFO"):
-        print(f"[{level}] {message}")
+    try:
+        print(f"🔄 {method} {url}")
+        if data:
+            print(f"   Body: {json.dumps(data, indent=2)}")
+        
+        if method == "GET":
+            response = requests.get(url, timeout=30)
+        elif method == "POST":
+            response = requests.post(url, json=data, timeout=30)
+        elif method == "PATCH":
+            response = requests.patch(url, json=data, timeout=30)
+        else:
+            return False, {"error": f"Unsupported method: {method}"}, 0
+        
+        print(f"   Status: {response.status_code}")
+        
+        try:
+            response_data = response.json()
+            print(f"   Response: {json.dumps(response_data, indent=2)}")
+        except:
+            response_data = {"raw_response": response.text}
+            print(f"   Response: {response.text[:500]}")
+        
+        # Check expected status if provided
+        status_ok = expected_status is None or response.status_code == expected_status
+        
+        return status_ok, response_data, response.status_code
+        
+    except Exception as e:
+        error_msg = f"Request failed: {str(e)}"
+        print(f"   Error: {error_msg}")
+        return False, {"error": error_msg}, 0
+
+def test_ga4_verify_access_missing_parameters():
+    """Test 1: GA4 Verify Access - Missing Parameters (should return 400)"""
+    print("=" * 80)
+    print("TEST 1: GA4 Verify Access - Missing Parameters")
+    print("=" * 80)
     
-    def add_result(self, name: str, passed: bool, details: str, response_data: Any = None):
-        result = TestResult(name, passed, details, response_data)
-        self.results.append(result)
-        status = "✅ PASS" if passed else "❌ FAIL"
-        self.log(f"{status}: {name} - {details}")
-        return result
+    success, response, status = make_request(
+        "POST", 
+        "/oauth/ga4/verify-access",
+        data={},  # Empty body - missing required parameters
+        expected_status=400
+    )
     
-    def get(self, endpoint: str) -> requests.Response:
-        url = f"{self.base_url}{endpoint}"
-        self.log(f"GET {url}")
-        try:
-            return requests.get(url, timeout=30)
-        except Exception as e:
-            self.log(f"Request failed: {str(e)}", "ERROR")
-            raise
-    
-    def post(self, endpoint: str, data: Dict[str, Any]) -> requests.Response:
-        url = f"{self.base_url}{endpoint}"
-        self.log(f"POST {url}")
-        try:
-            return requests.post(url, json=data, headers={'Content-Type': 'application/json'}, timeout=30)
-        except Exception as e:
-            self.log(f"Request failed: {str(e)}", "ERROR")
-            raise
-
-    def test_oauth_ga4_start(self):
-        """Test 1: OAuth Start Endpoint for GA4 (per-platform OAuth)"""
-        self.log("=== TESTING OAUTH GA4 START ENDPOINT ===")
-        
-        try:
-            response = self.post("/api/oauth/ga4/start", {
-                "redirectUri": "https://agent-onboarding-hub.preview.emergentagent.com/onboarding/oauth-callback"
-            })
-            
-            if response.status_code == 200:
-                data = response.json()
-                if (data.get("success") and 
-                    "authUrl" in data.get("data", {}) and 
-                    "state" in data.get("data", {}) and
-                    "platformKey" in data.get("data", {})):
-                    
-                    auth_url = data["data"]["authUrl"]
-                    if "accounts.google.com" in auth_url and "client_id" in auth_url:
-                        self.add_result(
-                            "GA4 OAuth start endpoint", 
-                            True, 
-                            f"Returns valid Google OAuth URL with client_id, state: {data['data']['state'][:8]}..."
-                        )
-                    else:
-                        self.add_result(
-                            "GA4 OAuth start endpoint", 
-                            False, 
-                            f"AuthUrl doesn't contain expected Google OAuth components: {auth_url[:100]}"
-                        )
-                else:
-                    self.add_result(
-                        "GA4 OAuth start endpoint", 
-                        False, 
-                        f"Missing required fields (authUrl, state, platformKey): {data}"
-                    )
-            else:
-                self.add_result(
-                    "GA4 OAuth start endpoint", 
-                    False, 
-                    f"HTTP {response.status_code}: {response.text[:200]}"
-                )
-        except Exception as e:
-            self.add_result("GA4 OAuth start endpoint", False, f"Exception: {str(e)}")
-
-    def test_oauth_linkedin_start(self):
-        """Test 2: OAuth Start for unconfigured platform (LinkedIn)"""
-        self.log("=== TESTING OAUTH LINKEDIN START (UNCONFIGURED) ===")
-        
-        try:
-            response = self.post("/api/oauth/linkedin/start", {
-                "redirectUri": "https://agent-onboarding-hub.preview.emergentagent.com/onboarding/oauth-callback"
-            })
-            
-            if response.status_code == 501:
-                data = response.json()
-                if ("success" in data and data["success"] == False and 
-                    "error" in data):
-                    error_msg = data["error"].lower()
-                    if ("missing credentials" in error_msg or 
-                        "not configured" in error_msg or
-                        "placeholder" in error_msg):
-                        self.add_result(
-                            "LinkedIn OAuth start (unconfigured)", 
-                            True, 
-                            f"Returns 501 with clear error about missing credentials: {data['error'][:100]}"
-                        )
-                    else:
-                        self.add_result(
-                            "LinkedIn OAuth start (unconfigured)", 
-                            False, 
-                            f"Returns 501 but unclear error message: {data['error']}"
-                        )
-                else:
-                    self.add_result(
-                        "LinkedIn OAuth start (unconfigured)", 
-                        False, 
-                        f"Returns 501 but wrong response format: {data}"
-                    )
-            else:
-                self.add_result(
-                    "LinkedIn OAuth start (unconfigured)", 
-                    False, 
-                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
-                )
-        except Exception as e:
-            self.add_result("LinkedIn OAuth start (unconfigured)", False, f"Exception: {str(e)}")
-
-    def test_platform_capabilities(self):
-        """Test 3: Platform Capabilities Endpoint"""
-        self.log("=== TESTING PLATFORM CAPABILITIES ===")
-        
-        try:
-            response = self.get("/api/plugins/ga4/capabilities/NAMED_INVITE")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if (data.get("success") and 
-                    "data" in data):
-                    capability_data = data["data"]
-                    # The capabilities are nested inside a "capabilities" field
-                    capabilities = capability_data.get("capabilities", {})
-                    required_fields = ["clientOAuthSupported", "canGrantAccess", "canVerifyAccess"]
-                    
-                    all_present = all(field in capabilities for field in required_fields)
-                    if all_present:
-                        self.add_result(
-                            "GA4 NAMED_INVITE capabilities", 
-                            True, 
-                            f"Returns capabilities: OAuth={capabilities.get('clientOAuthSupported')}, "
-                            f"Grant={capabilities.get('canGrantAccess')}, "
-                            f"Verify={capabilities.get('canVerifyAccess')}"
-                        )
-                    else:
-                        missing = [f for f in required_fields if f not in capabilities]
-                        self.add_result(
-                            "GA4 NAMED_INVITE capabilities", 
-                            False, 
-                            f"Missing required fields in capabilities: {missing}. Got capabilities: {list(capabilities.keys())}"
-                        )
-                else:
-                    self.add_result(
-                        "GA4 NAMED_INVITE capabilities", 
-                        False, 
-                        f"Invalid response format: {data}"
-                    )
-            else:
-                self.add_result(
-                    "GA4 NAMED_INVITE capabilities", 
-                    False, 
-                    f"HTTP {response.status_code}: {response.text[:200]}"
-                )
-        except Exception as e:
-            self.add_result("GA4 NAMED_INVITE capabilities", False, f"Exception: {str(e)}")
-
-    def test_access_grant_endpoint(self):
-        """Test 4: Access Grant Endpoint (should return 501 - not implemented)"""
-        self.log("=== TESTING ACCESS GRANT ENDPOINT ===")
-        
-        try:
-            # The actual endpoint is /api/oauth/:platformKey/grant-access
-            response = self.post("/api/oauth/ga4/grant-access", {
-                "accessToken": "test_token",
-                "target": {"propertyId": "123456789"},
-                "role": "administrator",
-                "identity": "test@example.com",
-                "accessItemType": "NAMED_INVITE"
-            })
-            
-            if response.status_code == 501:
-                data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                self.add_result(
-                    "Access grant endpoint (501 expected)", 
-                    True, 
-                    f"Returns 501 'Not Implemented' as expected: {data.get('error', 'No error message')[:100]}"
-                )
-            else:
-                self.add_result(
-                    "Access grant endpoint (501 expected)", 
-                    False, 
-                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
-                )
-        except Exception as e:
-            self.add_result("Access grant endpoint (501 expected)", False, f"Exception: {str(e)}")
-
-    def test_access_verify_endpoint(self):
-        """Test 5: Access Verify Endpoint (should return 501 - not implemented)"""
-        self.log("=== TESTING ACCESS VERIFY ENDPOINT ===")
-        
-        try:
-            # The actual endpoint is /api/oauth/:platformKey/verify-access
-            response = self.post("/api/oauth/ga4/verify-access", {
-                "accessToken": "test_token",
-                "target": {"propertyId": "123456789"},
-                "role": "administrator",
-                "identity": "test@example.com",
-                "accessItemType": "NAMED_INVITE"
-            })
-            
-            if response.status_code == 501:
-                data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                self.add_result(
-                    "Access verify endpoint (501 expected)", 
-                    True, 
-                    f"Returns 501 'Not Implemented' as expected: {data.get('error', 'No error message')[:100]}"
-                )
-            else:
-                self.add_result(
-                    "Access verify endpoint (501 expected)", 
-                    False, 
-                    f"Expected HTTP 501, got {response.status_code}: {response.text[:200]}"
-                )
-        except Exception as e:
-            self.add_result("Access verify endpoint (501 expected)", False, f"Exception: {str(e)}")
-
-    def test_onboarding_token_endpoint(self):
-        """Test 6: Onboarding Token Endpoint with existing token"""
-        self.log("=== TESTING ONBOARDING TOKEN ENDPOINT ===")
-        
-        # Use existing token from review request
-        token = "055b2165-83d1-4ff7-8d44-5a7dec3a17f2"
-        
-        try:
-            response = self.get(f"/api/onboarding/{token}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if (data.get("success") and 
-                    "data" in data and
-                    "items" in data["data"]):
-                    
-                    items = data["data"]["items"]
-                    # Check if items have accessTypeCapabilities field
-                    items_with_capabilities = 0
-                    for item in items:
-                        if "accessTypeCapabilities" in item:
-                            items_with_capabilities += 1
-                    
-                    if items_with_capabilities > 0:
-                        self.add_result(
-                            "Onboarding token with accessTypeCapabilities", 
-                            True, 
-                            f"Found {len(items)} items, {items_with_capabilities} have accessTypeCapabilities field"
-                        )
-                    else:
-                        self.add_result(
-                            "Onboarding token with accessTypeCapabilities", 
-                            False, 
-                            f"None of {len(items)} items have accessTypeCapabilities field"
-                        )
-                else:
-                    self.add_result(
-                        "Onboarding token endpoint", 
-                        False, 
-                        f"Invalid response format, missing items: {data}"
-                    )
-            elif response.status_code == 404:
-                self.add_result(
-                    "Onboarding token endpoint", 
-                    False, 
-                    f"Token not found (404). The test token {token} may not exist in this environment"
-                )
-            else:
-                self.add_result(
-                    "Onboarding token endpoint", 
-                    False, 
-                    f"HTTP {response.status_code}: {response.text[:200]}"
-                )
-        except Exception as e:
-            self.add_result("Onboarding token endpoint", False, f"Exception: {str(e)}")
-
-    def test_oauth_status_endpoint(self):
-        """Test 7: OAuth Status Endpoint"""
-        self.log("=== TESTING OAUTH STATUS ENDPOINT ===")
-        
-        try:
-            response = self.get("/api/oauth/status")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if (data.get("success") and 
-                    "data" in data):
-                    
-                    status_data = data["data"]
-                    if isinstance(status_data, dict) and len(status_data) > 0:
-                        # Check if we have platform status information
-                        configured_count = sum(1 for platform_info in status_data.values() 
-                                             if isinstance(platform_info, dict) and 
-                                             platform_info.get("configured") == True)
-                        total_count = len(status_data)
-                        
-                        self.add_result(
-                            "OAuth status endpoint", 
-                            True, 
-                            f"Returns status of {total_count} platforms, {configured_count} configured"
-                        )
-                    else:
-                        self.add_result(
-                            "OAuth status endpoint", 
-                            False, 
-                            f"Invalid status data format: {status_data}"
-                        )
-                else:
-                    self.add_result(
-                        "OAuth status endpoint", 
-                        False, 
-                        f"Invalid response format: {data}"
-                    )
-            else:
-                self.add_result(
-                    "OAuth status endpoint", 
-                    False, 
-                    f"HTTP {response.status_code}: {response.text[:200]}"
-                )
-        except Exception as e:
-            self.add_result("OAuth status endpoint", False, f"Exception: {str(e)}")
-
-    def run_all_tests(self):
-        """Run all test suites for OAuth and capability-driven access flow"""
-        self.log("🚀 Starting OAuth and Capability-Driven Access Flow Testing")
-        self.log(f"Testing against base URL: {self.base_url}")
-        
-        try:
-            # Test all endpoints mentioned in review_request
-            self.test_oauth_ga4_start()
-            self.test_oauth_linkedin_start()
-            self.test_platform_capabilities()
-            self.test_access_grant_endpoint()
-            self.test_access_verify_endpoint()
-            self.test_onboarding_token_endpoint()
-            self.test_oauth_status_endpoint()
-            
-        except Exception as e:
-            self.log(f"Unexpected error during testing: {str(e)}", "ERROR")
-        
-        # Print summary
-        passed = sum(1 for r in self.results if r.passed)
-        total = len(self.results)
-        success_rate = (passed/total*100) if total > 0 else 0
-        
-        self.log(f"\n📊 TEST SUMMARY: {passed}/{total} tests passed ({success_rate:.1f}%)")
-        
-        if passed == total:
-            self.log("🎉 ALL TESTS PASSED! OAuth and capability-driven access flow endpoints are working correctly.", "SUCCESS")
+    if success and status == 400:
+        if "required" in response.get("error", "").lower():
+            log_test_result(
+                "GA4 verify-access missing parameters", 
+                True, 
+                f"Correctly returned 400 with error about required parameters: {response.get('error')}"
+            )
             return True
         else:
-            failed = [r for r in self.results if not r.passed]
-            self.log(f"❌ {len(failed)} tests failed:", "FAILURE")
-            for failure in failed:
-                self.log(f"  - {failure.name}: {failure.details}", "FAILURE")
+            log_test_result(
+                "GA4 verify-access missing parameters", 
+                False, 
+                f"Got 400 status but error message doesn't mention required parameters: {response.get('error')}"
+            )
             return False
+    else:
+        log_test_result(
+            "GA4 verify-access missing parameters", 
+            False, 
+            f"Expected 400 status with required parameters error, got {status}"
+        )
+        return False
 
+def test_ga4_verify_access_shared_account():
+    """Test 2: GA4 Verify Access - SHARED_ACCOUNT Type (should return 501)"""
+    print("=" * 80)
+    print("TEST 2: GA4 Verify Access - SHARED_ACCOUNT Type")
+    print("=" * 80)
+    
+    success, response, status = make_request(
+        "POST", 
+        "/oauth/ga4/verify-access",
+        data={
+            "accessToken": "fake",
+            "target": "123456", 
+            "role": "viewer",
+            "identity": "test@example.com",
+            "accessItemType": "SHARED_ACCOUNT"
+        },
+        expected_status=501
+    )
+    
+    if success and status == 501:
+        error_msg = response.get("error", "").lower()
+        if "shared_account" in error_msg and ("programmatic" in error_msg or "not support" in error_msg):
+            log_test_result(
+                "GA4 verify-access SHARED_ACCOUNT rejection", 
+                True, 
+                f"Correctly returned 501 for SHARED_ACCOUNT: {response.get('error')}"
+            )
+            return True
+        else:
+            log_test_result(
+                "GA4 verify-access SHARED_ACCOUNT rejection", 
+                False, 
+                f"Got 501 status but error message doesn't mention SHARED_ACCOUNT: {response.get('error')}"
+            )
+            return False
+    else:
+        log_test_result(
+            "GA4 verify-access SHARED_ACCOUNT rejection", 
+            False, 
+            f"Expected 501 status for SHARED_ACCOUNT, got {status}"
+        )
+        return False
+
+def test_ga4_verify_access_named_invite():
+    """Test 3: GA4 Verify Access - NAMED_INVITE Type with fake token (should return 400)"""
+    print("=" * 80)
+    print("TEST 3: GA4 Verify Access - NAMED_INVITE Type with Fake Token")
+    print("=" * 80)
+    
+    success, response, status = make_request(
+        "POST", 
+        "/oauth/ga4/verify-access",
+        data={
+            "accessToken": "fake-token",
+            "target": "123456789", 
+            "role": "viewer",
+            "identity": "test@example.com",
+            "accessItemType": "NAMED_INVITE"
+        },
+        expected_status=400
+    )
+    
+    # Should return 400 with error about property not found or not accessible
+    if status == 400:
+        error_msg = response.get("error", "").lower()
+        if "not found" in error_msg or "not accessible" in error_msg or "property" in error_msg:
+            log_test_result(
+                "GA4 verify-access NAMED_INVITE fake token", 
+                True, 
+                f"Correctly returned 400 for fake token: {response.get('error')}"
+            )
+            return True
+        else:
+            log_test_result(
+                "GA4 verify-access NAMED_INVITE fake token", 
+                False, 
+                f"Got 400 status but error message doesn't indicate property not found: {response.get('error')}"
+            )
+            return False
+    else:
+        log_test_result(
+            "GA4 verify-access NAMED_INVITE fake token", 
+            False, 
+            f"Expected 400 status for fake token, got {status}: {response.get('error')}"
+        )
+        return False
+
+def test_ga4_grant_access():
+    """Test 4: GA4 Grant Access - Should Return 501 (canGrantAccess=false)"""
+    print("=" * 80)
+    print("TEST 4: GA4 Grant Access - Should Return 501")
+    print("=" * 80)
+    
+    success, response, status = make_request(
+        "POST", 
+        "/oauth/ga4/grant-access",
+        data={
+            "accessToken": "fake",
+            "target": "123456", 
+            "role": "viewer",
+            "identity": "test@example.com",
+            "accessItemType": "NAMED_INVITE"
+        },
+        expected_status=501
+    )
+    
+    if success and status == 501:
+        error_msg = response.get("error", "").lower()
+        if "not implemented" in error_msg or "programmatic" in error_msg or "granting" in error_msg:
+            log_test_result(
+                "GA4 grant-access returns 501", 
+                True, 
+                f"Correctly returned 501 for grant access: {response.get('error')}"
+            )
+            return True
+        else:
+            log_test_result(
+                "GA4 grant-access returns 501", 
+                False, 
+                f"Got 501 status but error message doesn't indicate not implemented: {response.get('error')}"
+            )
+            return False
+    else:
+        log_test_result(
+            "GA4 grant-access returns 501", 
+            False, 
+            f"Expected 501 status for grant access, got {status}"
+        )
+        return False
+
+def test_ga4_capabilities_named_invite():
+    """Test 5: GA4 Capabilities - Verify correct flags for NAMED_INVITE"""
+    print("=" * 80)
+    print("TEST 5: GA4 Capabilities - NAMED_INVITE")
+    print("=" * 80)
+    
+    success, response, status = make_request(
+        "GET", 
+        "/plugins/ga4/capabilities/NAMED_INVITE",
+        expected_status=200
+    )
+    
+    if success and status == 200:
+        # Check for expected capabilities: canGrantAccess=false, canVerifyAccess=true, clientOAuthSupported=true
+        expected = {
+            "canGrantAccess": False,
+            "canVerifyAccess": True,
+            "clientOAuthSupported": True
+        }
+        
+        # The response might be nested, check different possible structures
+        capabilities = response
+        if "data" in response:
+            capabilities = response["data"]
+        if "capabilities" in capabilities:
+            capabilities = capabilities["capabilities"]
+        
+        all_correct = True
+        for key, expected_value in expected.items():
+            actual_value = capabilities.get(key)
+            if actual_value != expected_value:
+                log_test_result(
+                    f"GA4 NAMED_INVITE capabilities - {key}", 
+                    False, 
+                    f"Expected {key}={expected_value}, got {actual_value}"
+                )
+                all_correct = False
+            else:
+                print(f"   ✅ {key}: {actual_value}")
+        
+        if all_correct:
+            log_test_result(
+                "GA4 NAMED_INVITE capabilities", 
+                True, 
+                "All capability flags are correct"
+            )
+            return True
+        else:
+            return False
+    else:
+        log_test_result(
+            "GA4 NAMED_INVITE capabilities", 
+            False, 
+            f"Expected 200 status, got {status}"
+        )
+        return False
+
+def test_ga4_capabilities_shared_account():
+    """Test 6: GA4 Capabilities - Verify correct flags for SHARED_ACCOUNT"""
+    print("=" * 80)
+    print("TEST 6: GA4 Capabilities - SHARED_ACCOUNT")
+    print("=" * 80)
+    
+    success, response, status = make_request(
+        "GET", 
+        "/plugins/ga4/capabilities/SHARED_ACCOUNT",
+        expected_status=200
+    )
+    
+    if success and status == 200:
+        # Check for expected capabilities: canGrantAccess=false, canVerifyAccess=false, requiresEvidenceUpload=true
+        expected = {
+            "canGrantAccess": False,
+            "canVerifyAccess": False,
+            "requiresEvidenceUpload": True
+        }
+        
+        # The response might be nested, check different possible structures
+        capabilities = response
+        if "data" in response:
+            capabilities = response["data"]
+        if "capabilities" in capabilities:
+            capabilities = capabilities["capabilities"]
+        
+        all_correct = True
+        for key, expected_value in expected.items():
+            actual_value = capabilities.get(key)
+            if actual_value != expected_value:
+                log_test_result(
+                    f"GA4 SHARED_ACCOUNT capabilities - {key}", 
+                    False, 
+                    f"Expected {key}={expected_value}, got {actual_value}"
+                )
+                all_correct = False
+            else:
+                print(f"   ✅ {key}: {actual_value}")
+        
+        if all_correct:
+            log_test_result(
+                "GA4 SHARED_ACCOUNT capabilities", 
+                True, 
+                "All capability flags are correct"
+            )
+            return True
+        else:
+            return False
+    else:
+        log_test_result(
+            "GA4 SHARED_ACCOUNT capabilities", 
+            False, 
+            f"Expected 200 status, got {status}"
+        )
+        return False
+
+def main():
+    """Run all GA4 verifyAccess tests"""
+    print("🧪 GA4 CAPABILITY-DRIVEN ACCESS VERIFICATION TESTING")
+    print("🌐 Base URL:", BASE_URL)
+    print("📋 Testing GA4 verifyAccess implementation per review request")
+    print()
+    
+    # Run all tests
+    tests = [
+        test_ga4_verify_access_missing_parameters,
+        test_ga4_verify_access_shared_account,
+        test_ga4_verify_access_named_invite,
+        test_ga4_grant_access,
+        test_ga4_capabilities_named_invite,
+        test_ga4_capabilities_shared_account
+    ]
+    
+    results = []
+    passed = 0
+    total = len(tests)
+    
+    for test_func in tests:
+        try:
+            result = test_func()
+            results.append(result)
+            if result:
+                passed += 1
+        except Exception as e:
+            print(f"❌ TEST ERROR: {test_func.__name__}")
+            print(f"   Exception: {e}")
+            results.append(False)
+    
+    # Summary
+    print("=" * 80)
+    print("🎯 GA4 VERIFYACCESS IMPLEMENTATION TEST SUMMARY")
+    print("=" * 80)
+    print(f"📊 Results: {passed}/{total} tests passed ({(passed/total)*100:.1f}% success rate)")
+    print()
+    
+    test_names = [
+        "Missing Parameters (400 error)",
+        "SHARED_ACCOUNT Rejection (501 error)",
+        "NAMED_INVITE Fake Token (400 error)",
+        "Grant Access Returns 501",
+        "NAMED_INVITE Capabilities",
+        "SHARED_ACCOUNT Capabilities"
+    ]
+    
+    for i, (test_name, result) in enumerate(zip(test_names, results)):
+        status = "✅" if result else "❌"
+        print(f"{status} {i+1}. {test_name}")
+    
+    print()
+    
+    if passed == total:
+        print("🎉 ALL TESTS PASSED! GA4 verifyAccess implementation is working correctly.")
+        return True
+    else:
+        print(f"⚠️  {total - passed} test(s) failed. Review the output above for details.")
+        return False
 
 if __name__ == "__main__":
-    # Use the base URL from the review request
-    base_url = "https://agent-onboarding-hub.preview.emergentagent.com"
-    
-    tester = BackendTester(base_url)
-    success = tester.run_all_tests()
-    
+    success = main()
     sys.exit(0 if success else 1)
