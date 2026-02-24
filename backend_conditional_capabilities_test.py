@@ -65,7 +65,7 @@ def test_ga4_effective_capabilities():
         params = {
             'accessItemType': 'SHARED_ACCOUNT'
         }
-        response = make_request('GET', '/plugins/ga4/effective-capabilities', params)
+        response = make_request('GET', '/plugins/ga4/effective-capabilities', params=params)
         
         if response and response.status_code == 200:
             data = response.json()
