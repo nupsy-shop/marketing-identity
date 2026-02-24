@@ -9,8 +9,8 @@ export interface GSCOAuthConfig {
   clientSecret: string;
   redirectUri: string;
   scopes: string[];
-  authEndpoint: string;
-  tokenEndpoint: string;
+  authorizationUrl: string;
+  tokenUrl: string;
 }
 
 /**
