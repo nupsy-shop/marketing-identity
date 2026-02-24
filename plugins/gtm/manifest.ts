@@ -27,17 +27,17 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
   targetTypes: ['ACCOUNT', 'CONTAINER']
 };
 
-// GTM API supports user management - verify only for MVP
+// GTM API supports user management - grant access via createUserPermission
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   NAMED_INVITE: {
     clientOAuthSupported: true,
-    canGrantAccess: false,     // Not yet implemented - keep 501
+    canGrantAccess: true,      // GTM API can create user permissions
     canVerifyAccess: true,     // GTM API can list permissions
     requiresEvidenceUpload: false
   },
   GROUP_ACCESS: {
     clientOAuthSupported: true,
-    canGrantAccess: false,     // Not yet implemented - keep 501
+    canGrantAccess: true,      // GTM API can create user permissions
     canVerifyAccess: true,     // GTM API can list permissions
     requiresEvidenceUpload: false
   },
