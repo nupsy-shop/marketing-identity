@@ -636,11 +636,21 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
                   tokenType={clientToken.tokenType}
                   initialTargets={discoveredTargets}
                   selectedTarget={selectedTarget}
-                  onTargetSelected={(target) => {
+                  onTargetSelected={async (target) => {
                     setSelectedTarget(target);
                     // Store in session for persistence
                     if (target) {
                       sessionStorage.setItem(`selected_target_${item.id}`, JSON.stringify(target));
+                      // Also save to backend
+                      try {
+                        await fetch(`/api/onboarding/${item.accessRequestId}/items/${item.id}/save-target`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ selectedTarget: target })
+                        });
+                      } catch (e) {
+                        console.warn('Failed to save target to backend:', e);
+                      }
                     }
                   }}
                   onTargetsDiscovered={(targets) => {
