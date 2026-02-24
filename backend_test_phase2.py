@@ -21,9 +21,9 @@ try:
                 BASE_URL = line.split('=', 1)[1].strip()
                 break
         else:
-            BASE_URL = 'https://oauth-refactor.preview.emergentagent.com'
+            BASE_URL = 'https://festive-thompson-4.preview.emergentagent.com'
 except:
-    BASE_URL = 'https://oauth-refactor.preview.emergentagent.com'
+    BASE_URL = 'https://festive-thompson-4.preview.emergentagent.com'
 
 API_BASE = f"{BASE_URL}/api"
 

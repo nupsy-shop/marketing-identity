@@ -9,7 +9,7 @@ import json
 from urllib.parse import urljoin
 
 # Test configuration
-BASE_URL = "https://oauth-refactor.preview.emergentagent.com"
+BASE_URL = "https://festive-thompson-4.preview.emergentagent.com"
 API_BASE = urljoin(BASE_URL, "/api/")
 
 def test_oauth_support_verification():

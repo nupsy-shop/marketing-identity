@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 PAM Identity Hub Refactoring Backend Test Suite
-Testing against: https://oauth-refactor.preview.emergentagent.com/api
+Testing against: https://festive-thompson-4.preview.emergentagent.com/api
 
 Key Features to Test:
 1. Platform-Specific Required Fields Validation
@@ -20,7 +20,7 @@ import traceback
 
 class PAMIdentityHubTester:
     def __init__(self):
-        self.base_url = "https://oauth-refactor.preview.emergentagent.com/api"
+        self.base_url = "https://festive-thompson-4.preview.emergentagent.com/api"
         self.results = []
         
         # Platform IDs from actual API

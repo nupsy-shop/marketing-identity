@@ -19,7 +19,7 @@ from typing import Dict, Any, Optional
 
 class UIUXFeaturesTester:
     def __init__(self):
-        self.base_url = "https://oauth-refactor.preview.emergentagent.com/api"
+        self.base_url = "https://festive-thompson-4.preview.emergentagent.com/api"
         self.session = None
         self.test_results = []
         self.created_resources = {

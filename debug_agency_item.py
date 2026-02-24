@@ -6,7 +6,7 @@ Debug agency platform item addition
 import requests
 import json
 
-BASE_URL = "https://oauth-refactor.preview.emergentagent.com"
+BASE_URL = "https://festive-thompson-4.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def debug_agency_item_addition():
