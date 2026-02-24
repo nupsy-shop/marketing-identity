@@ -46,8 +46,8 @@ export function getOAuthConfig(redirectUri: string): GSCOAuthConfig {
       'https://www.googleapis.com/auth/webmasters.readonly',  // View Search Console data
       'https://www.googleapis.com/auth/webmasters',            // Manage Search Console data
     ],
-    authEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenEndpoint: 'https://oauth2.googleapis.com/token',
+    authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    tokenUrl: 'https://oauth2.googleapis.com/token',
   };
 }
 
