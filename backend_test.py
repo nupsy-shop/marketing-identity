@@ -79,6 +79,10 @@ def make_request(method: str, endpoint: str, data: Dict[Any, Any] = None,
         print(f"   Error: {error_msg}")
         return False, {"error": error_msg}, 0
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# GTM TESTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
 def test_ga4_verify_access_missing_parameters():
     """Test 1: GA4 Verify Access - Missing Parameters (should return 400)"""
     print("=" * 80)
