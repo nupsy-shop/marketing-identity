@@ -28,7 +28,9 @@ import {
   listAccessibleCustomers,
   listAllCustomers,
   checkManagerLink,
-  checkUserAccess
+  checkUserAccess,
+  createUserAccessInvitation,
+  createManagerClientLink
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GoogleAdsRole } from './types';
