@@ -468,10 +468,8 @@ def test_gsc_additional_endpoints():
         # Test 3: GSC Discover Targets - Fake Token
         print("\n📝 Test 3: GSC Discover Targets - Fake Token")
         discover_data = {
-            "auth": {
-                "accessToken": "fake_oauth_token_for_testing",
-                "tokenType": "Bearer"
-            }
+            "accessToken": "fake_oauth_token_for_testing",
+            "tokenType": "Bearer"
         }
         response = make_request('POST', '/oauth/google-search-console/discover-targets', discover_data)
         
