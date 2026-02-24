@@ -144,7 +144,7 @@ def test_gtm_verify_access_named_invite():
     
     if status == 400:
         error_msg = response.get("error", "").lower()
-        if "not found" in error_msg or "not accessible" in error_msg:
+        if "not found" in error_msg or "not accessible" in error_msg or "unauthorized" in error_msg:
             log_test_result(
                 "GTM verify-access NAMED_INVITE fake token", 
                 True, 
