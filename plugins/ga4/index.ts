@@ -171,6 +171,191 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // Access Verification (using CLIENT OAuth token)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Verify that an identity has the expected role on a GA4 property.
+   * Uses the CLIENT's OAuth token to call the GA4 Admin API and check access bindings.
+   * 
+   * @param params.auth - CLIENT OAuth token
+   * @param params.target - GA4 Property ID (numeric, e.g., "123456789")
+   * @param params.role - Expected role key ("viewer", "analyst", "editor", "administrator")
+   * @param params.identity - Email address to verify
+   * @param params.accessItemType - Type of access (NAMED_INVITE, GROUP_ACCESS)
+   */
+  async verifyAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+    const { auth, target, role, identity, accessItemType } = params;
+
+    // Validate inputs
+    if (!target) {
+      return { 
+        success: false, 
+        error: 'Property ID (target) is required',
+        details: { found: false }
+      };
+    }
+
+    if (!identity) {
+      return { 
+        success: false, 
+        error: 'Identity (email) to verify is required',
+        details: { found: false }
+      };
+    }
+
+    // SHARED_ACCOUNT type cannot be verified via API
+    if (accessItemType === 'SHARED_ACCOUNT') {
+      return {
+        success: false,
+        error: 'Shared Account (PAM) access cannot be verified via API. Manual evidence required.',
+        details: { found: false }
+      };
+    }
+
+    try {
+      // Build AuthResult for API calls
+      const authResult: AuthResult = {
+        success: true,
+        accessToken: auth.accessToken,
+        tokenType: auth.tokenType || 'Bearer'
+      };
+
+      // Normalize property ID (GA4 API expects just the numeric ID)
+      const propertyId = target.replace(/^properties\//, '');
+      
+      console.log(`[GA4Plugin] Verifying access for ${identity} on property ${propertyId} with role ${role}`);
+
+      // List all access bindings on the property
+      const bindings = await listAccessBindings(authResult, propertyId);
+      
+      // Find binding for the identity
+      const userBinding = bindings.find(b => 
+        b.user?.toLowerCase() === identity.toLowerCase()
+      );
+
+      if (!userBinding) {
+        console.log(`[GA4Plugin] No access binding found for ${identity}`);
+        return {
+          success: true,
+          data: false,
+          details: {
+            found: false,
+            identity,
+            expectedRole: role
+          }
+        };
+      }
+
+      // Map expected role to GA4 role format
+      const expectedGA4Role = ROLE_MAPPING[role.toLowerCase()] || `roles/${role.toLowerCase()}`;
+      const foundRoles = userBinding.roles || [];
+      
+      console.log(`[GA4Plugin] Found binding for ${identity} with roles: ${foundRoles.join(', ')}`);
+      console.log(`[GA4Plugin] Expected role: ${expectedGA4Role}`);
+
+      // Check if user has the expected role (or a higher role)
+      const hasExpectedRole = this.hasRoleOrHigher(foundRoles, expectedGA4Role);
+
+      if (hasExpectedRole) {
+        return {
+          success: true,
+          data: true,
+          details: {
+            found: true,
+            foundRoles,
+            expectedRole: expectedGA4Role,
+            identity,
+            binding: {
+              name: userBinding.name,
+              user: userBinding.user,
+              roles: userBinding.roles
+            }
+          }
+        };
+      } else {
+        return {
+          success: true,
+          data: false,
+          details: {
+            found: true,
+            foundRoles,
+            expectedRole: expectedGA4Role,
+            identity
+          }
+        };
+      }
+    } catch (error) {
+      console.error('[GA4Plugin] verifyAccess error:', error);
+      
+      // Handle specific API errors
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
+        return {
+          success: false,
+          error: 'The OAuth token does not have permission to view access bindings on this property. The client may need to grant Admin access.',
+          details: { found: false }
+        };
+      }
+      
+      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        return {
+          success: false,
+          error: `Property ${target} was not found or is not accessible with this token.`,
+          details: { found: false }
+        };
+      }
+      
+      return {
+        success: false,
+        error: `Failed to verify access: ${errorMessage}`,
+        details: { found: false }
+      };
+    }
+  }
+
+  /**
+   * Check if the user has the expected role or a higher privileged role.
+   * GA4 role hierarchy: viewer < analyst < editor < admin
+   */
+  private hasRoleOrHigher(userRoles: string[], expectedRole: string): boolean {
+    const roleHierarchy: GA4Role[] = ['roles/viewer', 'roles/analyst', 'roles/editor', 'roles/admin'];
+    
+    const expectedIndex = roleHierarchy.indexOf(expectedRole as GA4Role);
+    if (expectedIndex === -1) {
+      // Unknown role, check for exact match
+      return userRoles.includes(expectedRole);
+    }
+
+    // Check if user has the expected role or any higher role
+    for (const userRole of userRoles) {
+      const userRoleIndex = roleHierarchy.indexOf(userRole as GA4Role);
+      if (userRoleIndex !== -1 && userRoleIndex >= expectedIndex) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Access Granting (NOT YET IMPLEMENTED)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Grant access to an identity on a GA4 property.
+   * NOT YET IMPLEMENTED - Returns 501
+   */
+  async grantAccess(_params: VerifyAccessParams): Promise<VerifyAccessResult> {
+    return {
+      success: false,
+      error: 'GA4 automated access granting is not yet implemented. Manual granting required.',
+      details: { found: false }
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Authentication Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
