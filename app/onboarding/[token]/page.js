@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import SchemaForm from '@/components/SchemaForm';
 import { CapabilityBadges } from '@/components/CapabilityDrivenActions';
+import TargetDiscoverySelector from '@/components/TargetDiscoverySelector';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
