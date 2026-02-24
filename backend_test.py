@@ -1,13 +1,25 @@
 #!/usr/bin/env python3
 """
-GA4 Capability-Driven Access Verification Implementation Testing
+GTM and Google Ads verifyAccess Implementation Testing
 
-Tests the GA4 verifyAccess implementation as specified in the review request:
-1. GA4 Verify Access - Missing Parameters (should return 400)
-2. GA4 Verify Access - SHARED_ACCOUNT Type (should return 501) 
-3. GA4 Verify Access - NAMED_INVITE Type with fake token (should return 400 with "not found or is not accessible")
-4. GA4 Grant Access - Should Return 501 (canGrantAccess=false)
-5. GA4 Capabilities - Verify correct flags for NAMED_INVITE and SHARED_ACCOUNT
+Tests the GTM and Google Ads verifyAccess implementations as specified in the review request.
+
+Critical Endpoints to Test:
+
+### GTM Tests
+1. GTM OAuth Start - POST /api/oauth/gtm/start
+2. GTM Verify Access - NAMED_INVITE - POST /api/oauth/gtm/verify-access
+3. GTM Verify Access - SHARED_ACCOUNT (should be rejected) - POST /api/oauth/gtm/verify-access  
+4. GTM Grant Access - Should Return 501 - POST /api/oauth/gtm/grant-access
+5. GTM Capabilities - GET /api/plugins/gtm/capabilities/NAMED_INVITE
+
+### Google Ads Tests  
+6. Google Ads OAuth Start - POST /api/oauth/google-ads/start
+7. Google Ads Verify Access - PARTNER_DELEGATION - POST /api/oauth/google-ads/verify-access
+8. Google Ads Verify Access - NAMED_INVITE - POST /api/oauth/google-ads/verify-access
+9. Google Ads Grant Access - Should Return 501 - POST /api/oauth/google-ads/grant-access
+10. Google Ads Capabilities - GET /api/plugins/google-ads/capabilities/PARTNER_DELEGATION
+11. Google Ads Capabilities - GET /api/plugins/google-ads/capabilities/NAMED_INVITE
 
 Base URL: https://agent-onboarding-hub.preview.emergentagent.com
 """
