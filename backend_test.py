@@ -1,406 +1,305 @@
 #!/usr/bin/env python3
-"""
-Backend Testing Script for GTM and Google Ads Grant Access Functionality
-Testing the newly implemented grantAccess endpoints for GTM and Google Ads plugins.
-"""
 
-import sys
-import json
 import requests
+import json
+import sys
 import traceback
-from urllib.parse import quote
+from urllib.parse import urljoin
 
-# Test configuration
+# Base URL from environment
 BASE_URL = "https://oauth-refactor.preview.emergentagent.com"
-API_BASE = f"{BASE_URL}/api"
-
-# Test counters
-tests_passed = 0
-tests_failed = 0
-test_results = []
-
-def log_test_result(test_name, success, details=""):
-    """Log test result"""
-    global tests_passed, tests_failed
-    if success:
-        tests_passed += 1
-        status = "✅ PASS"
-    else:
-        tests_failed += 1
-        status = "❌ FAIL"
-    
-    result = f"{status}: {test_name}"
-    if details:
-        result += f" - {details}"
-    
-    print(result)
-    test_results.append({
-        "test": test_name,
-        "success": success,
-        "details": details
-    })
+API_BASE = urljoin(BASE_URL, "/api/")
 
 def make_request(method, endpoint, data=None, headers=None):
-    """Make HTTP request with error handling"""
+    """Make HTTP request with proper error handling"""
+    url = urljoin(API_BASE, endpoint.lstrip('/'))
+    default_headers = {'Content-Type': 'application/json'}
+    if headers:
+        default_headers.update(headers)
+    
     try:
-        url = f"{API_BASE}{endpoint}"
-        print(f"  → {method} {url}")
+        if method.upper() == 'GET':
+            response = requests.get(url, headers=default_headers)
+        elif method.upper() == 'POST':
+            response = requests.post(url, json=data, headers=default_headers)
+        elif method.upper() == 'PATCH':
+            response = requests.patch(url, json=data, headers=default_headers)
+        elif method.upper() == 'PUT':
+            response = requests.put(url, json=data, headers=default_headers)
+        elif method.upper() == 'DELETE':
+            response = requests.delete(url, headers=default_headers)
         
-        if headers is None:
-            headers = {"Content-Type": "application/json"}
-        
-        if method == "GET":
-            response = requests.get(url, headers=headers, timeout=30)
-        elif method == "POST":
-            response = requests.post(url, json=data, headers=headers, timeout=30)
-        elif method == "PATCH":
-            response = requests.patch(url, json=data, headers=headers, timeout=30)
-        elif method == "PUT":
-            response = requests.put(url, json=data, headers=headers, timeout=30)
-        elif method == "DELETE":
-            response = requests.delete(url, headers=headers, timeout=30)
-        else:
-            raise ValueError(f"Unsupported method: {method}")
-        
-        print(f"  ← {response.status_code} {response.reason}")
-        
-        try:
+        return response
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return None
+
+def test_save_target_endpoint():
+    """Test the Save Target API endpoint"""
+    print("\n" + "="*80)
+    print("TESTING: Save Target Endpoint - POST /api/onboarding/:token/items/:itemId/save-target")
+    print("="*80)
+    
+    # Test data from review request
+    valid_token = "055b2165-83d1-4ff7-8d44-5a7dec3a17f2"
+    valid_item_id = "c5c93c3e-b691-4bd5-a034-50ae9df8042d"
+    
+    sample_target = {
+        "externalId": "123456789",
+        "displayName": "Test GA4 Property",
+        "targetType": "PROPERTY",
+        "parentExternalId": "accounts/123",
+        "metadata": { "test": True }
+    }
+    
+    tests_passed = 0
+    total_tests = 4
+    
+    try:
+        # Test 1: Missing selectedTarget (should return 400)
+        print("\n[TEST 1/4] Testing missing selectedTarget...")
+        response = make_request('POST', f'/onboarding/{valid_token}/items/{valid_item_id}/save-target', {})
+        if response and response.status_code == 400:
             response_data = response.json()
-        except:
-            response_data = {"text": response.text}
-        
-        return {
-            "status_code": response.status_code,
-            "data": response_data,
-            "success": response.status_code < 400
-        }
-    
-    except Exception as e:
-        print(f"  ← ERROR: {str(e)}")
-        return {
-            "status_code": 0,
-            "data": {"error": str(e)},
-            "success": False
-        }
-
-def test_gtm_capabilities():
-    """Test GTM capability endpoints"""
-    print("\n=== GTM CAPABILITY TESTING ===")
-    
-    # Test 1: GET /api/plugins/gtm/capabilities/NAMED_INVITE
-    test_name = "GTM NAMED_INVITE capabilities"
-    try:
-        response = make_request("GET", "/plugins/gtm/capabilities/NAMED_INVITE")
-        
-        if response["success"] and response["status_code"] == 200:
-            capabilities = response["data"]["data"]["capabilities"]
-            if capabilities.get("canGrantAccess") == True:
-                log_test_result(test_name, True, f"canGrantAccess: {capabilities.get('canGrantAccess')}")
+            if 'selectedTarget is required' in response_data.get('error', ''):
+                print("✅ PASS: Correctly rejected missing selectedTarget with 400")
+                tests_passed += 1
             else:
-                log_test_result(test_name, False, f"Expected canGrantAccess=true, got: {capabilities.get('canGrantAccess')}")
+                print(f"❌ FAIL: Wrong error message: {response_data}")
         else:
-            log_test_result(test_name, False, f"HTTP {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 2: GET /api/plugins/gtm/capabilities/GROUP_ACCESS
-    test_name = "GTM GROUP_ACCESS capabilities"
-    try:
-        response = make_request("GET", "/plugins/gtm/capabilities/GROUP_ACCESS")
+            status = response.status_code if response else 'No response'
+            print(f"❌ FAIL: Expected 400, got {status}")
         
-        if response["success"] and response["status_code"] == 200:
-            capabilities = response["data"]["data"]["capabilities"]
-            if capabilities.get("canGrantAccess") == True:
-                log_test_result(test_name, True, f"canGrantAccess: {capabilities.get('canGrantAccess')}")
+        # Test 2: Invalid token (should return 404)
+        print("\n[TEST 2/4] Testing invalid token...")
+        invalid_token = "invalid-token-12345"
+        response = make_request('POST', f'/onboarding/{invalid_token}/items/{valid_item_id}/save-target', 
+                              {"selectedTarget": sample_target})
+        if response and response.status_code == 404:
+            response_data = response.json()
+            if 'Invalid onboarding token' in response_data.get('error', ''):
+                print("✅ PASS: Correctly rejected invalid token with 404")
+                tests_passed += 1
             else:
-                log_test_result(test_name, False, f"Expected canGrantAccess=true, got: {capabilities.get('canGrantAccess')}")
+                print(f"❌ FAIL: Wrong error message: {response_data}")
         else:
-            log_test_result(test_name, False, f"HTTP {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 3: GET /api/plugins/gtm/capabilities/SHARED_ACCOUNT
-    test_name = "GTM SHARED_ACCOUNT capabilities"
-    try:
-        response = make_request("GET", "/plugins/gtm/capabilities/SHARED_ACCOUNT")
+            status = response.status_code if response else 'No response'
+            print(f"❌ FAIL: Expected 404, got {status}")
         
-        if response["success"] and response["status_code"] == 200:
-            capabilities = response["data"]["data"]["capabilities"]
-            if capabilities.get("canGrantAccess") == False:
-                log_test_result(test_name, True, f"canGrantAccess: {capabilities.get('canGrantAccess')}")
+        # Test 3: Invalid itemId (should return 404)
+        print("\n[TEST 3/4] Testing invalid itemId...")
+        invalid_item_id = "invalid-item-id-12345"
+        response = make_request('POST', f'/onboarding/{valid_token}/items/{invalid_item_id}/save-target', 
+                              {"selectedTarget": sample_target})
+        if response and response.status_code == 404:
+            response_data = response.json()
+            if 'Item not found' in response_data.get('error', ''):
+                print("✅ PASS: Correctly rejected invalid itemId with 404")
+                tests_passed += 1
             else:
-                log_test_result(test_name, False, f"Expected canGrantAccess=false, got: {capabilities.get('canGrantAccess')}")
+                print(f"❌ FAIL: Wrong error message: {response_data}")
         else:
-            log_test_result(test_name, False, f"HTTP {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-
-def test_gtm_grant_access():
-    """Test GTM grant access endpoint"""
-    print("\n=== GTM GRANT ACCESS TESTING ===")
-    
-    # Test 1: Missing required fields (should return 400)
-    test_name = "GTM grant access - missing required fields"
-    try:
-        payload = {"accessToken": "fake_token"}  # Missing other required fields
-        response = make_request("POST", "/oauth/gtm/grant-access", payload)
+            status = response.status_code if response else 'No response'
+            print(f"❌ FAIL: Expected 404, got {status}")
         
-        if response["status_code"] == 400:
-            log_test_result(test_name, True, "Correctly rejected incomplete request")
-        else:
-            log_test_result(test_name, False, f"Expected 400, got {response['status_code']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 2: Fake access token (should return appropriate error from Google API)
-    test_name = "GTM grant access - fake access token"
-    try:
-        payload = {
-            "accessToken": "fake_access_token_12345",
-            "tokenType": "Bearer",
-            "target": "123456789",
-            "role": "admin",
-            "identity": "test@example.com",
-            "accessItemType": "NAMED_INVITE"
-        }
-        response = make_request("POST", "/oauth/gtm/grant-access", payload)
-        
-        # Should return error (400-499 range) due to invalid token
-        if 400 <= response["status_code"] < 500:
-            log_test_result(test_name, True, f"HTTP {response['status_code']}: {response['data'].get('error', 'Unknown error')}")
-        else:
-            log_test_result(test_name, False, f"Expected 4xx error, got {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 3: SHARED_ACCOUNT type (should return 501)
-    test_name = "GTM grant access - SHARED_ACCOUNT type"
-    try:
-        payload = {
-            "accessToken": "fake_access_token_12345",
-            "tokenType": "Bearer",
-            "target": "123456789",
-            "role": "admin",
-            "identity": "test@example.com",
-            "accessItemType": "SHARED_ACCOUNT"
-        }
-        response = make_request("POST", "/oauth/gtm/grant-access", payload)
-        
-        if response["status_code"] == 501:
-            log_test_result(test_name, True, f"Correctly rejected SHARED_ACCOUNT: {response['data'].get('error', '')}")
-        else:
-            log_test_result(test_name, False, f"Expected 501, got {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-
-def test_google_ads_capabilities():
-    """Test Google Ads capability endpoints"""
-    print("\n=== GOOGLE ADS CAPABILITY TESTING ===")
-    
-    # Test 1: GET /api/plugins/google-ads/capabilities/PARTNER_DELEGATION
-    test_name = "Google Ads PARTNER_DELEGATION capabilities"
-    try:
-        response = make_request("GET", "/plugins/google-ads/capabilities/PARTNER_DELEGATION")
-        
-        if response["success"] and response["status_code"] == 200:
-            capabilities = response["data"]["data"]["capabilities"]
-            if capabilities.get("canGrantAccess") == True:
-                log_test_result(test_name, True, f"canGrantAccess: {capabilities.get('canGrantAccess')}")
+        # Test 4: Valid request with selectedTarget object (should return 200)
+        print("\n[TEST 4/4] Testing valid save target request...")
+        response = make_request('POST', f'/onboarding/{valid_token}/items/{valid_item_id}/save-target', 
+                              {"selectedTarget": sample_target})
+        if response and response.status_code == 200:
+            response_data = response.json()
+            if (response_data.get('success') and 
+                response_data.get('data', {}).get('selectedTarget', {}).get('externalId') == "123456789"):
+                print("✅ PASS: Successfully saved target with 200")
+                print(f"   Returned target: {response_data.get('data', {}).get('selectedTarget', {})}")
+                tests_passed += 1
             else:
-                log_test_result(test_name, False, f"Expected canGrantAccess=true, got: {capabilities.get('canGrantAccess')}")
+                print(f"❌ FAIL: Invalid response structure: {response_data}")
         else:
-            log_test_result(test_name, False, f"HTTP {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 2: GET /api/plugins/google-ads/capabilities/NAMED_INVITE
-    test_name = "Google Ads NAMED_INVITE capabilities"
-    try:
-        response = make_request("GET", "/plugins/google-ads/capabilities/NAMED_INVITE")
-        
-        if response["success"] and response["status_code"] == 200:
-            capabilities = response["data"]["data"]["capabilities"]
-            if capabilities.get("canGrantAccess") == True:
-                log_test_result(test_name, True, f"canGrantAccess: {capabilities.get('canGrantAccess')}")
-            else:
-                log_test_result(test_name, False, f"Expected canGrantAccess=true, got: {capabilities.get('canGrantAccess')}")
-        else:
-            log_test_result(test_name, False, f"HTTP {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 3: GET /api/plugins/google-ads/capabilities/SHARED_ACCOUNT
-    test_name = "Google Ads SHARED_ACCOUNT capabilities"
-    try:
-        response = make_request("GET", "/plugins/google-ads/capabilities/SHARED_ACCOUNT")
-        
-        if response["success"] and response["status_code"] == 200:
-            capabilities = response["data"]["data"]["capabilities"]
-            if capabilities.get("canGrantAccess") == False:
-                log_test_result(test_name, True, f"canGrantAccess: {capabilities.get('canGrantAccess')}")
-            else:
-                log_test_result(test_name, False, f"Expected canGrantAccess=false, got: {capabilities.get('canGrantAccess')}")
-        else:
-            log_test_result(test_name, False, f"HTTP {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-
-def test_google_ads_grant_access():
-    """Test Google Ads grant access endpoint"""
-    print("\n=== GOOGLE ADS GRANT ACCESS TESTING ===")
-    
-    # Test 1: Missing required fields (should return 400)
-    test_name = "Google Ads grant access - missing required fields"
-    try:
-        payload = {"accessToken": "fake_token"}  # Missing other required fields
-        response = make_request("POST", "/oauth/google-ads/grant-access", payload)
-        
-        if response["status_code"] == 400:
-            log_test_result(test_name, True, "Correctly rejected incomplete request")
-        else:
-            log_test_result(test_name, False, f"Expected 400, got {response['status_code']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 2: Fake access token (should return appropriate error)
-    test_name = "Google Ads grant access - fake access token"
-    try:
-        payload = {
-            "accessToken": "fake_access_token_12345",
-            "tokenType": "Bearer",
-            "target": "1234567890",
-            "role": "admin",
-            "identity": "test@example.com",
-            "accessItemType": "NAMED_INVITE"
-        }
-        response = make_request("POST", "/oauth/google-ads/grant-access", payload)
-        
-        # Should return error (400-499 range) due to invalid token
-        if 400 <= response["status_code"] < 500:
-            log_test_result(test_name, True, f"HTTP {response['status_code']}: {response['data'].get('error', 'Unknown error')}")
-        else:
-            log_test_result(test_name, False, f"Expected 4xx error, got {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 3: SHARED_ACCOUNT type (should return 501)
-    test_name = "Google Ads grant access - SHARED_ACCOUNT type"
-    try:
-        payload = {
-            "accessToken": "fake_access_token_12345",
-            "tokenType": "Bearer",
-            "target": "1234567890",
-            "role": "admin",
-            "identity": "test@example.com",
-            "accessItemType": "SHARED_ACCOUNT"
-        }
-        response = make_request("POST", "/oauth/google-ads/grant-access", payload)
-        
-        if response["status_code"] == 501:
-            log_test_result(test_name, True, f"Correctly rejected SHARED_ACCOUNT: {response['data'].get('error', '')}")
-        else:
-            log_test_result(test_name, False, f"Expected 501, got {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 4: PARTNER_DELEGATION type with fake token (verify error handling)
-    test_name = "Google Ads grant access - PARTNER_DELEGATION with fake token"
-    try:
-        payload = {
-            "accessToken": "fake_access_token_12345",
-            "tokenType": "Bearer",
-            "target": "1234567890",
-            "role": "admin",
-            "identity": "9876543210",  # MCC ID for PARTNER_DELEGATION
-            "accessItemType": "PARTNER_DELEGATION"
-        }
-        response = make_request("POST", "/oauth/google-ads/grant-access", payload)
-        
-        # Should return error due to fake token
-        if 400 <= response["status_code"] < 500:
-            log_test_result(test_name, True, f"HTTP {response['status_code']}: {response['data'].get('error', 'Unknown error')}")
-        else:
-            log_test_result(test_name, False, f"Expected 4xx error, got {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-
-def test_ga4_regression():
-    """Test existing GA4 functionality still works"""
-    print("\n=== GA4 REGRESSION TESTING ===")
-    
-    # Test 1: GET /api/plugins/ga4/capabilities/NAMED_INVITE (should have canGrantAccess: true)
-    test_name = "GA4 NAMED_INVITE capabilities regression"
-    try:
-        response = make_request("GET", "/plugins/ga4/capabilities/NAMED_INVITE")
-        
-        if response["success"] and response["status_code"] == 200:
-            capabilities = response["data"]["data"]["capabilities"]
-            if capabilities.get("canGrantAccess") == True:
-                log_test_result(test_name, True, f"canGrantAccess: {capabilities.get('canGrantAccess')}")
-            else:
-                log_test_result(test_name, False, f"Expected canGrantAccess=true, got: {capabilities.get('canGrantAccess')}")
-        else:
-            log_test_result(test_name, False, f"HTTP {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-    
-    # Test 2: POST /api/oauth/ga4/grant-access still works
-    test_name = "GA4 grant access endpoint regression"
-    try:
-        payload = {
-            "accessToken": "fake_access_token_12345",
-            "tokenType": "Bearer",
-            "target": "123456789",
-            "role": "admin",
-            "identity": "test@example.com",
-            "accessItemType": "NAMED_INVITE"
-        }
-        response = make_request("POST", "/oauth/ga4/grant-access", payload)
-        
-        # Should return error (400-499 range) due to invalid token, but endpoint should exist
-        if 400 <= response["status_code"] < 500:
-            log_test_result(test_name, True, f"GA4 grant access endpoint exists and handles fake tokens: HTTP {response['status_code']}")
-        else:
-            log_test_result(test_name, False, f"GA4 grant access endpoint issue: {response['status_code']}: {response['data']}")
-    except Exception as e:
-        log_test_result(test_name, False, f"Exception: {str(e)}")
-
-def test_all_endpoints():
-    """Run all endpoint tests"""
-    print("Starting GTM and Google Ads Grant Access Functionality Testing...")
-    print(f"Base URL: {BASE_URL}")
-    
-    try:
-        # Test GTM functionality
-        test_gtm_capabilities()
-        test_gtm_grant_access()
-        
-        # Test Google Ads functionality  
-        test_google_ads_capabilities()
-        test_google_ads_grant_access()
-        
-        # Test GA4 regression
-        test_ga4_regression()
-        
-        # Print final results
-        print("\n" + "="*50)
-        print("FINAL TEST RESULTS:")
-        print(f"✅ Tests Passed: {tests_passed}")
-        print(f"❌ Tests Failed: {tests_failed}")
-        print(f"📊 Success Rate: {tests_passed}/{tests_passed + tests_failed} ({(tests_passed/(tests_passed + tests_failed)*100):.1f}%)")
-        
-        if tests_failed == 0:
-            print("🎉 ALL TESTS PASSED!")
-        else:
-            print("⚠️  Some tests failed - review details above")
-        
-        return tests_failed == 0
+            status = response.status_code if response else 'No response'
+            print(f"❌ FAIL: Expected 200, got {status}")
+            if response:
+                print(f"   Response: {response.json()}")
         
     except Exception as e:
-        print(f"Fatal error during testing: {e}")
+        print(f"❌ FAIL: Exception during save target tests: {e}")
         traceback.print_exc()
-        return False
+    
+    print(f"\n📊 Save Target Tests: {tests_passed}/{total_tests} PASSED")
+    return tests_passed, total_tests
+
+def test_target_discovery_endpoint():
+    """Test the Target Discovery API endpoint"""
+    print("\n" + "="*80)
+    print("TESTING: Target Discovery Endpoint - POST /api/oauth/:platformKey/discover-targets")
+    print("="*80)
+    
+    platforms_to_test = ['ga4', 'gtm', 'google-ads']
+    tests_passed = 0
+    total_tests = 6  # 2 tests per platform
+    
+    try:
+        for platform in platforms_to_test:
+            print(f"\n--- Testing platform: {platform} ---")
+            
+            # Test 1: Missing accessToken (should return 400)
+            print(f"\n[TEST] Testing missing accessToken for {platform}...")
+            response = make_request('POST', f'/oauth/{platform}/discover-targets', {})
+            if response and response.status_code == 400:
+                response_data = response.json()
+                if 'accessToken is required' in response_data.get('error', ''):
+                    print(f"✅ PASS: Correctly rejected missing accessToken for {platform}")
+                    tests_passed += 1
+                else:
+                    print(f"❌ FAIL: Wrong error message for {platform}: {response_data}")
+            else:
+                status = response.status_code if response else 'No response'
+                print(f"❌ FAIL: Expected 400 for {platform}, got {status}")
+            
+            # Test 2: Fake accessToken (should return error from Google API or appropriate error)
+            print(f"\n[TEST] Testing fake accessToken for {platform}...")
+            fake_token = "fake_access_token_12345"
+            response = make_request('POST', f'/oauth/{platform}/discover-targets', 
+                                  {"accessToken": fake_token})
+            
+            # Should return either 400/401/500 error (depending on platform implementation)
+            if response and response.status_code in [400, 401, 500, 501]:
+                response_data = response.json()
+                error_msg = response_data.get('error', '').lower()
+                
+                # Check for expected error patterns
+                expected_errors = [
+                    'not configured', 'oauth is not configured', 'not found',
+                    'invalid', 'unauthorized', 'failed', 'does not support'
+                ]
+                
+                if any(expected in error_msg for expected in expected_errors):
+                    print(f"✅ PASS: Correctly handled fake token for {platform} (Status: {response.status_code})")
+                    print(f"   Error: {response_data.get('error', '')}")
+                    tests_passed += 1
+                else:
+                    print(f"❌ FAIL: Unexpected error message for {platform}: {response_data}")
+            else:
+                status = response.status_code if response else 'No response'
+                print(f"❌ FAIL: Expected error status for {platform}, got {status}")
+                if response:
+                    print(f"   Response: {response.json()}")
+        
+    except Exception as e:
+        print(f"❌ FAIL: Exception during target discovery tests: {e}")
+        traceback.print_exc()
+    
+    print(f"\n📊 Target Discovery Tests: {tests_passed}/{total_tests} PASSED")
+    return tests_passed, total_tests
+
+def test_regression_onboarding_endpoints():
+    """Test existing onboarding endpoints still work"""
+    print("\n" + "="*80)
+    print("TESTING: Regression - Existing Onboarding Endpoints")
+    print("="*80)
+    
+    # Test data from review request
+    valid_token = "055b2165-83d1-4ff7-8d44-5a7dec3a17f2"
+    valid_item_id = "c5c93c3e-b691-4bd5-a034-50ae9df8042d"
+    
+    tests_passed = 0
+    total_tests = 2
+    
+    try:
+        # Test 1: GET /api/onboarding/:token (should return onboarding data)
+        print("\n[TEST 1/2] Testing GET onboarding data...")
+        response = make_request('GET', f'/onboarding/{valid_token}')
+        if response and response.status_code == 200:
+            response_data = response.json()
+            if (response_data.get('success') and 
+                response_data.get('data', {}).get('client') and
+                response_data.get('data', {}).get('items')):
+                print("✅ PASS: Successfully retrieved onboarding data")
+                print(f"   Client: {response_data['data']['client']['name']}")
+                print(f"   Items count: {len(response_data['data']['items'])}")
+                tests_passed += 1
+            else:
+                print(f"❌ FAIL: Invalid onboarding data structure: {response_data}")
+        else:
+            status = response.status_code if response else 'No response'
+            print(f"❌ FAIL: Expected 200, got {status}")
+            if response:
+                print(f"   Response: {response.json()}")
+        
+        # Test 2: POST /api/onboarding/:token/items/:itemId/attest (should still work)
+        print("\n[TEST 2/2] Testing POST attestation endpoint...")
+        attest_data = {
+            "attestationText": "I have granted the requested access to my GA4 account",
+            "clientProvidedTarget": {
+                "propertyId": "123456789",
+                "propertyName": "Test Property",
+                "assetType": "GA4_PROPERTY"
+            }
+        }
+        
+        response = make_request('POST', f'/onboarding/{valid_token}/items/{valid_item_id}/attest', 
+                              attest_data)
+        if response and response.status_code == 200:
+            response_data = response.json()
+            if response_data.get('success'):
+                print("✅ PASS: Successfully submitted attestation")
+                print(f"   Response success: {response_data.get('success')}")
+                tests_passed += 1
+            else:
+                print(f"❌ FAIL: Attestation failed: {response_data}")
+        else:
+            status = response.status_code if response else 'No response'
+            print(f"❌ FAIL: Expected 200, got {status}")
+            if response:
+                print(f"   Response: {response.json()}")
+        
+    except Exception as e:
+        print(f"❌ FAIL: Exception during regression tests: {e}")
+        traceback.print_exc()
+    
+    print(f"\n📊 Regression Tests: {tests_passed}/{total_tests} PASSED")
+    return tests_passed, total_tests
+
+def main():
+    """Run all Target Discovery and Save Target API tests"""
+    print("🚀 STARTING TARGET DISCOVERY AND SAVE TARGET API TESTING")
+    print(f"Testing against: {BASE_URL}")
+    
+    total_passed = 0
+    total_tests = 0
+    
+    # Test 1: Save Target Endpoint
+    passed, tests = test_save_target_endpoint()
+    total_passed += passed
+    total_tests += tests
+    
+    # Test 2: Target Discovery Endpoint  
+    passed, tests = test_target_discovery_endpoint()
+    total_passed += passed
+    total_tests += tests
+    
+    # Test 3: Regression Testing
+    passed, tests = test_regression_onboarding_endpoints()
+    total_passed += passed
+    total_tests += tests
+    
+    # Final Results
+    print("\n" + "="*80)
+    print("🎯 FINAL TEST RESULTS")
+    print("="*80)
+    print(f"✅ PASSED: {total_passed}/{total_tests} tests")
+    print(f"❌ FAILED: {total_tests - total_passed}/{total_tests} tests")
+    
+    success_rate = (total_passed / total_tests) * 100 if total_tests > 0 else 0
+    print(f"📈 SUCCESS RATE: {success_rate:.1f}%")
+    
+    if success_rate >= 80:
+        print("🎉 TARGET DISCOVERY AND SAVE TARGET API TESTING COMPLETED SUCCESSFULLY!")
+    else:
+        print("⚠️  Some tests failed. Please review the implementation.")
+    
+    return total_passed == total_tests
 
 if __name__ == "__main__":
-    success = test_all_endpoints()
+    success = main()
     sys.exit(0 if success else 1)
