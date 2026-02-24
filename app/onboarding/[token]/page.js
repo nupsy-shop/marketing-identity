@@ -620,58 +620,52 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
               </div>
             )}
             
-            {/* Step 2: Connected - discover targets */}
+            {/* Step 2: Connected - Target Discovery */}
             {clientToken && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-center gap-2 text-green-700 bg-green-50 p-2 rounded">
                   <i className="fas fa-check-circle"></i>
                   <span className="text-sm font-medium">Connected to {platform?.name}</span>
                 </div>
                 
-                {/* Discover targets button */}
-                {discoveredTargets.length === 0 && (
-                  <Button 
-                    onClick={handleDiscoverTargets} 
-                    disabled={discoveringTargets}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {discoveringTargets ? (
-                      <><i className="fas fa-spinner fa-spin mr-2"></i>Discovering...</>
-                    ) : (
-                      <><i className="fas fa-search mr-2"></i>Find Accounts/Properties</>
-                    )}
-                  </Button>
-                )}
-                
-                {/* Target selector */}
-                {discoveredTargets.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-sm">Select Target Account/Property</Label>
-                    <Select 
-                      value={selectedTarget?.externalId} 
-                      onValueChange={(val) => setSelectedTarget(discoveredTargets.find(t => t.externalId === val))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose target..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {discoveredTargets.map(target => (
-                          <SelectItem key={target.externalId} value={target.externalId}>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">{target.targetType}</Badge>
-                              <span>{target.displayName}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {/* Enhanced Target Discovery Selector */}
+                <TargetDiscoverySelector
+                  platformKey={platformKey}
+                  platformName={platform?.name}
+                  accessToken={clientToken.accessToken}
+                  tokenType={clientToken.tokenType}
+                  initialTargets={discoveredTargets}
+                  selectedTarget={selectedTarget}
+                  onTargetSelected={(target) => {
+                    setSelectedTarget(target);
+                    // Store in session for persistence
+                    if (target) {
+                      sessionStorage.setItem(`selected_target_${item.id}`, JSON.stringify(target));
+                    }
+                  }}
+                  onTargetsDiscovered={(targets) => {
+                    setDiscoveredTargets(targets);
+                    // Store in session for persistence
+                    sessionStorage.setItem('oauth_targets', JSON.stringify(targets));
+                  }}
+                  autoDiscover={discoveredTargets.length === 0}
+                  maxHeight="300px"
+                />
                 
                 {/* Action buttons based on capabilities */}
                 {selectedTarget && (
-                  <div className="space-y-2 pt-2">
+                  <div className="space-y-3 pt-3 border-t border-slate-200">
+                    {/* Summary of what will happen */}
+                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <i className="fas fa-info-circle mr-2"></i>
+                        {canGrantAccess 
+                          ? `Will grant ${item.role} access to ${identityToAdd} on "${selectedTarget.displayName}"`
+                          : `Will verify ${identityToAdd} has ${item.role} access on "${selectedTarget.displayName}"`
+                        }
+                      </p>
+                    </div>
+                    
                     {/* Grant Access button (if platform supports it) */}
                     {canGrantAccess && (
                       <Button 
