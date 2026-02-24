@@ -1,672 +1,548 @@
 #!/usr/bin/env python3
 """
-GTM and Google Ads verifyAccess Implementation Testing
-
-Tests the GTM and Google Ads verifyAccess implementations as specified in the review request.
-
-Critical Endpoints to Test:
-
-### GTM Tests
-1. GTM OAuth Start - POST /api/oauth/gtm/start
-2. GTM Verify Access - NAMED_INVITE - POST /api/oauth/gtm/verify-access
-3. GTM Verify Access - SHARED_ACCOUNT (should be rejected) - POST /api/oauth/gtm/verify-access  
-4. GTM Grant Access - Should Return 501 - POST /api/oauth/gtm/grant-access
-5. GTM Capabilities - GET /api/plugins/gtm/capabilities/NAMED_INVITE
-
-### Google Ads Tests  
-6. Google Ads OAuth Start - POST /api/oauth/google-ads/start
-7. Google Ads Verify Access - PARTNER_DELEGATION - POST /api/oauth/google-ads/verify-access
-8. Google Ads Verify Access - NAMED_INVITE - POST /api/oauth/google-ads/verify-access
-9. Google Ads Grant Access - Should Return 501 - POST /api/oauth/google-ads/grant-access
-10. Google Ads Capabilities - GET /api/plugins/google-ads/capabilities/PARTNER_DELEGATION
-11. Google Ads Capabilities - GET /api/plugins/google-ads/capabilities/NAMED_INVITE
-
-Base URL: https://oauth-refactor.preview.emergentagent.com
+Backend Test Suite for GA4 grantAccess Functionality
+Tests the newly implemented GA4 plugin's ability to programmatically grant access 
+to GA4 properties using the GA4 Admin API.
 """
 
-import requests
 import json
+import requests
 import sys
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any
 
-# Configuration
+# Base URL from environment
 BASE_URL = "https://oauth-refactor.preview.emergentagent.com"
-API_BASE = f"{BASE_URL}/api"
 
-def log_test_result(test_name: str, success: bool, details: str = ""):
-    """Log test results with consistent formatting"""
-    status = "✅ PASS" if success else "❌ FAIL"
-    print(f"{status} - {test_name}")
-    if details:
-        print(f"   {details}")
-    print()
-
-def make_request(method: str, endpoint: str, data: Dict[Any, Any] = None, 
-                expected_status: int = None) -> Tuple[bool, Dict[Any, Any], int]:
-    """Make HTTP request and return success status, response data, and status code"""
-    url = f"{API_BASE}{endpoint}"
+class GA4GrantAccessTester:
+    def __init__(self):
+        self.base_url = BASE_URL
+        self.test_results = []
+        self.passed = 0
+        self.failed = 0
     
-    try:
-        print(f"🔄 {method} {url}")
-        if data:
-            print(f"   Body: {json.dumps(data, indent=2)}")
+    def log_result(self, test_name: str, passed: bool, details: str = ""):
+        """Log test result"""
+        status = "✅ PASS" if passed else "❌ FAIL"
+        print(f"{status}: {test_name}")
+        if details:
+            print(f"   Details: {details}")
         
-        if method == "GET":
-            response = requests.get(url, timeout=30)
-        elif method == "POST":
-            response = requests.post(url, json=data, timeout=30)
-        elif method == "PATCH":
-            response = requests.patch(url, json=data, timeout=30)
+        self.test_results.append({
+            'test': test_name,
+            'passed': passed,
+            'details': details
+        })
+        
+        if passed:
+            self.passed += 1
         else:
-            return False, {"error": f"Unsupported method: {method}"}, 0
-        
-        print(f"   Status: {response.status_code}")
+            self.failed += 1
+    
+    def make_request(self, method: str, endpoint: str, data: Dict[Any, Any] = None, expected_status: int = 200) -> tuple:
+        """Make HTTP request and return (response, success)"""
+        url = f"{self.base_url}/api{endpoint}"
         
         try:
-            response_data = response.json()
-            print(f"   Response: {json.dumps(response_data, indent=2)}")
-        except:
-            response_data = {"raw_response": response.text}
-            print(f"   Response: {response.text[:500]}")
-        
-        # Check expected status if provided
-        status_ok = expected_status is None or response.status_code == expected_status
-        
-        return status_ok, response_data, response.status_code
-        
-    except Exception as e:
-        error_msg = f"Request failed: {str(e)}"
-        print(f"   Error: {error_msg}")
-        return False, {"error": error_msg}, 0
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# GTM TESTS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def test_gtm_oauth_start():
-    """Test 1: GTM OAuth Start - POST /api/oauth/gtm/start"""
-    print("=" * 80)
-    print("TEST 1: GTM OAuth Start")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/gtm/start",
-        data={
-            "redirectUri": "https://oauth-refactor.preview.emergentagent.com/onboarding/oauth-callback"
-        },
-        expected_status=200
-    )
-    
-    if success and status == 200 and response.get("success"):
-        data = response.get("data", {})
-        auth_url = data.get("authUrl", "")
-        if "accounts.google.com/o/oauth2/v2/auth" in auth_url and ("tagmanager" in auth_url or data.get("platformKey") == "gtm"):
-            log_test_result(
-                "GTM OAuth start", 
-                True, 
-                f"Successfully returned Google OAuth URL for GTM"
-            )
-            return True
-        else:
-            log_test_result(
-                "GTM OAuth start", 
-                False, 
-                f"OAuth URL format incorrect: {auth_url}"
-            )
-            return False
-    else:
-        log_test_result(
-            "GTM OAuth start", 
-            False, 
-            f"Expected 200 success, got {status}: {response.get('error', '')}"
-        )
-        return False
-
-def test_gtm_verify_access_named_invite():
-    """Test 2: GTM Verify Access - NAMED_INVITE"""
-    print("=" * 80)
-    print("TEST 2: GTM Verify Access - NAMED_INVITE")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/gtm/verify-access",
-        data={
-            "accessToken": "fake", 
-            "target": "123456/789012", 
-            "role": "edit", 
-            "identity": "test@example.com", 
-            "accessItemType": "NAMED_INVITE"
-        },
-        expected_status=400
-    )
-    
-    if status == 400:
-        error_msg = response.get("error", "").lower()
-        if "not found" in error_msg or "not accessible" in error_msg or "unauthorized" in error_msg:
-            log_test_result(
-                "GTM verify-access NAMED_INVITE fake token", 
-                True, 
-                f"Correctly returned 400 error for fake token: {response.get('error')}"
-            )
-            return True
-        else:
-            log_test_result(
-                "GTM verify-access NAMED_INVITE fake token", 
-                False, 
-                f"Got 400 but error message doesn't indicate not found: {response.get('error')}"
-            )
-            return False
-    else:
-        log_test_result(
-            "GTM verify-access NAMED_INVITE fake token", 
-            False, 
-            f"Expected 400 status for fake token, got {status}"
-        )
-        return False
-
-def test_gtm_verify_access_shared_account():
-    """Test 3: GTM Verify Access - SHARED_ACCOUNT (should be rejected)"""
-    print("=" * 80)
-    print("TEST 3: GTM Verify Access - SHARED_ACCOUNT")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/gtm/verify-access",
-        data={
-            "accessToken": "fake", 
-            "target": "123456", 
-            "role": "admin", 
-            "identity": "test@example.com", 
-            "accessItemType": "SHARED_ACCOUNT"
-        },
-        expected_status=501
-    )
-    
-    if status == 501:
-        error_msg = response.get("error", "").lower()
-        if "shared_account" in error_msg and ("programmatic" in error_msg or "not support" in error_msg):
-            log_test_result(
-                "GTM verify-access SHARED_ACCOUNT rejection", 
-                True, 
-                f"Correctly returned 501 about programmatic access verification for SHARED_ACCOUNT"
-            )
-            return True
-        else:
-            log_test_result(
-                "GTM verify-access SHARED_ACCOUNT rejection", 
-                False, 
-                f"Got 501 but error message doesn't mention SHARED_ACCOUNT programmatic verification: {response.get('error')}"
-            )
-            return False
-    else:
-        log_test_result(
-            "GTM verify-access SHARED_ACCOUNT rejection", 
-            False, 
-            f"Expected 501 status for SHARED_ACCOUNT verification, got {status}"
-        )
-        return False
-
-def test_gtm_grant_access():
-    """Test 4: GTM Grant Access - Should Return 501"""
-    print("=" * 80)
-    print("TEST 4: GTM Grant Access - Should Return 501")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/gtm/grant-access",
-        data={
-            "accessToken": "fake", 
-            "target": "123456", 
-            "role": "edit", 
-            "identity": "test@example.com", 
-            "accessItemType": "NAMED_INVITE"
-        },
-        expected_status=501
-    )
-    
-    if status == 501:
-        error_msg = response.get("error", "").lower()
-        if "not implemented" in error_msg or "programmatic" in error_msg or "granting" in error_msg:
-            log_test_result(
-                "GTM grant-access returns 501", 
-                True, 
-                f"Correctly returned 501 about programmatic access granting"
-            )
-            return True
-        else:
-            log_test_result(
-                "GTM grant-access returns 501", 
-                False, 
-                f"Got 501 but error message doesn't indicate not implemented: {response.get('error')}"
-            )
-            return False
-    else:
-        log_test_result(
-            "GTM grant-access returns 501", 
-            False, 
-            f"Expected 501 status for grant access, got {status}"
-        )
-        return False
-
-def test_gtm_capabilities():
-    """Test 5: GTM Capabilities"""
-    print("=" * 80)
-    print("TEST 5: GTM Capabilities - NAMED_INVITE")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "GET", 
-        "/plugins/gtm/capabilities/NAMED_INVITE",
-        expected_status=200
-    )
-    
-    if success and status == 200:
-        # Expected: canGrantAccess: false, canVerifyAccess: true
-        expected = {
-            "canGrantAccess": False,
-            "canVerifyAccess": True
-        }
-        
-        # The response might be nested
-        capabilities = response
-        if "data" in response:
-            capabilities = response["data"]
-        if "capabilities" in capabilities:
-            capabilities = capabilities["capabilities"]
-        
-        all_correct = True
-        for key, expected_value in expected.items():
-            actual_value = capabilities.get(key)
-            if actual_value != expected_value:
-                log_test_result(
-                    f"GTM NAMED_INVITE capabilities - {key}", 
-                    False, 
-                    f"Expected {key}={expected_value}, got {actual_value}"
-                )
-                all_correct = False
+            if method.upper() == 'GET':
+                response = requests.get(url)
+            elif method.upper() == 'POST':
+                response = requests.post(url, json=data, headers={'Content-Type': 'application/json'})
+            elif method.upper() == 'PATCH':
+                response = requests.patch(url, json=data, headers={'Content-Type': 'application/json'})
             else:
-                print(f"   ✅ {key}: {actual_value}")
-        
-        if all_correct:
-            log_test_result(
-                "GTM NAMED_INVITE capabilities", 
-                True, 
-                "canGrantAccess=false, canVerifyAccess=true"
-            )
-            return True
-        else:
-            return False
-    else:
-        log_test_result(
-            "GTM NAMED_INVITE capabilities", 
-            False, 
-            f"Expected 200 status, got {status}"
-        )
-        return False
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# GOOGLE ADS TESTS  
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def test_google_ads_oauth_start():
-    """Test 6: Google Ads OAuth Start"""
-    print("=" * 80)
-    print("TEST 6: Google Ads OAuth Start") 
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/google-ads/start",
-        data={
-            "redirectUri": "https://oauth-refactor.preview.emergentagent.com/onboarding/oauth-callback"
-        },
-        expected_status=200
-    )
-    
-    if success and status == 200 and response.get("success"):
-        data = response.get("data", {})
-        auth_url = data.get("authUrl", "")
-        if "accounts.google.com/o/oauth2/v2/auth" in auth_url and ("adwords" in auth_url or data.get("platformKey") == "google-ads"):
-            log_test_result(
-                "Google Ads OAuth start", 
-                True, 
-                f"Successfully returned Google OAuth URL for Google Ads"
-            )
-            return True
-        else:
-            log_test_result(
-                "Google Ads OAuth start", 
-                False, 
-                f"OAuth URL format incorrect: {auth_url}"
-            )
-            return False
-    else:
-        log_test_result(
-            "Google Ads OAuth start", 
-            False, 
-            f"Expected 200 success, got {status}: {response.get('error', '')}"
-        )
-        return False
-
-def test_google_ads_verify_access_partner_delegation():
-    """Test 7: Google Ads Verify Access - PARTNER_DELEGATION"""
-    print("=" * 80)
-    print("TEST 7: Google Ads Verify Access - PARTNER_DELEGATION")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/google-ads/verify-access",
-        data={
-            "accessToken": "fake", 
-            "target": "1234567890", 
-            "role": "standard", 
-            "identity": "9876543210", 
-            "accessItemType": "PARTNER_DELEGATION"
-        },
-        expected_status=400
-    )
-    
-    if status == 400:
-        error_msg = response.get("error", "").lower()
-        if "not found" in error_msg or "not accessible" in error_msg or "customer" in error_msg:
-            log_test_result(
-                "Google Ads verify-access PARTNER_DELEGATION fake token", 
-                True, 
-                f"Correctly returned 400 error for fake token: {response.get('error')}"
-            )
-            return True
-        else:
-            log_test_result(
-                "Google Ads verify-access PARTNER_DELEGATION fake token", 
-                False, 
-                f"Got 400 but error message format unexpected: {response.get('error')}"
-            )
-            return False
-    else:
-        log_test_result(
-            "Google Ads verify-access PARTNER_DELEGATION fake token", 
-            False, 
-            f"Expected 400 status for fake token, got {status}"
-        )
-        return False
-
-def test_google_ads_verify_access_named_invite():
-    """Test 8: Google Ads Verify Access - NAMED_INVITE"""
-    print("=" * 80)
-    print("TEST 8: Google Ads Verify Access - NAMED_INVITE")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/google-ads/verify-access",
-        data={
-            "accessToken": "fake", 
-            "target": "1234567890", 
-            "role": "standard", 
-            "identity": "test@example.com", 
-            "accessItemType": "NAMED_INVITE"
-        },
-        expected_status=400
-    )
-    
-    if status == 400:
-        error_msg = response.get("error", "").lower()
-        if "not found" in error_msg or "not accessible" in error_msg or "customer" in error_msg:
-            log_test_result(
-                "Google Ads verify-access NAMED_INVITE fake token", 
-                True, 
-                f"Correctly returned 400 error for fake token: {response.get('error')}"
-            )
-            return True
-        else:
-            log_test_result(
-                "Google Ads verify-access NAMED_INVITE fake token", 
-                False, 
-                f"Got 400 but error message format unexpected: {response.get('error')}"
-            )
-            return False
-    else:
-        log_test_result(
-            "Google Ads verify-access NAMED_INVITE fake token", 
-            False, 
-            f"Expected 400 status for fake token, got {status}"
-        )
-        return False
-
-def test_google_ads_grant_access():
-    """Test 9: Google Ads Grant Access - Should Return 501"""
-    print("=" * 80)
-    print("TEST 9: Google Ads Grant Access - Should Return 501")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "POST", 
-        "/oauth/google-ads/grant-access",
-        data={
-            "accessToken": "fake", 
-            "target": "123456", 
-            "role": "standard", 
-            "identity": "test@example.com", 
-            "accessItemType": "NAMED_INVITE"
-        },
-        expected_status=501
-    )
-    
-    if status == 501:
-        error_msg = response.get("error", "").lower()
-        if "not implemented" in error_msg or "programmatic" in error_msg or "granting" in error_msg:
-            log_test_result(
-                "Google Ads grant-access returns 501", 
-                True, 
-                f"Correctly returned 501 about programmatic access granting"
-            )
-            return True
-        else:
-            log_test_result(
-                "Google Ads grant-access returns 501", 
-                False, 
-                f"Got 501 but error message doesn't indicate not implemented: {response.get('error')}"
-            )
-            return False
-    else:
-        log_test_result(
-            "Google Ads grant-access returns 501", 
-            False, 
-            f"Expected 501 status for grant access, got {status}"
-        )
-        return False
-
-def test_google_ads_capabilities_partner_delegation():
-    """Test 10: Google Ads Capabilities - PARTNER_DELEGATION"""
-    print("=" * 80)
-    print("TEST 10: Google Ads Capabilities - PARTNER_DELEGATION")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "GET", 
-        "/plugins/google-ads/capabilities/PARTNER_DELEGATION",
-        expected_status=200
-    )
-    
-    if success and status == 200:
-        # Expected: canGrantAccess: false, canVerifyAccess: true
-        expected = {
-            "canGrantAccess": False,
-            "canVerifyAccess": True
-        }
-        
-        # The response might be nested
-        capabilities = response
-        if "data" in response:
-            capabilities = response["data"]
-        if "capabilities" in capabilities:
-            capabilities = capabilities["capabilities"]
-        
-        all_correct = True
-        for key, expected_value in expected.items():
-            actual_value = capabilities.get(key)
-            if actual_value != expected_value:
-                log_test_result(
-                    f"Google Ads PARTNER_DELEGATION capabilities - {key}", 
-                    False, 
-                    f"Expected {key}={expected_value}, got {actual_value}"
-                )
-                all_correct = False
-            else:
-                print(f"   ✅ {key}: {actual_value}")
-        
-        if all_correct:
-            log_test_result(
-                "Google Ads PARTNER_DELEGATION capabilities", 
-                True, 
-                "canGrantAccess=false, canVerifyAccess=true"
-            )
-            return True
-        else:
-            return False
-    else:
-        log_test_result(
-            "Google Ads PARTNER_DELEGATION capabilities", 
-            False, 
-            f"Expected 200 status, got {status}"
-        )
-        return False
-
-def test_google_ads_capabilities_named_invite():
-    """Test 11: Google Ads Capabilities - NAMED_INVITE"""
-    print("=" * 80)
-    print("TEST 11: Google Ads Capabilities - NAMED_INVITE")
-    print("=" * 80)
-    
-    success, response, status = make_request(
-        "GET", 
-        "/plugins/google-ads/capabilities/NAMED_INVITE",
-        expected_status=200
-    )
-    
-    if success and status == 200:
-        # Expected: canGrantAccess: false, canVerifyAccess: true
-        expected = {
-            "canGrantAccess": False,
-            "canVerifyAccess": True
-        }
-        
-        # The response might be nested
-        capabilities = response
-        if "data" in response:
-            capabilities = response["data"]
-        if "capabilities" in capabilities:
-            capabilities = capabilities["capabilities"]
-        
-        all_correct = True
-        for key, expected_value in expected.items():
-            actual_value = capabilities.get(key)
-            if actual_value != expected_value:
-                log_test_result(
-                    f"Google Ads NAMED_INVITE capabilities - {key}", 
-                    False, 
-                    f"Expected {key}={expected_value}, got {actual_value}"
-                )
-                all_correct = False
-            else:
-                print(f"   ✅ {key}: {actual_value}")
-        
-        if all_correct:
-            log_test_result(
-                "Google Ads NAMED_INVITE capabilities", 
-                True, 
-                "canGrantAccess=false, canVerifyAccess=true"
-            )
-            return True
-        else:
-            return False
-    else:
-        log_test_result(
-            "Google Ads NAMED_INVITE capabilities", 
-            False, 
-            f"Expected 200 status, got {status}"
-        )
-        return False
-
-def main():
-    """Run all GTM and Google Ads verifyAccess tests"""
-    print("🧪 GTM AND GOOGLE ADS VERIFYACCESS TESTING")
-    print("🌐 Base URL:", BASE_URL)
-    print("📋 Testing GTM and Google Ads verifyAccess implementations per review request")
-    print()
-    
-    # Run all tests
-    tests = [
-        # GTM Tests
-        test_gtm_oauth_start,
-        test_gtm_verify_access_named_invite,
-        test_gtm_verify_access_shared_account,
-        test_gtm_grant_access,
-        test_gtm_capabilities,
-        
-        # Google Ads Tests  
-        test_google_ads_oauth_start,
-        test_google_ads_verify_access_partner_delegation,
-        test_google_ads_verify_access_named_invite,
-        test_google_ads_grant_access,
-        test_google_ads_capabilities_partner_delegation,
-        test_google_ads_capabilities_named_invite
-    ]
-    
-    results = []
-    passed = 0
-    total = len(tests)
-    
-    for test_func in tests:
-        try:
-            result = test_func()
-            results.append(result)
-            if result:
-                passed += 1
+                return None, False
+            
+            success = response.status_code == expected_status
+            return response, success
+            
         except Exception as e:
-            print(f"❌ TEST ERROR: {test_func.__name__}")
-            print(f"   Exception: {e}")
-            results.append(False)
+            print(f"Request failed: {e}")
+            return None, False
     
-    # Summary
-    print("=" * 80)
-    print("🎯 GTM & GOOGLE ADS VERIFYACCESS TEST SUMMARY")
-    print("=" * 80)
-    print(f"📊 Results: {passed}/{total} tests passed ({(passed/total)*100:.1f}% success rate)")
-    print()
+    def test_ga4_capabilities_named_invite(self):
+        """Test 1: GA4 NAMED_INVITE capabilities endpoint returns canGrantAccess: true"""
+        try:
+            response, success = self.make_request('GET', '/plugins/ga4/capabilities/NAMED_INVITE')
+            
+            if not success:
+                self.log_result(
+                    "GA4 Capabilities NAMED_INVITE", 
+                    False, 
+                    f"HTTP {response.status_code if response else 'No response'}"
+                )
+                return
+            
+            data = response.json()
+            capabilities = data.get('data', {}).get('capabilities', {})
+            can_grant_access = capabilities.get('canGrantAccess')
+            can_verify_access = capabilities.get('canVerifyAccess')
+            client_oauth_supported = capabilities.get('clientOAuthSupported')
+            
+            if can_grant_access is True and can_verify_access is True and client_oauth_supported is True:
+                self.log_result(
+                    "GA4 Capabilities NAMED_INVITE",
+                    True,
+                    f"canGrantAccess: {can_grant_access}, canVerifyAccess: {can_verify_access}, clientOAuthSupported: {client_oauth_supported}"
+                )
+            else:
+                self.log_result(
+                    "GA4 Capabilities NAMED_INVITE",
+                    False,
+                    f"Expected canGrantAccess=true, canVerifyAccess=true, clientOAuthSupported=true, got {capabilities}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Capabilities NAMED_INVITE", False, f"Exception: {e}")
     
-    test_names = [
-        "GTM OAuth Start",
-        "GTM Verify Access - NAMED_INVITE",  
-        "GTM Verify Access - SHARED_ACCOUNT (501)",
-        "GTM Grant Access (501)",
-        "GTM Capabilities - NAMED_INVITE",
-        "Google Ads OAuth Start",
-        "Google Ads Verify Access - PARTNER_DELEGATION",
-        "Google Ads Verify Access - NAMED_INVITE", 
-        "Google Ads Grant Access (501)",
-        "Google Ads Capabilities - PARTNER_DELEGATION",
-        "Google Ads Capabilities - NAMED_INVITE"
-    ]
+    def test_ga4_capabilities_group_access(self):
+        """Test 2: GA4 GROUP_ACCESS capabilities endpoint returns canGrantAccess: true"""
+        try:
+            response, success = self.make_request('GET', '/plugins/ga4/capabilities/GROUP_ACCESS')
+            
+            if not success:
+                self.log_result(
+                    "GA4 Capabilities GROUP_ACCESS", 
+                    False, 
+                    f"HTTP {response.status_code if response else 'No response'}"
+                )
+                return
+            
+            data = response.json()
+            capabilities = data.get('data', {}).get('capabilities', {})
+            can_grant_access = capabilities.get('canGrantAccess')
+            can_verify_access = capabilities.get('canVerifyAccess')
+            client_oauth_supported = capabilities.get('clientOAuthSupported')
+            
+            if can_grant_access is True and can_verify_access is True and client_oauth_supported is True:
+                self.log_result(
+                    "GA4 Capabilities GROUP_ACCESS",
+                    True,
+                    f"canGrantAccess: {can_grant_access}, canVerifyAccess: {can_verify_access}, clientOAuthSupported: {client_oauth_supported}"
+                )
+            else:
+                self.log_result(
+                    "GA4 Capabilities GROUP_ACCESS",
+                    False,
+                    f"Expected canGrantAccess=true, canVerifyAccess=true, clientOAuthSupported=true, got {capabilities}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Capabilities GROUP_ACCESS", False, f"Exception: {e}")
     
-    for i, (test_name, result) in enumerate(zip(test_names, results)):
-        status = "✅" if result else "❌"
-        print(f"{status} {i+1}. {test_name}")
+    def test_ga4_capabilities_shared_account(self):
+        """Test 3: GA4 SHARED_ACCOUNT capabilities should have canGrantAccess: false"""
+        try:
+            response, success = self.make_request('GET', '/plugins/ga4/capabilities/SHARED_ACCOUNT')
+            
+            if not success:
+                self.log_result(
+                    "GA4 Capabilities SHARED_ACCOUNT", 
+                    False, 
+                    f"HTTP {response.status_code if response else 'No response'}"
+                )
+                return
+            
+            data = response.json()
+            capabilities = data.get('data', {}).get('capabilities', {})
+            can_grant_access = capabilities.get('canGrantAccess')
+            can_verify_access = capabilities.get('canVerifyAccess')
+            requires_evidence = capabilities.get('requiresEvidenceUpload')
+            
+            if can_grant_access is False and can_verify_access is False and requires_evidence is True:
+                self.log_result(
+                    "GA4 Capabilities SHARED_ACCOUNT",
+                    True,
+                    f"canGrantAccess: {can_grant_access}, canVerifyAccess: {can_verify_access}, requiresEvidenceUpload: {requires_evidence}"
+                )
+            else:
+                self.log_result(
+                    "GA4 Capabilities SHARED_ACCOUNT",
+                    False,
+                    f"Expected canGrantAccess=false, canVerifyAccess=false, requiresEvidenceUpload=true, got {capabilities}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Capabilities SHARED_ACCOUNT", False, f"Exception: {e}")
     
-    print()
+    def test_ga4_grant_access_missing_fields(self):
+        """Test 4: GA4 Grant Access with missing required fields (should return 400)"""
+        try:
+            # Test with missing accessToken
+            payload = {
+                "target": "123456789",
+                "role": "viewer", 
+                "identity": "test@example.com",
+                "accessItemType": "NAMED_INVITE"
+            }
+            
+            response, success = self.make_request('POST', '/oauth/ga4/grant-access', payload, expected_status=400)
+            
+            if success:
+                data = response.json()
+                error_msg = data.get('error', '')
+                if 'accessToken' in error_msg or 'required' in error_msg.lower():
+                    self.log_result(
+                        "GA4 Grant Access Missing Fields",
+                        True,
+                        f"Correctly returned 400 with error: {error_msg}"
+                    )
+                else:
+                    self.log_result(
+                        "GA4 Grant Access Missing Fields",
+                        False,
+                        f"400 status but unexpected error message: {error_msg}"
+                    )
+            else:
+                self.log_result(
+                    "GA4 Grant Access Missing Fields",
+                    False,
+                    f"Expected 400 status, got {response.status_code if response else 'No response'}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Grant Access Missing Fields", False, f"Exception: {e}")
     
-    if passed == total:
-        print("🎉 ALL TESTS PASSED! GTM and Google Ads verifyAccess implementations are working correctly.")
-        return True
-    else:
-        print(f"⚠️  {total - passed} test(s) failed. Review the output above for details.")
-        return False
+    def test_ga4_grant_access_fake_token(self):
+        """Test 5: GA4 Grant Access with fake access token (should return appropriate error)"""
+        try:
+            payload = {
+                "accessToken": "fake_access_token_12345",
+                "target": "123456789",
+                "role": "viewer",
+                "identity": "test@example.com", 
+                "accessItemType": "NAMED_INVITE"
+            }
+            
+            response, success = self.make_request('POST', '/oauth/ga4/grant-access', payload, expected_status=401)
+            
+            # Accept 401, 403, or 400 as valid error responses from Google API
+            if response and response.status_code in [400, 401, 403]:
+                data = response.json()
+                error_msg = data.get('error', '')
+                self.log_result(
+                    "GA4 Grant Access Fake Token",
+                    True,
+                    f"Correctly returned {response.status_code} with error: {error_msg}"
+                )
+            else:
+                self.log_result(
+                    "GA4 Grant Access Fake Token",
+                    False,
+                    f"Expected 400/401/403 status, got {response.status_code if response else 'No response'}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Grant Access Fake Token", False, f"Exception: {e}")
+    
+    def test_ga4_grant_access_shared_account(self):
+        """Test 6: GA4 Grant Access SHARED_ACCOUNT type (should return 501/error)"""
+        try:
+            payload = {
+                "accessToken": "fake_access_token_12345",
+                "target": "123456789",
+                "role": "viewer",
+                "identity": "test@example.com",
+                "accessItemType": "SHARED_ACCOUNT"
+            }
+            
+            response, success = self.make_request('POST', '/oauth/ga4/grant-access', payload, expected_status=400)
+            
+            if response and response.status_code in [400, 501]:
+                data = response.json()
+                error_msg = data.get('error', '').lower()
+                if 'shared account' in error_msg or 'pam' in error_msg or 'cannot be granted' in error_msg:
+                    self.log_result(
+                        "GA4 Grant Access SHARED_ACCOUNT",
+                        True,
+                        f"Correctly rejected SHARED_ACCOUNT with status {response.status_code}: {data.get('error', '')}"
+                    )
+                else:
+                    self.log_result(
+                        "GA4 Grant Access SHARED_ACCOUNT", 
+                        False,
+                        f"Status {response.status_code} but unexpected error: {data.get('error', '')}"
+                    )
+            else:
+                self.log_result(
+                    "GA4 Grant Access SHARED_ACCOUNT",
+                    False,
+                    f"Expected 400/501 status, got {response.status_code if response else 'No response'}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Grant Access SHARED_ACCOUNT", False, f"Exception: {e}")
+    
+    def test_ga4_oauth_status_regression(self):
+        """Test 7: GA4 OAuth Status (regression test)"""
+        try:
+            response, success = self.make_request('GET', '/oauth/ga4/status')
+            
+            if not success:
+                self.log_result(
+                    "GA4 OAuth Status Regression",
+                    False,
+                    f"HTTP {response.status_code if response else 'No response'}"
+                )
+                return
+            
+            data = response.json()
+            oauth_data = data.get('data', {})
+            platform_key = oauth_data.get('platformKey')
+            oauth_supported = oauth_data.get('oauthSupported')
+            
+            if platform_key == 'ga4' and oauth_supported is True:
+                self.log_result(
+                    "GA4 OAuth Status Regression",
+                    True,
+                    f"platformKey: {platform_key}, oauthSupported: {oauth_supported}"
+                )
+            else:
+                self.log_result(
+                    "GA4 OAuth Status Regression",
+                    False,
+                    f"Expected platformKey=ga4, oauthSupported=true, got {oauth_data}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 OAuth Status Regression", False, f"Exception: {e}")
+    
+    def test_ga4_oauth_start_regression(self):
+        """Test 8: GA4 OAuth Start (regression test)"""
+        try:
+            payload = {
+                "redirectUri": f"{self.base_url}/api/oauth/callback",
+                "scope": "AGENCY"
+            }
+            
+            response, success = self.make_request('POST', '/oauth/ga4/start', payload)
+            
+            if not success:
+                self.log_result(
+                    "GA4 OAuth Start Regression",
+                    False,
+                    f"HTTP {response.status_code if response else 'No response'}"
+                )
+                return
+            
+            data = response.json()
+            oauth_data = data.get('data', {})
+            auth_url = oauth_data.get('authUrl')
+            state = oauth_data.get('state')
+            
+            if auth_url and 'accounts.google.com/oauth' in auth_url and state:
+                self.log_result(
+                    "GA4 OAuth Start Regression",
+                    True,
+                    f"Generated OAuth URL with state: {len(state)} characters"
+                )
+            else:
+                self.log_result(
+                    "GA4 OAuth Start Regression",
+                    False,
+                    f"Invalid OAuth response: {oauth_data}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 OAuth Start Regression", False, f"Exception: {e}")
+    
+    def test_ga4_verify_access_regression(self):
+        """Test 9: GA4 Verify Access (regression test)"""
+        try:
+            payload = {
+                "accessToken": "fake_access_token_12345",
+                "target": "123456789",
+                "role": "viewer",
+                "identity": "test@example.com",
+                "accessItemType": "NAMED_INVITE"
+            }
+            
+            response, success = self.make_request('POST', '/oauth/ga4/verify-access', payload, expected_status=401)
+            
+            # Accept 401, 403, or 400 as valid responses for fake token
+            if response and response.status_code in [400, 401, 403]:
+                data = response.json()
+                error_msg = data.get('error', '')
+                self.log_result(
+                    "GA4 Verify Access Regression",
+                    True,
+                    f"Correctly returned {response.status_code} with error: {error_msg}"
+                )
+            else:
+                self.log_result(
+                    "GA4 Verify Access Regression",
+                    False,
+                    f"Expected 400/401/403 status, got {response.status_code if response else 'No response'}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Verify Access Regression", False, f"Exception: {e}")
+    
+    def test_ga4_capability_consistency(self):
+        """Test 10: GA4 Overall Capability Consistency"""
+        try:
+            response, success = self.make_request('GET', '/plugins/ga4/capabilities')
+            
+            if not success:
+                self.log_result(
+                    "GA4 Capability Consistency",
+                    False,
+                    f"HTTP {response.status_code if response else 'No response'}"
+                )
+                return
+            
+            data = response.json()
+            access_type_caps = data.get('data', {}).get('accessTypeCapabilities', {})
+            
+            # Check NAMED_INVITE
+            named_invite = access_type_caps.get('NAMED_INVITE', {})
+            # Check GROUP_ACCESS  
+            group_access = access_type_caps.get('GROUP_ACCESS', {})
+            # Check SHARED_ACCOUNT
+            shared_account = access_type_caps.get('SHARED_ACCOUNT', {})
+            
+            expected_named_invite = {
+                'canGrantAccess': True,
+                'canVerifyAccess': True,
+                'clientOAuthSupported': True
+            }
+            
+            expected_group_access = {
+                'canGrantAccess': True, 
+                'canVerifyAccess': True,
+                'clientOAuthSupported': True
+            }
+            
+            expected_shared_account = {
+                'canGrantAccess': False,
+                'canVerifyAccess': False,
+                'requiresEvidenceUpload': True
+            }
+            
+            issues = []
+            
+            # Validate NAMED_INVITE
+            for key, expected_val in expected_named_invite.items():
+                if named_invite.get(key) != expected_val:
+                    issues.append(f"NAMED_INVITE.{key}: expected {expected_val}, got {named_invite.get(key)}")
+            
+            # Validate GROUP_ACCESS
+            for key, expected_val in expected_group_access.items():
+                if group_access.get(key) != expected_val:
+                    issues.append(f"GROUP_ACCESS.{key}: expected {expected_val}, got {group_access.get(key)}")
+            
+            # Validate SHARED_ACCOUNT
+            for key, expected_val in expected_shared_account.items():
+                if shared_account.get(key) != expected_val:
+                    issues.append(f"SHARED_ACCOUNT.{key}: expected {expected_val}, got {shared_account.get(key)}")
+            
+            if not issues:
+                self.log_result(
+                    "GA4 Capability Consistency",
+                    True,
+                    "All access type capabilities match expected values"
+                )
+            else:
+                self.log_result(
+                    "GA4 Capability Consistency", 
+                    False,
+                    f"Capability mismatches: {'; '.join(issues)}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Capability Consistency", False, f"Exception: {e}")
+    
+    def test_ga4_grant_access_endpoint_exists(self):
+        """Test 11: GA4 Grant Access endpoint exists and handles requests"""
+        try:
+            # Try with completely missing body to see if endpoint exists
+            response, success = self.make_request('POST', '/oauth/ga4/grant-access', {}, expected_status=400)
+            
+            if response and response.status_code == 400:
+                data = response.json()
+                error_msg = data.get('error', '').lower()
+                # Should get a validation error about missing fields, not a 404
+                if 'required' in error_msg or 'missing' in error_msg or 'accesstoken' in error_msg:
+                    self.log_result(
+                        "GA4 Grant Access Endpoint Exists",
+                        True,
+                        f"Endpoint exists and validates input: {data.get('error', '')}"
+                    )
+                else:
+                    self.log_result(
+                        "GA4 Grant Access Endpoint Exists",
+                        False,
+                        f"Endpoint exists but unexpected error: {data.get('error', '')}"
+                    )
+            elif response and response.status_code == 404:
+                self.log_result(
+                    "GA4 Grant Access Endpoint Exists",
+                    False,
+                    "Grant access endpoint not found (404)"
+                )
+            else:
+                self.log_result(
+                    "GA4 Grant Access Endpoint Exists",
+                    False,
+                    f"Unexpected response: {response.status_code if response else 'No response'}"
+                )
+                
+        except Exception as e:
+            self.log_result("GA4 Grant Access Endpoint Exists", False, f"Exception: {e}")
+    
+    def run_all_tests(self):
+        """Run all GA4 grantAccess tests"""
+        print("🚀 Starting GA4 Grant Access Functionality Tests")
+        print(f"🌍 Testing against: {self.base_url}")
+        print("=" * 80)
+        
+        # Test GA4 capabilities endpoints
+        print("\n📊 Testing GA4 Capabilities Endpoints:")
+        self.test_ga4_capabilities_named_invite()
+        self.test_ga4_capabilities_group_access()
+        self.test_ga4_capabilities_shared_account()
+        
+        # Test GA4 grant access endpoint
+        print("\n🔐 Testing GA4 Grant Access Endpoint:")
+        self.test_ga4_grant_access_endpoint_exists()
+        self.test_ga4_grant_access_missing_fields()
+        self.test_ga4_grant_access_fake_token()
+        self.test_ga4_grant_access_shared_account()
+        
+        # Test regression scenarios
+        print("\n🔄 Testing GA4 Regression Scenarios:")
+        self.test_ga4_oauth_status_regression()
+        self.test_ga4_oauth_start_regression()
+        self.test_ga4_verify_access_regression()
+        
+        # Test overall capability consistency
+        print("\n✅ Testing GA4 Capability Consistency:")
+        self.test_ga4_capability_consistency()
+        
+        # Print summary
+        print("\n" + "=" * 80)
+        print("🎯 GA4 GRANT ACCESS TEST SUMMARY")
+        print("=" * 80)
+        
+        total_tests = self.passed + self.failed
+        success_rate = (self.passed / total_tests * 100) if total_tests > 0 else 0
+        
+        print(f"📈 Success Rate: {success_rate:.1f}% ({self.passed}/{total_tests} tests passed)")
+        
+        if self.failed > 0:
+            print(f"\n❌ FAILED TESTS ({self.failed}):")
+            for result in self.test_results:
+                if not result['passed']:
+                    print(f"   • {result['test']}: {result['details']}")
+        
+        if self.passed == total_tests:
+            print("\n🎉 ALL GA4 GRANT ACCESS TESTS PASSED! 🎉")
+            print("✅ The GA4 plugin grantAccess functionality is working correctly.")
+        else:
+            print(f"\n⚠️  {self.failed} tests failed. Please review the implementation.")
+        
+        return self.failed == 0
 
-if __name__ == "__main__":
-    success = main()
+if __name__ == '__main__':
+    tester = GA4GrantAccessTester()
+    success = tester.run_all_tests()
     sys.exit(0 if success else 1)
