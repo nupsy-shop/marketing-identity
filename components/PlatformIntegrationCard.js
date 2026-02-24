@@ -84,13 +84,15 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
     setConnecting(true);
     try {
       const redirectUri = `${window.location.origin}/api/oauth/callback`;
+      const returnUrl = window.location.pathname;
       
       const res = await fetch(`/api/oauth/${platformKey}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           redirectUri,
-          scope: 'AGENCY' // Explicitly mark as agency token
+          scope: 'AGENCY', // Explicitly mark as agency token
+          returnUrl, // Include return URL for callback routing
         })
       });
       
@@ -101,6 +103,7 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
         sessionStorage.setItem('oauth_state', data.data.state);
         sessionStorage.setItem('oauth_platform', platformKey);
         sessionStorage.setItem('oauth_scope', 'AGENCY');
+        sessionStorage.setItem('oauth_return_url', window.location.href);
         
         // Redirect to OAuth provider
         window.location.href = data.data.authUrl;
