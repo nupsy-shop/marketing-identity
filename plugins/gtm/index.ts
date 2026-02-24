@@ -94,13 +94,22 @@ class GTMPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   // OAuth Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }> {
+  async startOAuth(context: { redirectUri: string; scopes?: string[]; scope?: string }): Promise<{ authUrl: string; state: string }> {
     if (!isGTMOAuthConfigured()) {
       throw new GTMOAuthNotConfiguredError();
     }
 
     const config = getOAuthConfig(context.redirectUri);
-    const state = generateState();
+    
+    // Generate state with platformKey metadata for callback routing
+    const stateMetadata = {
+      platformKey: 'gtm',
+      scope: context.scope || 'AGENCY',
+    };
+    const metadataStr = Buffer.from(JSON.stringify(stateMetadata)).toString('base64url');
+    const randomPart = generateState();
+    const state = `${randomPart}.${metadataStr}`;
+    
     const authUrl = buildAuthorizationUrl(config, state);
 
     return { authUrl, state };
