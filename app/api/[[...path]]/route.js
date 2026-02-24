@@ -14,7 +14,7 @@ import {
   isProviderConfigured,
   OAuthNotConfiguredError
 } from '@/plugins/common/oauth-config';
-import { getAccessTypeCapability } from '@/lib/plugins/types';
+import { getAccessTypeCapability, getEffectiveCapabilities } from '@/lib/plugins/types';
 import { isPlatformOAuthConfigured, getPlatformConfig, PlatformOAuthError } from '@/lib/oauthProviders';
 
 // Initialize plugins on module load
