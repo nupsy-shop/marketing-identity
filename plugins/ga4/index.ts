@@ -34,13 +34,37 @@ import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportRe
 // Import modular components
 import { GA4_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { authorize, refreshToken, isGA4OAuthConfigured, getOAuthConfig, GA4OAuthNotConfiguredError } from './auth';
-import { getAllAccountsAndProperties, checkUserAccess, listAllAccountSummaries } from './api/management';
+import { getAllAccountsAndProperties, checkUserAccess, listAllAccountSummaries, listAccessBindings } from './api/management';
 import { runReport } from './api/reporting';
 import { mapGA4Accounts, mapGA4Properties } from './mappers/account.mapper';
 import { mapGA4Report } from './mappers/report.mapper';
 import { NamedInviteAgencySchema, GroupAccessAgencySchema, SharedAccountAgencySchema } from './schemas/agency';
 import { NamedInviteClientSchema, GroupAccessClientSchema, SharedAccountClientSchema } from './schemas/client';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
+import { ROLE_MAPPING, type GA4Role } from './types';
+
+// ─── Verify Access Types ────────────────────────────────────────────────────────
+
+interface VerifyAccessParams {
+  auth: { accessToken: string; tokenType?: string };
+  target: string;  // Property ID (e.g., "123456789")
+  role: string;    // Expected role key (e.g., "viewer", "editor", "admin")
+  identity: string; // Email to verify
+  accessItemType: AccessItemType;
+}
+
+interface VerifyAccessResult {
+  success: boolean;
+  data?: boolean;  // true = verified, false = not verified
+  error?: string;
+  details?: {
+    found: boolean;
+    foundRoles?: string[];
+    expectedRole?: string;
+    identity?: string;
+    binding?: Record<string, unknown>;
+  };
+}
 
 // ─── GA4 Plugin Implementation ─────────────────────────────────────────────────
 
