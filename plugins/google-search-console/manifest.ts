@@ -27,6 +27,7 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
 
 // GSC API can verify site access but cannot add users programmatically
 // The API only supports listing sites and checking the current user's permission level
+// SHARED_ACCOUNT supports conditional rules based on PAM configuration
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   NAMED_INVITE: {
     clientOAuthSupported: true,
@@ -35,11 +36,48 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
-    clientOAuthSupported: false,
-    canGrantAccess: false,
-    canVerifyAccess: false,
-    requiresEvidenceUpload: true
-  }
+    // Default: evidence/manual flow (for CLIENT_OWNED)
+    default: {
+      clientOAuthSupported: false,
+      canGrantAccess: false,
+      canVerifyAccess: false,
+      requiresEvidenceUpload: true
+    },
+    // Conditional rules for identity-based PAM
+    rules: [
+      // AGENCY_OWNED + HUMAN_INTERACTIVE: Can verify via OAuth (user connects to confirm access)
+      // Note: GSC cannot grant access programmatically, but can verify
+      {
+        when: { pamOwnership: 'AGENCY_OWNED', identityPurpose: 'HUMAN_INTERACTIVE' },
+        set: {
+          clientOAuthSupported: true,
+          canGrantAccess: false,    // GSC API doesn't support adding users
+          canVerifyAccess: true,    // Can verify agency identity has access
+          requiresEvidenceUpload: false
+        }
+      },
+      // AGENCY_OWNED + INTEGRATION_NON_HUMAN: Service account verification
+      {
+        when: { pamOwnership: 'AGENCY_OWNED', identityPurpose: 'INTEGRATION_NON_HUMAN' },
+        set: {
+          clientOAuthSupported: true,
+          canGrantAccess: false,
+          canVerifyAccess: true,
+          requiresEvidenceUpload: false
+        }
+      },
+      // CLIENT_OWNED: Must use evidence
+      {
+        when: { pamOwnership: 'CLIENT_OWNED' },
+        set: {
+          clientOAuthSupported: false,
+          canGrantAccess: false,
+          canVerifyAccess: false,
+          requiresEvidenceUpload: true
+        }
+      }
+    ]
+  } as AccessTypeCapabilityWithRules
 };
 
 export const GSC_MANIFEST: PluginManifest = {
