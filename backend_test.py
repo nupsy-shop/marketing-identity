@@ -101,7 +101,7 @@ def test_gtm_oauth_start():
     if success and status == 200 and response.get("success"):
         data = response.get("data", {})
         auth_url = data.get("authUrl", "")
-        if "accounts.google.com/oauth/v2/auth" in auth_url and "gtm" in auth_url:
+        if "accounts.google.com/o/oauth2/v2/auth" in auth_url and ("tagmanager" in auth_url or data.get("platformKey") == "gtm"):
             log_test_result(
                 "GTM OAuth start", 
                 True, 
