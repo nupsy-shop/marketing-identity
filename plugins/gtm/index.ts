@@ -26,7 +26,10 @@ import {
   listAccountsWithContainers, 
   listAccountUserPermissions, 
   getUserContainerPermission,
-  type GTMContainerPermission 
+  createUserPermission,
+  type GTMContainerPermission,
+  type GTMAccountPermission,
+  type GTMContainerAccess
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GTMRole } from './types';
