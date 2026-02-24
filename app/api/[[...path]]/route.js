@@ -629,6 +629,114 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: roles });
     }
 
+    // GET /api/oauth/callback - Universal OAuth callback handler (for agency/admin flows)
+    // This handles the redirect back from OAuth providers
+    if (path === 'oauth/callback') {
+      const searchParams = request.nextUrl.searchParams;
+      const code = searchParams.get('code');
+      const state = searchParams.get('state');
+      const error = searchParams.get('error');
+      const errorDescription = searchParams.get('error_description');
+
+      // Handle OAuth errors from provider
+      if (error) {
+        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        errorUrl.searchParams.set('oauth_error', errorDescription || error);
+        return NextResponse.redirect(errorUrl);
+      }
+
+      if (!code) {
+        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        errorUrl.searchParams.set('oauth_error', 'No authorization code received');
+        return NextResponse.redirect(errorUrl);
+      }
+
+      // Parse state to get platform info (state format: random.base64metadata)
+      let platformKey = null;
+      let scope = 'AGENCY';
+      let returnUrl = '/admin/platforms';
+      
+      if (state && state.includes('.')) {
+        try {
+          const metadataPart = state.split('.')[1];
+          const metadata = JSON.parse(Buffer.from(metadataPart, 'base64url').toString());
+          platformKey = metadata.platformKey;
+          scope = metadata.scope || 'AGENCY';
+          if (metadata.returnUrl) returnUrl = metadata.returnUrl;
+        } catch (e) {
+          console.warn('[OAuth Callback] Failed to parse state metadata:', e);
+        }
+      }
+
+      // If we still don't have platformKey, try to get it from session or default
+      if (!platformKey) {
+        // For now, return error - we need to know which platform
+        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        errorUrl.searchParams.set('oauth_error', 'Could not determine platform from OAuth state');
+        return NextResponse.redirect(errorUrl);
+      }
+
+      // Get the plugin
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin || !plugin.handleOAuthCallback) {
+        const errorUrl = new URL('/admin/platforms', request.nextUrl.origin);
+        errorUrl.searchParams.set('oauth_error', `Plugin ${platformKey} does not support OAuth`);
+        return NextResponse.redirect(errorUrl);
+      }
+
+      try {
+        // Exchange code for tokens
+        const redirectUri = `${request.nextUrl.origin}/api/oauth/callback`;
+        const result = await plugin.handleOAuthCallback({ code, state, redirectUri });
+
+        if (!result.success) {
+          const errorUrl = new URL(returnUrl, request.nextUrl.origin);
+          errorUrl.searchParams.set('oauth_error', result.error || 'Token exchange failed');
+          return NextResponse.redirect(errorUrl);
+        }
+
+        // Store the token
+        const platformConfig = getPlatformConfig(platformKey);
+        const storedToken = await db.createOAuthToken({
+          platformKey,
+          provider: platformConfig?.provider || platformKey,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          tokenType: result.tokenType || 'Bearer',
+          expiresAt: result.expiresAt ? new Date(result.expiresAt) : null,
+          scopes: result.scopes || [],
+          scope: scope,
+          tenantId: null,
+          tenantType: null,
+          metadata: { source: 'admin_integration' },
+        });
+
+        // Discover targets if plugin supports it
+        if (plugin.discoverTargets && storedToken.id) {
+          try {
+            const discoveryResult = await plugin.discoverTargets(result);
+            if (discoveryResult.success && discoveryResult.targets) {
+              await db.bulkCreateAccessibleTargets(storedToken.id, discoveryResult.targets);
+            }
+          } catch (discoverError) {
+            console.warn(`[OAuth Callback] Target discovery failed:`, discoverError.message);
+          }
+        }
+
+        // Redirect back to the platform page with success
+        const successUrl = new URL(returnUrl, request.nextUrl.origin);
+        successUrl.searchParams.set('oauth_success', 'true');
+        successUrl.searchParams.set('platform', platformKey);
+        return NextResponse.redirect(successUrl);
+
+      } catch (error) {
+        console.error('[OAuth Callback] Error:', error);
+        const errorUrl = new URL(returnUrl, request.nextUrl.origin);
+        errorUrl.searchParams.set('oauth_error', error.message || 'OAuth callback failed');
+        return NextResponse.redirect(errorUrl);
+      }
+    }
+
     // GET /api/plugins/:platformKey/access-types
     if (path.match(/^plugins\/[^/]+\/access-types$/)) {
       const platformKey = path.split('/')[1];
