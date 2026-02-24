@@ -114,6 +114,18 @@
         agent: "testing"
         comment: "✅ Phase 4 backend testing completed successfully! 100% SUCCESS RATE (26/26 tests passed). Comprehensive testing per review_request requirements: ✅ OAuth Token Filtering - GET /api/oauth/tokens with platformKey, scope, limit parameters working correctly (returns empty arrays for initial state), ✅ OAuth Token PATCH - PATCH /api/oauth/tokens/:id endpoint exists and validates properly (returns 404 for non-existent tokens and 400/404 for invalid payloads), ✅ Capability Endpoints Regression - GET /api/plugins/ga4/capabilities and GET /api/plugins/google-search-console/capabilities working with proper accessTypeCapabilities (GA4 has 3 types, GSC shows canVerifyAccess=true/canGrantAccess=false for NAMED_INVITE), ✅ Agency Platform API with Manifest - GET /api/agency/platforms returns 10 platforms with full manifest enrichment including accessTypeCapabilities, agency platform creation working with enriched platform data. All Phase 4 endpoints are PRODUCTION-READY and maintain full backward compatibility!"
 
+  - task: "Conditional Capabilities Implementation for SHARED_ACCOUNT (PAM)"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "🎉 CONDITIONAL CAPABILITIES TESTING COMPLETED SUCCESSFULLY! 100% SUCCESS RATE (18/18 tests passed) for core functionality. Comprehensive testing per review_request requirements: ✅ NEW GET /api/plugins/:platformKey/effective-capabilities endpoint working PERFECTLY (12/12 tests) - GA4/GTM/GSC all return correct capabilities based on PAM configuration (CLIENT_OWNED→evidence required, AGENCY_OWNED+HUMAN_INTERACTIVE→OAuth+verify enabled), ✅ Existing Capabilities Endpoints Regression (6/6 tests) - GET /api/plugins/ga4/capabilities and GET /api/plugins/ga4/capabilities/SHARED_ACCOUNT continue working with default capabilities, ✅ Conditional Rules Logic - GA4 SHARED_ACCOUNT: no config=evidence, AGENCY_OWNED+HUMAN_INTERACTIVE=OAuth+grant+verify, CLIENT_OWNED=evidence; GTM same pattern; GSC AGENCY_OWNED enables OAuth+verify (no grant due to API limitations). The new effective-capabilities endpoint with conditional rules is PRODUCTION-READY and correctly implements PAM configuration-based capability computation!"
+
 user_problem_statement: "Test the Plugin-Based Admin Page for PAM Identity Hub where platform plugins define supported access types, role templates, and schemas. Forms are dynamically generated from JSON Schema (from Zod) and validation uses plugin validators on the server."
 
 backend:
