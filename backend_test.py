@@ -21,7 +21,7 @@ Critical Endpoints to Test:
 10. Google Ads Capabilities - GET /api/plugins/google-ads/capabilities/PARTNER_DELEGATION
 11. Google Ads Capabilities - GET /api/plugins/google-ads/capabilities/NAMED_INVITE
 
-Base URL: https://agent-onboarding-hub.preview.emergentagent.com
+Base URL: https://oauth-refactor.preview.emergentagent.com
 """
 
 import requests
@@ -30,7 +30,7 @@ import sys
 from typing import Dict, Any, List, Tuple
 
 # Configuration
-BASE_URL = "https://agent-onboarding-hub.preview.emergentagent.com"
+BASE_URL = "https://oauth-refactor.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def log_test_result(test_name: str, success: bool, details: str = ""):
@@ -93,7 +93,7 @@ def test_gtm_oauth_start():
         "POST", 
         "/oauth/gtm/start",
         data={
-            "redirectUri": "https://agent-onboarding-hub.preview.emergentagent.com/onboarding/oauth-callback"
+            "redirectUri": "https://oauth-refactor.preview.emergentagent.com/onboarding/oauth-callback"
         },
         expected_status=200
     )
@@ -322,7 +322,7 @@ def test_google_ads_oauth_start():
         "POST", 
         "/oauth/google-ads/start",
         data={
-            "redirectUri": "https://agent-onboarding-hub.preview.emergentagent.com/onboarding/oauth-callback"
+            "redirectUri": "https://oauth-refactor.preview.emergentagent.com/onboarding/oauth-callback"
         },
         expected_status=200
     )

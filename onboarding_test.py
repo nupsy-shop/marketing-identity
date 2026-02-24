@@ -15,7 +15,7 @@ import sys
 import os
 
 # Get base URL from environment
-BASE_URL = "https://agent-onboarding-hub.preview.emergentagent.com"
+BASE_URL = "https://oauth-refactor.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def log_test(test_name, success, details=""):
