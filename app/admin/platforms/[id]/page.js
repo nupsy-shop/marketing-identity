@@ -294,6 +294,32 @@ export default function PlatformConfigPage() {
     fetchData();
   }, [fetchData]);
 
+  // Handle OAuth callback params (success/error from redirect)
+  useEffect(() => {
+    const oauthSuccess = searchParams.get('oauth_success');
+    const oauthError = searchParams.get('oauth_error');
+    const platform = searchParams.get('platform');
+    
+    if (oauthSuccess === 'true') {
+      toast({ 
+        title: 'Connected Successfully!', 
+        description: `Your ${platform || 'platform'} account has been connected.` 
+      });
+      // Clear the URL params
+      router.replace(window.location.pathname);
+      // Refresh data to show the new connection
+      fetchData();
+    } else if (oauthError) {
+      toast({ 
+        title: 'Connection Failed', 
+        description: oauthError,
+        variant: 'destructive'
+      });
+      // Clear the URL params
+      router.replace(window.location.pathname);
+    }
+  }, [searchParams, toast, router, fetchData]);
+
   // Fetch schema when item type changes
   useEffect(() => {
     const fetchSchema = async () => {
