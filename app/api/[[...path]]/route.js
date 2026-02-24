@@ -2098,7 +2098,7 @@ export async function POST(request, { params }) {
     // POST /api/oauth/:platformKey/verify-access - Verify access has been granted
     if (path.match(/^oauth\/[^/]+\/verify-access$/)) {
       const platformKey = path.split('/')[1];
-      const { accessToken, tokenType, target, role, identity, accessItemType } = body || {};
+      const { accessToken, tokenType, target, role, identity, accessItemType, pamOwnership, identityPurpose, identityStrategy } = body || {};
       
       if (!accessToken || !target || !role || !identity || !accessItemType) {
         return NextResponse.json({ 
@@ -2112,13 +2112,23 @@ export async function POST(request, { params }) {
         return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
       }
 
-      // Check if plugin supports verification for this access type
-      const capabilities = getAccessTypeCapability(plugin.manifest, accessItemType);
+      // Build config context for effective capabilities
+      // For SHARED_ACCOUNT, we need pamOwnership/identityPurpose to determine if verification is allowed
+      const capabilityConfig = {
+        pamOwnership,
+        identityPurpose,
+        identityStrategy,
+        pamIdentityStrategy: identityStrategy
+      };
+
+      // Check if plugin supports verification for this access type with config context
+      // This now uses effective capabilities, allowing SHARED_ACCOUNT verification for AGENCY_OWNED
+      const capabilities = getEffectiveCapabilities(plugin.manifest, accessItemType, capabilityConfig);
       if (!capabilities.canVerifyAccess) {
         return NextResponse.json({ 
           success: false, 
-          error: `Platform ${platformKey} does not support programmatic access verification for ${accessItemType}. Manual attestation required.`,
-          details: { accessItemType, capabilities }
+          error: `Platform ${platformKey} does not support programmatic access verification for ${accessItemType}${pamOwnership ? ` with ${pamOwnership} ownership` : ''}. Manual attestation with evidence required.`,
+          details: { accessItemType, capabilities, config: capabilityConfig }
         }, { status: 501 });
       }
 
