@@ -318,12 +318,212 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
     }
   }
 
-  async grantAccess(_params: VerifyAccessParams): Promise<VerifyAccessResult> {
-    return {
-      success: false,
-      error: 'Google Ads automated access granting is not yet implemented. Manual granting required.',
-      details: { found: false }
-    };
+  async grantAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+    const { auth, target, role, identity, accessItemType } = params;
+
+    if (!target) {
+      return { success: false, error: 'Customer/Account ID (target) is required', details: { found: false } };
+    }
+
+    if (!identity) {
+      return { success: false, error: 'Identity (email or MCC ID) to grant access to is required', details: { found: false } };
+    }
+
+    if (!role) {
+      return { success: false, error: 'Role is required', details: { found: false } };
+    }
+
+    if (accessItemType === 'SHARED_ACCOUNT') {
+      return {
+        success: false,
+        error: 'Shared Account (PAM) access cannot be granted via API. Manual credential handoff required.',
+        details: { found: false }
+      };
+    }
+
+    try {
+      const authResult: AuthResult = {
+        success: true,
+        accessToken: auth.accessToken,
+        tokenType: auth.tokenType || 'Bearer'
+      };
+
+      // Normalize customer ID
+      const customerId = target.replace(/^customers\//, '').replace(/-/g, '');
+
+      console.log(`[GoogleAdsPlugin] Granting ${accessItemType} access (${role}) to ${identity} on customer ${customerId}`);
+
+      // PARTNER_DELEGATION: Create MCC link
+      if (accessItemType === 'PARTNER_DELEGATION') {
+        const managerCustomerId = identity.replace(/^customers\//, '').replace(/-/g, '');
+        
+        // First check if link already exists
+        try {
+          const existingLink = await checkManagerLink(authResult, customerId, managerCustomerId);
+          
+          if (existingLink.found) {
+            console.log(`[GoogleAdsPlugin] MCC link already exists with status: ${existingLink.status}`);
+            return {
+              success: true,
+              data: existingLink.status === 'ACTIVE',
+              details: {
+                found: true,
+                linkStatus: existingLink.status,
+                identity: managerCustomerId,
+                expectedRole: 'PARTNER_LINK',
+                message: existingLink.status === 'ACTIVE' 
+                  ? 'MCC link already active' 
+                  : `MCC link exists with status: ${existingLink.status}`
+              }
+            };
+          }
+        } catch (checkError) {
+          // If we can't check, proceed to create
+          console.log(`[GoogleAdsPlugin] Could not verify existing link, attempting to create...`);
+        }
+
+        // Create new manager link from MCC side
+        // Note: This requires the auth token to be from the MCC account, not the client
+        try {
+          const newLink = await createManagerClientLink(authResult, managerCustomerId, customerId);
+          
+          console.log(`[GoogleAdsPlugin] Created manager link with status: ${newLink.status}`);
+          
+          return {
+            success: true,
+            data: true,
+            details: {
+              found: true,
+              linkStatus: newLink.status,
+              identity: managerCustomerId,
+              expectedRole: 'PARTNER_LINK',
+              message: `MCC link created. Status: ${newLink.status}. Client may need to approve the link request.`
+            }
+          };
+        } catch (createError) {
+          const errorMsg = createError instanceof Error ? createError.message : 'Unknown error';
+          
+          // If creating from MCC side fails, it might be because we need to create from client side
+          if (errorMsg.includes('403') || errorMsg.includes('Permission')) {
+            return {
+              success: false,
+              error: 'To create an MCC link programmatically, the OAuth token must be from the Manager (MCC) account with admin access. The client account can accept link requests but cannot initiate them via API.',
+              details: { found: false }
+            };
+          }
+          
+          throw createError;
+        }
+      }
+
+      // NAMED_INVITE: Create user access invitation
+      if (accessItemType === 'NAMED_INVITE') {
+        // First check if user already has access
+        try {
+          const existingAccess = await checkUserAccess(authResult, customerId, identity);
+          
+          if (existingAccess.found) {
+            const hasRequiredRole = hasRoleOrHigher(existingAccess.accessRole, role);
+            console.log(`[GoogleAdsPlugin] User ${identity} already has ${existingAccess.accessRole} access`);
+            
+            return {
+              success: true,
+              data: hasRequiredRole,
+              details: {
+                found: true,
+                foundRole: existingAccess.accessRole,
+                expectedRole: role,
+                identity,
+                message: hasRequiredRole 
+                  ? 'User already has the required access level' 
+                  : `User has ${existingAccess.accessRole} but needs ${role}. Manual upgrade required.`
+              }
+            };
+          }
+        } catch (checkError) {
+          console.log(`[GoogleAdsPlugin] Could not verify existing access, attempting to create invitation...`);
+        }
+
+        // Map role to Google Ads access role
+        const googleAdsRole = ROLE_MAPPING[role.toLowerCase()] || 'READ_ONLY';
+        
+        try {
+          const invitation = await createUserAccessInvitation(
+            authResult,
+            customerId,
+            identity,
+            googleAdsRole
+          );
+          
+          console.log(`[GoogleAdsPlugin] Created user access invitation for ${identity} with role ${googleAdsRole}`);
+          
+          return {
+            success: true,
+            data: true,
+            details: {
+              found: true,
+              foundRole: googleAdsRole,
+              expectedRole: role,
+              identity,
+              message: `User access invitation created. An email will be sent to ${identity} to accept the invitation.`
+            }
+          };
+        } catch (createError) {
+          const errorMsg = createError instanceof Error ? createError.message : 'Unknown error';
+          
+          if (errorMsg.includes('already exists') || errorMsg.includes('409')) {
+            return {
+              success: false,
+              error: `An invitation or access already exists for ${identity}. Please check pending invitations.`,
+              details: { found: false }
+            };
+          }
+          
+          throw createError;
+        }
+      }
+
+      return {
+        success: false,
+        error: `Unsupported access type for granting: ${accessItemType}`,
+        details: { found: false }
+      };
+
+    } catch (error) {
+      console.error('[GoogleAdsPlugin] grantAccess error:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
+        return {
+          success: false,
+          error: 'The OAuth token does not have permission to manage access on this account. Admin access is required.',
+          details: { found: false }
+        };
+      }
+      
+      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        return {
+          success: false,
+          error: `Customer account ${target} was not found or is not accessible.`,
+          details: { found: false }
+        };
+      }
+      
+      if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
+        return {
+          success: false,
+          error: `Invalid request: ${errorMessage}. Please verify the email address and account ID are correct.`,
+          details: { found: false }
+        };
+      }
+      
+      return {
+        success: false,
+        error: `Failed to grant access: ${errorMessage}`,
+        details: { found: false }
+      };
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
