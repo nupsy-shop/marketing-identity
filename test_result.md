@@ -1974,3 +1974,7 @@ agent_communication:
   - agent: "main"
     message: "Implemented grantAccess for GTM and Google Ads plugins. CHANGES: (1) Updated GTM manifest to set canGrantAccess=true for NAMED_INVITE and GROUP_ACCESS, (2) Implemented grantAccess in GTM plugin using createUserPermission API, (3) Updated Google Ads manifest to set canGrantAccess=true for PARTNER_DELEGATION and NAMED_INVITE, (4) Implemented grantAccess in Google Ads plugin using createUserAccessInvitation for NAMED_INVITE and createManagerClientLink for PARTNER_DELEGATION. Need to test: (1) GTM capabilities endpoint, (2) GTM grant-access endpoint, (3) Google Ads capabilities endpoint, (4) Google Ads grant-access endpoint."
 
+
+  - agent: "main"
+    message: "Implemented enhanced Target Discovery & Selection UI on onboarding page. CHANGES: (1) Created new TargetDiscoverySelector component with rich UI for discovering and selecting targets, (2) Added search filtering for targets, (3) Added visual grouping for hierarchical targets (accounts/properties), (4) Added auto-discovery after OAuth connection, (5) Added save-target API endpoint to persist selected target, (6) Integrated with onboarding page AccessItemCard component. Need to test: (1) Target discovery endpoint, (2) Save-target endpoint."
+
