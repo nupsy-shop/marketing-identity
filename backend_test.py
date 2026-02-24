@@ -444,10 +444,8 @@ def test_gsc_additional_endpoints():
         # Test 2: GSC Verify Access - SHARED_ACCOUNT type
         print("\n📝 Test 2: GSC Verify Access - SHARED_ACCOUNT Type")
         verify_shared_data = {
-            "auth": {
-                "accessToken": "fake_oauth_token_for_testing",
-                "tokenType": "Bearer"
-            },
+            "accessToken": "fake_oauth_token_for_testing",
+            "tokenType": "Bearer",
             "target": "https://example.com/",
             "role": "owner",
             "identity": "test@example.com",
