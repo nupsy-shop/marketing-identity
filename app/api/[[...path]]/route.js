@@ -727,14 +727,14 @@ export async function GET(request, { params }) {
         }
 
         // Redirect back to the platform page with success
-        const successUrl = new URL(returnUrl, request.nextUrl.origin);
+        const successUrl = new URL(returnUrl, baseUrl);
         successUrl.searchParams.set('oauth_success', 'true');
         successUrl.searchParams.set('platform', platformKey);
         return NextResponse.redirect(successUrl);
 
       } catch (error) {
         console.error('[OAuth Callback] Error:', error);
-        const errorUrl = new URL(returnUrl, request.nextUrl.origin);
+        const errorUrl = new URL(returnUrl, baseUrl);
         errorUrl.searchParams.set('oauth_error', error.message || 'OAuth callback failed');
         return NextResponse.redirect(errorUrl);
       }
