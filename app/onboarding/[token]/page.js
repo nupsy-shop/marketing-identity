@@ -946,6 +946,20 @@ export default function OnboardingPage() {
           </CardContent>
         </Card>
 
+        {/* No Items Message */}
+        {hasNoItems && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="py-6 text-center">
+              <i className="fas fa-inbox text-5xl text-amber-400 mb-3"></i>
+              <h2 className="text-xl font-bold text-amber-800 mb-2">No Access Items</h2>
+              <p className="text-amber-700">
+                This onboarding request doesn't have any access items configured yet. 
+                Please contact your agency to add the required access items.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* All Complete Message */}
         {allComplete && (
           <Card className="border-green-200 bg-green-50">
