@@ -344,7 +344,7 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
         body: JSON.stringify({
           accessToken: clientToken.accessToken,
           tokenType: clientToken.tokenType,
-          target: selectedTarget,
+          target: selectedTarget?.externalId || selectedTarget,
           role: item.role,
           identity: identityToAdd,
           accessItemType: item.itemType
