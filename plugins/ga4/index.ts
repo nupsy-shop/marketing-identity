@@ -100,14 +100,23 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
    * Start OAuth flow for GA4
    * Uses GA4-specific OAuth credentials (GOOGLE_GA4_CLIENT_ID/SECRET)
    */
-  async startOAuth(context: { redirectUri: string; scopes?: string[] }): Promise<{ authUrl: string; state: string }> {
+  async startOAuth(context: { redirectUri: string; scopes?: string[]; scope?: string }): Promise<{ authUrl: string; state: string }> {
     // Fail fast if not configured
     if (!isGA4OAuthConfigured()) {
       throw new GA4OAuthNotConfiguredError();
     }
 
     const config = getOAuthConfig(context.redirectUri);
-    const state = generateState();
+    
+    // Generate state with platformKey metadata for callback routing
+    const stateMetadata = {
+      platformKey: 'ga4',
+      scope: context.scope || 'AGENCY',
+    };
+    const metadataStr = Buffer.from(JSON.stringify(stateMetadata)).toString('base64url');
+    const randomPart = generateState();
+    const state = `${randomPart}.${metadataStr}`;
+    
     const authUrl = buildAuthorizationUrl(config, state);
 
     return { authUrl, state };
