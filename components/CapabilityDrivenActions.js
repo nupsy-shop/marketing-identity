@@ -346,9 +346,15 @@ export function VerifyAccessButton({
 
 /**
  * Capability indicator badges for showing what's possible
+ * Updated to handle effective capabilities including PAM-specific flows
  */
 export function CapabilityBadges({ capabilities }) {
   if (!capabilities) return null;
+  
+  // Determine if this is a fully manual flow (no OAuth, no verify, requires evidence)
+  const isManualFlow = !capabilities.clientOAuthSupported && 
+                       !capabilities.canVerifyAccess && 
+                       capabilities.requiresEvidenceUpload;
   
   return (
     <div className="flex flex-wrap gap-1">
@@ -370,6 +376,11 @@ export function CapabilityBadges({ capabilities }) {
       {capabilities.requiresEvidenceUpload && (
         <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700">
           <i className="fas fa-camera mr-1" aria-hidden="true"></i>Evidence
+        </Badge>
+      )}
+      {isManualFlow && (
+        <Badge variant="outline" className="text-xs bg-slate-50 text-slate-700">
+          <i className="fas fa-hand-pointer mr-1" aria-hidden="true"></i>Manual
         </Badge>
       )}
     </div>
