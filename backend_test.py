@@ -372,10 +372,8 @@ def test_gsc_capabilities():
         # Test 5: GSC Verify Access with fake token
         print("\n📝 Test 5: GSC Verify Access - Fake Token")
         verify_data = {
-            "auth": {
-                "accessToken": "fake_oauth_token_for_testing",
-                "tokenType": "Bearer"
-            },
+            "accessToken": "fake_oauth_token_for_testing",
+            "tokenType": "Bearer",
             "target": "https://example.com/",
             "role": "owner", 
             "identity": "test@example.com",
