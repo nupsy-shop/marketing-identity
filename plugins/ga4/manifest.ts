@@ -73,13 +73,13 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   NAMED_INVITE: {
     clientOAuthSupported: true,
-    canGrantAccess: false,     // Not yet implemented - keep 501
+    canGrantAccess: true,      // GA Admin API can create access bindings
     canVerifyAccess: true,     // GA Admin API can list user links to verify access
     requiresEvidenceUpload: false
   },
   GROUP_ACCESS: {
     clientOAuthSupported: true,
-    canGrantAccess: false,     // Not yet implemented - keep 501
+    canGrantAccess: true,      // GA Admin API can create access bindings
     canVerifyAccess: true,     // GA Admin API can list user links to verify access
     requiresEvidenceUpload: false
   },
