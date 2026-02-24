@@ -391,10 +391,8 @@ def test_gsc_capabilities():
         # Test 6: GSC Grant Access (should fail with manual instructions)
         print("\n📝 Test 6: GSC Grant Access - Should Return Manual Instructions") 
         grant_data = {
-            "auth": {
-                "accessToken": "fake_oauth_token_for_testing",
-                "tokenType": "Bearer"
-            },
+            "accessToken": "fake_oauth_token_for_testing",
+            "tokenType": "Bearer",
             "target": "https://example.com/",
             "role": "owner",
             "identity": "test@example.com", 
