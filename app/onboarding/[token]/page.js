@@ -594,12 +594,15 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
         )}
         
         {/* ─── Capability-Driven OAuth Flow ─────────────────────────────────────── */}
-        {canUseOAuth && !isPAM && (
+        {/* Show OAuth flow when capabilities allow it (including AGENCY_OWNED PAM) */}
+        {canUseOAuth && (
           <div className="space-y-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <i className="fas fa-plug text-primary"></i>
-                <span className="font-medium text-sm">Quick Connect</span>
+                <span className="font-medium text-sm">
+                  {isPAM ? 'Agency Identity Access' : 'Quick Connect'}
+                </span>
               </div>
               <CapabilityBadges capabilities={capabilities} />
             </div>
@@ -609,6 +612,7 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
                   Connect your {platform?.name} account to {canGrantAccess ? 'automatically grant access' : 'verify your setup'}.
+                  {isPAM && ' The agency identity will be granted access to your property.'}
                 </p>
                 <Button 
                   onClick={handleOAuthConnect} 
