@@ -381,12 +381,19 @@ def test_gsc_capabilities():
         }
         response = make_request('POST', '/oauth/google-search-console/verify-access', verify_data)
         
-        # Should return error from Google API for fake token
-        if response and not (response.status_code == 200 and response.json().get('success')):
-            print("✅ PASS: GSC verify access properly handles fake token with error")
-            tests_passed += 1
+        # Should return success=false in response for fake token, or error from Google API
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('success') and not data['data'].get('verified'):
+                print("✅ PASS: GSC verify access properly handles fake token - verification failed as expected")
+                tests_passed += 1
+            elif not data.get('success'):
+                print("✅ PASS: GSC verify access properly handles fake token with error")
+                tests_passed += 1
+            else:
+                print(f"❌ FAIL: GSC verify access unexpectedly passed with fake token: {data}")
         else:
-            print(f"❌ FAIL: GSC verify access should fail with fake token, got: {response.status_code}")
+            print(f"❌ FAIL: GSC verify access should return 200, got: {response.status_code if response else 'No response'}")
             
         # Test 6: GSC Grant Access (should fail with manual instructions)
         print("\n📝 Test 6: GSC Grant Access - Should Return Manual Instructions") 
