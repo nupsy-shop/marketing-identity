@@ -290,33 +290,134 @@ export function getRoleTemplatesForItemType(
 }
 
 /**
- * Get access type capabilities for a specific item type.
+ * Default capabilities - manual flow with evidence upload.
+ * Used when no explicit capabilities are defined in the manifest.
+ */
+const DEFAULT_CAPABILITIES: AccessTypeCapability = {
+  clientOAuthSupported: false,
+  canGrantAccess: false,
+  canVerifyAccess: false,
+  requiresEvidenceUpload: true,
+};
+
+/**
+ * Check if a capability definition has conditional rules.
+ */
+function hasConditionalRules(
+  capability: AccessTypeCapability | AccessTypeCapabilityWithRules | undefined
+): capability is AccessTypeCapabilityWithRules {
+  return capability !== undefined && 'default' in capability;
+}
+
+/**
+ * Check if a configuration matches a condition.
+ * All specified condition fields must match for a rule to apply.
+ */
+function matchesCondition(
+  condition: CapabilityCondition,
+  config: CapabilityConfigContext
+): boolean {
+  // Normalize identity strategy field names
+  const identityStrategy = config.identityStrategy || config.pamIdentityStrategy;
+  
+  // Check pamOwnership
+  if (condition.pamOwnership !== undefined) {
+    if (config.pamOwnership !== condition.pamOwnership) {
+      return false;
+    }
+  }
+  
+  // Check identityPurpose
+  if (condition.identityPurpose !== undefined) {
+    if (config.identityPurpose !== condition.identityPurpose) {
+      return false;
+    }
+  }
+  
+  // Check identityStrategy
+  if (condition.identityStrategy !== undefined) {
+    if (identityStrategy !== condition.identityStrategy) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Get base access type capabilities for a specific item type.
+ * Does NOT apply conditional rules - use getEffectiveCapabilities for that.
  * Returns defaults if not explicitly defined in manifest.
+ * 
+ * @deprecated Use getEffectiveCapabilities for runtime capability resolution.
  */
 export function getAccessTypeCapability(
   manifest: PluginManifest,
   itemType: AccessItemType
 ): AccessTypeCapability {
-  // Default capabilities - manual flow with evidence upload
-  const defaults: AccessTypeCapability = {
-    clientOAuthSupported: false,
-    canGrantAccess: false,
-    canVerifyAccess: false,
-    requiresEvidenceUpload: true,
-  };
-
-  // SHARED_ACCOUNT (PAM) always has manual flow
-  if (itemType === AccessItemType.SHARED_ACCOUNT) {
-    return {
-      clientOAuthSupported: false,
-      canGrantAccess: false,
-      canVerifyAccess: false,
-      requiresEvidenceUpload: true,
-    };
+  const capability = manifest.accessTypeCapabilities?.[itemType];
+  
+  if (!capability) {
+    return { ...DEFAULT_CAPABILITIES };
   }
+  
+  // If it has conditional rules, return the default
+  if (hasConditionalRules(capability)) {
+    return { ...capability.default };
+  }
+  
+  // Direct capability definition
+  return { ...capability } as AccessTypeCapability;
+}
 
-  // Return explicit capabilities or defaults
-  return manifest.accessTypeCapabilities?.[itemType] || defaults;
+/**
+ * Compute effective capabilities based on manifest + runtime configuration.
+ * This is the primary function to use for determining UI behavior and API gates.
+ * 
+ * For SHARED_ACCOUNT with conditional rules:
+ * - CLIENT_OWNED → evidence/manual flow
+ * - AGENCY_OWNED + HUMAN_INTERACTIVE → OAuth + API verify (like NAMED_INVITE)
+ * - AGENCY_OWNED + INTEGRATION_NON_HUMAN → depends on plugin
+ * 
+ * @param manifest - Plugin manifest containing accessTypeCapabilities
+ * @param itemType - The access item type (NAMED_INVITE, SHARED_ACCOUNT, etc.)
+ * @param config - Runtime configuration from AccessRequestItem (pamOwnership, identityPurpose, etc.)
+ * @returns Computed effective capabilities for this specific access item
+ */
+export function getEffectiveCapabilities(
+  manifest: PluginManifest,
+  itemType: AccessItemType | string,
+  config: CapabilityConfigContext = {}
+): AccessTypeCapability {
+  // Start with default capabilities
+  const effective: AccessTypeCapability = { ...DEFAULT_CAPABILITIES };
+  
+  // Get capability definition from manifest
+  const capability = manifest.accessTypeCapabilities?.[itemType as AccessItemType];
+  
+  if (!capability) {
+    return effective;
+  }
+  
+  // Check if this capability has conditional rules
+  if (hasConditionalRules(capability)) {
+    // Apply default first
+    Object.assign(effective, capability.default);
+    
+    // Apply matching rules in order (later rules override earlier)
+    if (capability.rules) {
+      for (const rule of capability.rules) {
+        if (matchesCondition(rule.when, config)) {
+          Object.assign(effective, rule.set);
+        }
+      }
+    }
+  } else {
+    // Simple capability - apply directly
+    Object.assign(effective, capability);
+  }
+  
+  return effective;
 }
 
 /**
