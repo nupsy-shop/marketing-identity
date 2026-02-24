@@ -69,6 +69,7 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
 
 // ─── Access Type Capabilities ───────────────────────────────────────────────
 // Per-access-type connection and provisioning capabilities
+// SHARED_ACCOUNT now supports conditional rules based on PAM configuration
 
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   NAMED_INVITE: {
@@ -84,11 +85,49 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
-    clientOAuthSupported: false,  // PAM flows don't use OAuth
-    canGrantAccess: false,        // PAM credentials are shared manually
-    canVerifyAccess: false,       // No API verification for PAM
-    requiresEvidenceUpload: true  // Evidence required for PAM
-  }
+    // Default: evidence/manual flow (for CLIENT_OWNED or unspecified config)
+    default: {
+      clientOAuthSupported: false,
+      canGrantAccess: false,
+      canVerifyAccess: false,
+      requiresEvidenceUpload: true
+    },
+    // Conditional rules: override capabilities based on PAM configuration
+    rules: [
+      // AGENCY_OWNED + HUMAN_INTERACTIVE: Identity-based PAM - can use OAuth + verify
+      // The agency identity (email) is granted access, so we can verify via API
+      {
+        when: { pamOwnership: 'AGENCY_OWNED', identityPurpose: 'HUMAN_INTERACTIVE' },
+        set: {
+          clientOAuthSupported: true,
+          canGrantAccess: true,      // GA4 Admin API can create access bindings for agency identity
+          canVerifyAccess: true,     // Can verify agency identity has access
+          requiresEvidenceUpload: false
+        }
+      },
+      // AGENCY_OWNED + INTEGRATION_NON_HUMAN: Service account access
+      // Can verify if service account email has access
+      {
+        when: { pamOwnership: 'AGENCY_OWNED', identityPurpose: 'INTEGRATION_NON_HUMAN' },
+        set: {
+          clientOAuthSupported: true,
+          canGrantAccess: true,
+          canVerifyAccess: true,
+          requiresEvidenceUpload: false
+        }
+      },
+      // CLIENT_OWNED: Client provides credentials - must use evidence
+      {
+        when: { pamOwnership: 'CLIENT_OWNED' },
+        set: {
+          clientOAuthSupported: false,
+          canGrantAccess: false,
+          canVerifyAccess: false,
+          requiresEvidenceUpload: true
+        }
+      }
+    ]
+  } as AccessTypeCapabilityWithRules
 };
 
 // ─── Plugin Manifest ────────────────────────────────────────────────────────
