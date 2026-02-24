@@ -421,7 +421,9 @@ export function getEffectiveCapabilities(
 }
 
 /**
- * Check if a plugin supports a specific capability for an access type
+ * Check if a plugin supports a specific capability for an access type.
+ * This uses base capabilities without config context.
+ * For runtime checks with config, use getEffectiveCapabilities directly.
  */
 export function pluginSupportsCapability(
   manifest: PluginManifest,
@@ -429,6 +431,20 @@ export function pluginSupportsCapability(
   capability: keyof AccessTypeCapability
 ): boolean {
   const caps = getAccessTypeCapability(manifest, itemType);
+  return caps[capability] === true;
+}
+
+/**
+ * Check if a plugin supports a specific capability with config context.
+ * This applies conditional rules based on PAM configuration.
+ */
+export function pluginSupportsCapabilityWithConfig(
+  manifest: PluginManifest,
+  itemType: AccessItemType | string,
+  capability: keyof AccessTypeCapability,
+  config: CapabilityConfigContext
+): boolean {
+  const caps = getEffectiveCapabilities(manifest, itemType, config);
   return caps[capability] === true;
 }
 
