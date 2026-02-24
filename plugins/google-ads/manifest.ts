@@ -60,17 +60,17 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
 };
 
 // Google Ads API supports linking customers to MCC and managing user invitations
-// For MVP: verify only, grant not yet implemented
+// Grant access implemented via user invitation and manager link creation
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   PARTNER_DELEGATION: {
     clientOAuthSupported: true,
-    canGrantAccess: false,     // Not yet implemented - keep 501
+    canGrantAccess: true,      // Can create MCC manager link invitation
     canVerifyAccess: true,     // Can check MCC account links
     requiresEvidenceUpload: false
   },
   NAMED_INVITE: {
     clientOAuthSupported: true,
-    canGrantAccess: false,     // Not yet implemented - keep 501
+    canGrantAccess: true,      // Can create user access invitation
     canVerifyAccess: true,     // Can check user access
     requiresEvidenceUpload: false
   },
