@@ -22,20 +22,27 @@ def make_request(method, endpoint, data=None, headers=None):
         default_headers.update(headers)
     
     try:
+        # Add timeout and SSL verification settings
+        kwargs = {
+            'headers': default_headers,
+            'timeout': 30,
+            'verify': False  # Disable SSL verification for testing
+        }
+        
         if method.upper() == 'GET':
-            response = requests.get(url, headers=default_headers)
+            response = requests.get(url, **kwargs)
         elif method.upper() == 'POST':
-            response = requests.post(url, json=data, headers=default_headers)
+            response = requests.post(url, json=data, **kwargs)
         elif method.upper() == 'PATCH':
-            response = requests.patch(url, json=data, headers=default_headers)
+            response = requests.patch(url, json=data, **kwargs)
         elif method.upper() == 'PUT':
-            response = requests.put(url, json=data, headers=default_headers)
+            response = requests.put(url, json=data, **kwargs)
         elif method.upper() == 'DELETE':
-            response = requests.delete(url, headers=default_headers)
+            response = requests.delete(url, **kwargs)
         
         return response
     except requests.exceptions.RequestException as e:
-        print(f"Request failed: {e}")
+        print(f"Request failed for {url}: {e}")
         return None
 
 def test_save_target_endpoint():
