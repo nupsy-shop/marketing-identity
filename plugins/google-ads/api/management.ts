@@ -59,14 +59,26 @@ async function apiRequest<T>(
 
 /**
  * List all accessible customer accounts
- * This endpoint doesn't require a developer token
+ * NOTE: This endpoint requires a valid developer token
  */
 export async function listAccessibleCustomers(auth: AuthResult): Promise<string[]> {
+  const developerToken = getDeveloperToken();
+  
+  // Developer token is required for Google Ads API
+  if (!developerToken) {
+    throw new Error(
+      'Google Ads API requires a developer token. ' +
+      'Please set GOOGLE_ADS_DEVELOPER_TOKEN in environment variables. ' +
+      'Get a token from: https://developers.google.com/google-ads/api/docs/get-started/dev-token'
+    );
+  }
+
   const response = await fetch(`${GOOGLE_ADS_API_BASE}/customers:listAccessibleCustomers`, {
     method: 'GET',
     headers: {
       'Authorization': `${auth.tokenType || 'Bearer'} ${auth.accessToken}`,
       'Content-Type': 'application/json',
+      'developer-token': developerToken,
     },
   });
 
