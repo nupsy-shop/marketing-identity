@@ -779,9 +779,19 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
           </div>
         )}
         
-        {/* Non-PAM or Agency-Owned PAM: Attestation */}
-        {!isClientOwnedPAM && (
+        {/* Attestation Section - Show when:
+            - Not CLIENT_OWNED PAM (they use credential submission above)
+            - AND either no OAuth flow available OR as fallback after OAuth */}
+        {!isClientOwnedPAM && (!canUseOAuth || requiresEvidence) && (
           <div className="space-y-4 pt-4 border-t">
+            {/* Show capability badges for manual flows */}
+            {!canUseOAuth && (
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Manual Verification</span>
+                <CapabilityBadges capabilities={capabilities} />
+              </div>
+            )}
+            
             <div className="flex items-start gap-3">
               <Checkbox
                 id={`attest-${item.id}`}
@@ -793,10 +803,10 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
               </label>
             </div>
             
-            {/* Evidence upload for EVIDENCE_REQUIRED mode */}
-            {item.verificationMode === 'EVIDENCE_REQUIRED' && (
+            {/* Evidence upload - required when requiresEvidence is true */}
+            {requiresEvidence && (
               <div>
-                <p className="text-sm font-medium mb-1">Upload Evidence</p>
+                <p className="text-sm font-medium mb-1">Upload Evidence <span className="text-red-500">*</span></p>
                 <p className="text-xs text-muted-foreground mb-2">A screenshot of the permissions screen is required.</p>
                 <input
                   type="file"
@@ -810,8 +820,8 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
               </div>
             )}
             
-            {/* Optional evidence for ATTESTATION_ONLY */}
-            {item.verificationMode !== 'EVIDENCE_REQUIRED' && (
+            {/* Optional evidence when not strictly required */}
+            {!requiresEvidence && (
               <div>
                 <p className="text-sm font-medium mb-1">Evidence (optional)</p>
                 <p className="text-xs text-muted-foreground mb-2">Upload a screenshot as confirmation.</p>
@@ -829,7 +839,7 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
             
             <Button 
               onClick={handleAttest} 
-              disabled={submitting || !attestChecked} 
+              disabled={submitting || !attestChecked || (requiresEvidence && !evidenceFile)} 
               className="w-full"
             >
               {submitting ? <><i className="fas fa-spinner fa-spin mr-2"></i>Verifying...</> : 
