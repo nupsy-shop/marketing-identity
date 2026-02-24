@@ -913,7 +913,9 @@ export default function OnboardingPage() {
   const client = data?.client;
   const items = data?.items || [];
   const completedCount = items.filter(i => i.status === 'validated').length;
-  const allComplete = completedCount === items.length;
+  // Only show "All Complete" if there are actually items AND all are validated
+  const allComplete = items.length > 0 && completedCount === items.length;
+  const hasNoItems = items.length === 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8 px-4">
