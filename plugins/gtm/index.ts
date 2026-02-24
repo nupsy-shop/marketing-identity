@@ -337,12 +337,190 @@ class GTMPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
     }
   }
 
-  async grantAccess(_params: VerifyAccessParams): Promise<VerifyAccessResult> {
-    return {
-      success: false,
-      error: 'GTM automated access granting is not yet implemented. Manual granting required.',
-      details: { found: false }
-    };
+  async grantAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+    const { auth, target, role, identity, accessItemType } = params;
+
+    if (!target) {
+      return { success: false, error: 'Account/Container ID (target) is required', details: { found: false } };
+    }
+
+    if (!identity) {
+      return { success: false, error: 'Identity (email) to grant access to is required', details: { found: false } };
+    }
+
+    if (!role) {
+      return { success: false, error: 'Role is required', details: { found: false } };
+    }
+
+    if (accessItemType === 'SHARED_ACCOUNT') {
+      return {
+        success: false,
+        error: 'Shared Account (PAM) access cannot be granted via API. Manual credential handoff required.',
+        details: { found: false }
+      };
+    }
+
+    try {
+      const authResult: AuthResult = {
+        success: true,
+        accessToken: auth.accessToken,
+        tokenType: auth.tokenType || 'Bearer'
+      };
+
+      // Parse target: can be "accountId" or "accountId/containerId"
+      const [accountId, containerId] = target.split('/');
+      
+      console.log(`[GTMPlugin] Granting ${role} access to ${identity} on ${containerId ? `container ${containerId}` : `account ${accountId}`}`);
+
+      // Check if user already has access
+      const permissions = await listAccountUserPermissions(authResult, accountId);
+      const existingPermission = permissions.find(p => 
+        p.emailAddress?.toLowerCase() === identity.toLowerCase()
+      );
+
+      if (existingPermission) {
+        // User already has some access - check if they have the required permission
+        if (containerId) {
+          const containerAccess = existingPermission.containerAccess?.find(c => c.containerId === containerId);
+          if (containerAccess && hasPermissionOrHigher(containerAccess.permission, role)) {
+            console.log(`[GTMPlugin] User ${identity} already has ${containerAccess.permission} on container ${containerId}`);
+            return {
+              success: true,
+              data: true,
+              details: {
+                found: true,
+                foundPermission: containerAccess.permission,
+                expectedRole: role,
+                identity,
+                message: 'User already has the required access level'
+              }
+            };
+          }
+        } else {
+          const accountPerm = existingPermission.accountAccess?.permission;
+          if (accountPerm && (role === 'admin' ? accountPerm === 'admin' : accountPerm !== 'noAccess')) {
+            console.log(`[GTMPlugin] User ${identity} already has ${accountPerm} on account ${accountId}`);
+            return {
+              success: true,
+              data: true,
+              details: {
+                found: true,
+                foundPermission: accountPerm,
+                expectedRole: role,
+                identity,
+                message: 'User already has account access'
+              }
+            };
+          }
+        }
+        
+        // User exists but needs higher permission - would need to update (not creating new)
+        console.log(`[GTMPlugin] User ${identity} exists but may need higher permission`);
+        return {
+          success: true,
+          data: true,
+          details: {
+            found: true,
+            foundPermission: existingPermission.accountAccess?.permission || 'existing',
+            expectedRole: role,
+            identity,
+            message: 'User already has some access. To upgrade permission, please update manually in GTM.',
+            containerAccess: existingPermission.containerAccess?.map(c => ({
+              containerId: c.containerId,
+              permission: c.permission
+            }))
+          }
+        };
+      }
+
+      // Determine account permission based on role
+      // For container-level roles, grant 'user' account access + specific container access
+      // For admin role at account level, grant 'admin' account access
+      let accountPermission: GTMAccountPermission = 'user';
+      let containerAccessList: GTMContainerAccess[] | undefined;
+      
+      if (containerId) {
+        // Container-level access: map role to container permission
+        const containerPermission = (role === 'admin' ? 'publish' : role) as GTMContainerPermission;
+        containerAccessList = [{
+          containerId,
+          permission: containerPermission
+        }];
+      } else {
+        // Account-level access
+        accountPermission = role === 'admin' ? 'admin' : 'user';
+      }
+
+      // Create the user permission
+      const newPermission = await createUserPermission(
+        authResult,
+        accountId,
+        identity,
+        accountPermission,
+        containerAccessList
+      );
+
+      console.log(`[GTMPlugin] Successfully granted ${role} to ${identity} on ${containerId ? `container ${containerId}` : `account ${accountId}`}`);
+
+      return {
+        success: true,
+        data: true,
+        details: {
+          found: true,
+          foundPermission: containerId ? containerAccessList?.[0]?.permission : accountPermission,
+          expectedRole: role,
+          identity,
+          message: 'Access granted successfully',
+          containerAccess: newPermission.containerAccess?.map(c => ({
+            containerId: c.containerId,
+            permission: c.permission
+          }))
+        }
+      };
+
+    } catch (error) {
+      console.error('[GTMPlugin] grantAccess error:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
+        return {
+          success: false,
+          error: 'The OAuth token does not have permission to manage user permissions. The client needs to grant Admin access.',
+          details: { found: false }
+        };
+      }
+      
+      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        return {
+          success: false,
+          error: `Account ${target.split('/')[0]} was not found or is not accessible.`,
+          details: { found: false }
+        };
+      }
+      
+      if (errorMessage.includes('409') || errorMessage.includes('already exists')) {
+        return {
+          success: false,
+          error: `User ${identity} already has an access permission on this account.`,
+          details: { found: false }
+        };
+      }
+      
+      if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
+        return {
+          success: false,
+          error: `Invalid request: ${errorMessage}. Please verify the email address and account ID are correct.`,
+          details: { found: false }
+        };
+      }
+      
+      return {
+        success: false,
+        error: `Failed to grant access: ${errorMessage}`,
+        details: { found: false }
+      };
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
