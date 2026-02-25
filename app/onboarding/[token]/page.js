@@ -353,7 +353,14 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
           target: selectedTarget?.externalId || selectedTarget,
           role: item.role,
           identity: identityToAdd,
-          accessItemType: item.itemType
+          accessItemType: item.itemType,
+          accessRequestItemId: item.id,
+          accessRequestId: item.accessRequestId,
+          clientProvidedTarget: selectedTarget ? {
+            name: selectedTarget.displayName || selectedTarget.name,
+            id: selectedTarget.externalId || selectedTarget.id,
+            type: selectedTarget.targetType || selectedTarget.type
+          } : undefined
         })
       });
       
