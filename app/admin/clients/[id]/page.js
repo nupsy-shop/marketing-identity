@@ -245,26 +245,53 @@ function AccessRequestCard({ request, platforms, onCopyLink, onRefresh }) {
         <CardContent className="pt-0">
           <div className="space-y-2 border-t pt-4">
             {request.items?.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
-                  <i className={`${getPlatformIcon(item.platformId)} text-sm text-primary`}></i>
+              <div key={item.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                    <i className={`${getPlatformIcon(item.platformId)} text-sm text-primary`}></i>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm" data-testid={`item-name-${item.id}`}>{item.assetName || getPlatformName(item.platformId)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {getPlatformName(item.platformId)} &bull; {item.accessPattern} &bull; {item.role}
+                      {item.pamOwnership && <> &bull; <span className="font-medium">{item.pamOwnership}</span></>}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={item.status === 'validated' ? 'default' : 'secondary'}
+                    className={item.status === 'validated' ? 'bg-green-100 text-green-700' : ''}
+                    data-testid={`item-status-${item.id}`}
+                  >
+                    {item.status === 'validated' ? (
+                      <><i className="fas fa-check mr-1"></i>Validated</>
+                    ) : (
+                      <><i className="fas fa-clock mr-1"></i>Pending</>
+                    )}
+                  </Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{item.assetName || getPlatformName(item.platformId)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {getPlatformName(item.platformId)} &bull; {item.accessPattern} &bull; {item.role}
-                  </p>
-                </div>
-                <Badge
-                  variant={item.status === 'validated' ? 'default' : 'secondary'}
-                  className={item.status === 'validated' ? 'bg-green-100 text-green-700' : ''}
-                >
-                  {item.status === 'validated' ? (
-                    <><i className="fas fa-check mr-1"></i>Validated</>
-                  ) : (
-                    <><i className="fas fa-clock mr-1"></i>Pending</>
-                  )}
-                </Badge>
+                {/* Admin visibility: show client-provided target (selected via OAuth or manual) */}
+                {item.clientProvidedTarget && Object.keys(item.clientProvidedTarget).length > 0 && (
+                  <div className="ml-11 p-2 rounded bg-blue-50 border border-blue-100" data-testid={`item-target-${item.id}`}>
+                    <p className="text-xs font-medium text-blue-800 mb-1">
+                      <i className="fas fa-crosshairs mr-1"></i>Client-Provided Target
+                    </p>
+                    {item.clientProvidedTarget.selectedTarget ? (
+                      <div className="text-xs text-blue-700 space-y-0.5">
+                        <p><span className="font-medium">Name:</span> {item.clientProvidedTarget.selectedTarget.displayName}</p>
+                        <p><span className="font-medium">ID:</span> <code className="bg-blue-100 px-1 rounded">{item.clientProvidedTarget.selectedTarget.externalId}</code></p>
+                        {item.clientProvidedTarget.selectedTarget.targetType && (
+                          <p><span className="font-medium">Type:</span> {item.clientProvidedTarget.selectedTarget.targetType}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-blue-700 space-y-0.5">
+                        {Object.entries(item.clientProvidedTarget).map(([key, val]) => (
+                          <p key={key}><span className="font-medium">{key}:</span> {typeof val === 'object' ? JSON.stringify(val) : String(val)}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
