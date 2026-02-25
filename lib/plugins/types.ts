@@ -462,6 +462,82 @@ export function pluginSupportsCapabilityWithConfig(
   return caps[capability] === true;
 }
 
+// ─── Manifest Configuration Validators ──────────────────────────────────────
+
+/**
+ * Check if a platform allows a specific ownership model.
+ */
+export function isOwnershipModelAllowed(
+  manifest: PluginManifest,
+  ownership: PamOwnership | string
+): boolean {
+  return manifest.allowedOwnershipModels.includes(ownership as PamOwnership);
+}
+
+/**
+ * Check if a platform allows a specific identity strategy.
+ */
+export function isIdentityStrategyAllowed(
+  manifest: PluginManifest,
+  strategy: HumanIdentityStrategy | PamIdentityStrategy | string
+): boolean {
+  return manifest.allowedIdentityStrategies.includes(strategy as HumanIdentityStrategy | PamIdentityStrategy);
+}
+
+/**
+ * Check if a platform allows a specific access item type.
+ */
+export function isAccessTypeAllowed(
+  manifest: PluginManifest,
+  itemType: AccessItemType | string
+): boolean {
+  return manifest.allowedAccessTypes.includes(itemType as AccessItemType);
+}
+
+/**
+ * Check if a platform supports a specific verification mode.
+ */
+export function isVerificationModeSupported(
+  manifest: PluginManifest,
+  mode: VerificationMode | string
+): boolean {
+  return manifest.verificationModes.includes(mode as VerificationMode);
+}
+
+/**
+ * Validate a full configuration context against the manifest's allowed models.
+ * Returns an array of error strings (empty = valid).
+ */
+export function validateConfigAgainstManifest(
+  manifest: PluginManifest,
+  config: {
+    accessItemType?: AccessItemType | string;
+    pamOwnership?: PamOwnership | string;
+    identityStrategy?: HumanIdentityStrategy | PamIdentityStrategy | string;
+    verificationMode?: VerificationMode | string;
+  }
+): string[] {
+  const errors: string[] = [];
+  
+  if (config.accessItemType && !isAccessTypeAllowed(manifest, config.accessItemType)) {
+    errors.push(`Access type "${config.accessItemType}" is not allowed for ${manifest.displayName}. Allowed: ${manifest.allowedAccessTypes.join(', ')}`);
+  }
+  
+  if (config.pamOwnership && !isOwnershipModelAllowed(manifest, config.pamOwnership)) {
+    errors.push(`Ownership model "${config.pamOwnership}" is not allowed for ${manifest.displayName}. Allowed: ${manifest.allowedOwnershipModels.join(', ')}`);
+  }
+  
+  if (config.identityStrategy && !isIdentityStrategyAllowed(manifest, config.identityStrategy)) {
+    errors.push(`Identity strategy "${config.identityStrategy}" is not allowed for ${manifest.displayName}. Allowed: ${manifest.allowedIdentityStrategies.join(', ')}`);
+  }
+  
+  if (config.verificationMode && !isVerificationModeSupported(manifest, config.verificationMode)) {
+    errors.push(`Verification mode "${config.verificationMode}" is not supported for ${manifest.displayName}. Supported: ${manifest.verificationModes.join(', ')}`);
+  }
+  
+  return errors;
+}
+
 // ─── Validation Result ─────────────────────────────────────────────────────────
 
 export interface ValidationResult {
