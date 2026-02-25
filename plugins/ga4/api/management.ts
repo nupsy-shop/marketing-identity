@@ -148,7 +148,33 @@ export async function listAccessBindings(
 }
 
 /**
- * Create an access binding (grant user access)
+ * List access bindings for an account (account-level permissions)
+ */
+export async function listAccountAccessBindings(
+  auth: AuthResult,
+  accountId: string
+): Promise<GA4AccessBinding[]> {
+  const client = createClient(auth);
+  const bindings: GA4AccessBinding[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const params = pageToken ? `?pageToken=${pageToken}` : '';
+    const response = await client.get<{ accessBindings?: GA4AccessBinding[]; nextPageToken?: string }>(
+      `/accounts/${accountId}/accessBindings${params}`
+    );
+    
+    if (response.accessBindings) {
+      bindings.push(...response.accessBindings);
+    }
+    pageToken = response.nextPageToken;
+  } while (pageToken);
+
+  return bindings;
+}
+
+/**
+ * Create an access binding (grant user access) at the property level
  */
 export async function createAccessBinding(
   auth: AuthResult,
@@ -159,6 +185,25 @@ export async function createAccessBinding(
   const client = createClient(auth);
   return client.post<GA4AccessBinding>(
     `/properties/${propertyId}/accessBindings`,
+    {
+      user: userEmail,
+      roles,
+    }
+  );
+}
+
+/**
+ * Create an access binding (grant user access) at the account level
+ */
+export async function createAccountAccessBinding(
+  auth: AuthResult,
+  accountId: string,
+  userEmail: string,
+  roles: GA4Role[]
+): Promise<GA4AccessBinding> {
+  const client = createClient(auth);
+  return client.post<GA4AccessBinding>(
+    `/accounts/${accountId}/accessBindings`,
     {
       user: userEmail,
       roles,
