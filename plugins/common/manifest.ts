@@ -9,7 +9,7 @@
  * - Security features
  */
 
-import type { AccessItemType, RoleTemplate, SecurityCapabilities, AutomationCapabilities } from '../../lib/plugins/types';
+import type { AccessItemType, RoleTemplate, SecurityCapabilities, AutomationCapabilities, PamOwnership, HumanIdentityStrategy, PamIdentityStrategy, VerificationMode } from '../../lib/plugins/types';
 
 /**
  * Access Item Type Metadata
@@ -74,6 +74,20 @@ export interface PluginManifest {
   
   /** Automation capabilities */
   automationCapabilities: AutomationCapabilities;
+
+  // ─── Allowed Configuration Models ──────────────────────────────────────────
+  
+  /** Which PAM ownership models are valid for SHARED_ACCOUNT on this platform */
+  allowedOwnershipModels: PamOwnership[];
+
+  /** Which identity strategies (human + PAM) this platform supports */
+  allowedIdentityStrategies: (HumanIdentityStrategy | PamIdentityStrategy)[];
+
+  /** Which access item types this platform supports (enum array) */
+  allowedAccessTypes: AccessItemType[];
+
+  /** Which verification modes are available for this platform */
+  verificationModes: VerificationMode[];
 
   // ─── Feature Flags ─────────────────────────────────────────────────────────
   
