@@ -643,6 +643,17 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: roles });
     }
 
+    // GET /api/admin/platforms/:platformKey/onboarded-accounts - Get onboarded accounts for a platform
+    if (path.match(/^admin\/platforms\/[^/]+\/onboarded-accounts$/)) {
+      const platformKey = path.split('/')[2];
+      try {
+        const items = await db.getOnboardedAccountsByPlatformSlug(platformKey);
+        return NextResponse.json({ success: true, data: items });
+      } catch (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
+    }
+
     // GET /api/oauth/callback - Universal OAuth callback handler (for agency/admin flows)
     // This handles the redirect back from OAuth providers
     if (path === 'oauth/callback') {
