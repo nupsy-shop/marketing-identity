@@ -493,46 +493,58 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
     } catch (error) {
       console.error('[GA4Plugin] grantAccess error:', error);
       
-      // Handle specific API errors
+      // Extract full error details including Google API response body
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorBody = (error as any)?.body || '';
+      let googleErrorDetail = '';
+      try {
+        if (errorBody) {
+          const parsed = JSON.parse(errorBody);
+          googleErrorDetail = parsed?.error?.message || parsed?.message || '';
+        }
+      } catch { /* not JSON */ }
+      const fullError = googleErrorDetail || errorMessage;
       
-      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
+      console.error(`[GA4Plugin] grantAccess full error: message=${errorMessage}, body=${errorBody}`);
+      
+      const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      const resourceLabel = isAcct ? 'account' : 'property';
+      
+      if (errorMessage.includes('403') || fullError.toLowerCase().includes('permission denied')) {
         return {
           success: false,
-          error: 'The OAuth token does not have permission to manage access on this property. The client needs to grant Admin access to their account.',
+          error: `Permission denied on ${resourceLabel} ${target}. The connected Google account needs Administrator role. Detail: ${fullError}`,
           details: { found: false }
         };
       }
       
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      if (errorMessage.includes('404') || fullError.toLowerCase().includes('not found')) {
         return {
           success: false,
-          error: `${isAcct ? 'Account' : 'Property'} ${target} was not found or is not accessible with this token.`,
+          error: `${isAcct ? 'Account' : 'Property'} ${target} was not found or is not accessible. Detail: ${fullError}`,
           details: { found: false }
         };
       }
       
-      if (errorMessage.includes('409') || errorMessage.includes('already exists')) {
-        const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      if (errorMessage.includes('409') || fullError.toLowerCase().includes('already exists')) {
         return {
           success: false,
-          error: `User ${identity} already has an access binding on ${isAcct ? 'account' : 'property'} ${target}.`,
+          error: `User ${identity} already has an access binding on ${resourceLabel} ${target}.`,
           details: { found: false }
         };
       }
       
-      if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
+      if (errorMessage.includes('400')) {
         return {
           success: false,
-          error: `Invalid request: ${errorMessage}. Please verify the email address and property ID are correct.`,
+          error: `Invalid request: ${fullError}. Please verify the email address and ${resourceLabel} ID are correct.`,
           details: { found: false }
         };
       }
       
       return {
         success: false,
-        error: `Failed to grant access: ${errorMessage}`,
+        error: `Failed to grant access: ${fullError}`,
         details: { found: false }
       };
     }
