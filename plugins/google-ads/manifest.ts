@@ -4,7 +4,7 @@
  */
 
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities, AccessTypeCapabilityWithRules } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities, AccessTypeCapabilityWithRules, PamOwnership, HumanIdentityStrategy, PamIdentityStrategy, VerificationMode } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -122,7 +122,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 export const GOOGLE_ADS_MANIFEST: PluginManifest = {
   platformKey: 'google-ads',
   displayName: 'Google Ads',
-  pluginVersion: '2.2.0',
+  pluginVersion: '2.3.0',
   category: 'Paid Media',
   description: 'Google Ads Manager and MCC access management',
   tier: 1,
@@ -134,6 +134,16 @@ export const GOOGLE_ADS_MANIFEST: PluginManifest = {
   securityCapabilities: SECURITY_CAPABILITIES,
   automationCapabilities: AUTOMATION_CAPABILITIES,
   accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
+  allowedOwnershipModels: ['CLIENT_OWNED' as PamOwnership, 'AGENCY_OWNED' as PamOwnership],
+  allowedIdentityStrategies: [
+    'AGENCY_GROUP' as HumanIdentityStrategy,
+    'INDIVIDUAL_USERS' as HumanIdentityStrategy,
+    'CLIENT_DEDICATED' as HumanIdentityStrategy,
+    'STATIC' as PamIdentityStrategy,
+    'CLIENT_DEDICATED' as PamIdentityStrategy,
+  ],
+  allowedAccessTypes: ['PARTNER_DELEGATION' as AccessItemType, 'NAMED_INVITE' as AccessItemType, 'SHARED_ACCOUNT' as AccessItemType],
+  verificationModes: ['AUTO' as VerificationMode, 'EVIDENCE_REQUIRED' as VerificationMode],
   supportsReporting: true,
   supportsEventUpload: false,
   supportsWebhooks: false,

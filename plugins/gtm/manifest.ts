@@ -2,7 +2,7 @@
  * Google Tag Manager Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities, AccessTypeCapabilityWithRules } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities, AccessTypeCapabilityWithRules, PamOwnership, HumanIdentityStrategy, PamIdentityStrategy, VerificationMode } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
@@ -87,10 +87,20 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const GTM_MANIFEST: PluginManifest = {
-  platformKey: 'gtm', displayName: 'Google Tag Manager', pluginVersion: '2.2.0', category: 'Tag Management',
+  platformKey: 'gtm', displayName: 'Google Tag Manager', pluginVersion: '2.3.0', category: 'Tag Management',
   description: 'Google Tag Manager container access', tier: 1, clientFacing: true,
   icon: 'fas fa-tags', logoPath: '/logos/gtm.svg', brandColor: '#4285F4',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
   accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
+  allowedOwnershipModels: ['CLIENT_OWNED' as PamOwnership, 'AGENCY_OWNED' as PamOwnership],
+  allowedIdentityStrategies: [
+    'AGENCY_GROUP' as HumanIdentityStrategy,
+    'INDIVIDUAL_USERS' as HumanIdentityStrategy,
+    'CLIENT_DEDICATED' as HumanIdentityStrategy,
+    'STATIC' as PamIdentityStrategy,
+    'CLIENT_DEDICATED' as PamIdentityStrategy,
+  ],
+  allowedAccessTypes: ['NAMED_INVITE' as AccessItemType, 'GROUP_ACCESS' as AccessItemType, 'SHARED_ACCOUNT' as AccessItemType],
+  verificationModes: ['AUTO' as VerificationMode, 'EVIDENCE_REQUIRED' as VerificationMode],
 };
 export default GTM_MANIFEST;
