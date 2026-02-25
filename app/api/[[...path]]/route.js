@@ -171,6 +171,20 @@ function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, b
     const identityPurpose = pamConfig.identityPurpose;
     const identityStrategy = pamConfig.pamIdentityStrategy || pamConfig.identityStrategy;
     
+    // ═══ Validate against manifest.allowedOwnershipModels ═══
+    if (pamOwnership && manifest.allowedOwnershipModels?.length > 0) {
+      if (!manifest.allowedOwnershipModels.includes(pamOwnership)) {
+        errors.push(`Ownership model "${pamOwnership}" is not allowed for ${manifest.displayName}. Allowed: ${manifest.allowedOwnershipModels.join(', ')}`);
+      }
+    }
+    
+    // ═══ Validate against manifest.allowedIdentityStrategies ═══
+    if (identityStrategy && manifest.allowedIdentityStrategies?.length > 0) {
+      if (!manifest.allowedIdentityStrategies.includes(identityStrategy)) {
+        errors.push(`Identity strategy "${identityStrategy}" is not allowed for ${manifest.displayName}. Allowed: ${manifest.allowedIdentityStrategies.join(', ')}`);
+      }
+    }
+    
     // ═══ RULE A: CLIENT_OWNED - Reject identity generation fields ═══
     if (pamOwnership === 'CLIENT_OWNED') {
       const forbiddenFields = [
