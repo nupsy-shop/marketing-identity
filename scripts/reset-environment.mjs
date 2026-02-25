@@ -1,14 +1,17 @@
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function reset() {
   try {
     console.log('=== RESETTING ENVIRONMENT ===');
     
-    // Delete in FK-safe order (children first)
     const targets = await prisma.accessibleTarget.deleteMany({});
     console.log(`Deleted ${targets.count} accessible_targets`);
     
@@ -48,6 +51,7 @@ async function reset() {
     process.exit(1);
   } finally {
     await prisma.$disconnect();
+    await pool.end();
   }
 }
 
