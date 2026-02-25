@@ -145,30 +145,17 @@ function TargetList({ targets, selectedTarget, onSelect, searchQuery }) {
           />
         ))
       ) : (
-        // Hierarchical list — parent targets with children are non-selectable group headers
+        // Hierarchical list — accounts and properties are both selectable
         parentTargets.map(parent => {
           const children = childTargetsByParent[parent.externalId] || [];
-          const hasChildren = children.length > 0;
           return (
             <div key={parent.externalId}>
-              {hasChildren ? (
-                // Parent is a non-selectable group header when it has children
-                <div className="px-3 py-2 rounded-lg bg-slate-100 border border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <i className={`fas ${getTargetConfig(parent.targetType).icon} text-slate-500 text-sm`}></i>
-                    <span className="text-sm font-medium text-slate-700">{parent.displayName}</span>
-                    <Badge variant="outline" className="text-xs text-slate-500">{children.length} {children.length === 1 ? 'target' : 'targets'}</Badge>
-                  </div>
-                </div>
-              ) : (
-                // Parent with no children is selectable
-                <TargetCard
-                  target={parent}
-                  isSelected={selectedTarget?.externalId === parent.externalId}
-                  onSelect={onSelect}
-                />
-              )}
-              {/* Children are always selectable */}
+              <TargetCard
+                target={parent}
+                isSelected={selectedTarget?.externalId === parent.externalId}
+                onSelect={onSelect}
+              />
+              {/* Children */}
               {children.map(child => (
                 <TargetCard
                   key={child.externalId}
