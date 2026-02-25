@@ -416,32 +416,30 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
         tokenType: auth.tokenType || 'Bearer'
       };
 
-      // Normalize property ID (GA4 API expects just the numeric ID)
-      const propertyId = target.replace(/^properties\//, '');
-      
-      // Reject account-level targets — grant must target a specific property
-      if (propertyId.startsWith('accounts/') || propertyId.startsWith('accounts%2F')) {
-        return {
-          success: false,
-          error: `"${target}" is an account, not a property. Please select a specific GA4 property to grant access.`,
-          details: { found: false }
-        };
-      }
+      // Determine if target is an account or a property
+      const isAccountTarget = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      const resourceId = isAccountTarget
+        ? target.replace(/^accounts\//, '').replace(/^accounts%2F/, '')
+        : target.replace(/^properties\//, '');
+      const resourceLabel = isAccountTarget ? 'account' : 'property';
       
       // Map role key to GA4 role format
       const ga4Role = ROLE_MAPPING[role.toLowerCase()] || `roles/${role.toLowerCase()}`;
       
-      console.log(`[GA4Plugin] Granting ${ga4Role} access to ${identity} on property ${propertyId}`);
+      console.log(`[GA4Plugin] Granting ${ga4Role} access to ${identity} on ${resourceLabel} ${resourceId}`);
 
-      // First check if the user already has access
-      const existingBinding = await checkUserAccess(authResult, propertyId, identity);
+      // Check existing access using the appropriate API level
+      const bindings = isAccountTarget
+        ? await listAccountAccessBindings(authResult, resourceId)
+        : await listAccessBindings(authResult, resourceId);
+      
+      const existingBinding = bindings.find(b => b.user?.toLowerCase() === identity.toLowerCase()) || null;
       
       if (existingBinding) {
         const existingRoles = existingBinding.roles || [];
         
-        // Check if user already has the required role or higher
         if (this.hasRoleOrHigher(existingRoles, ga4Role)) {
-          console.log(`[GA4Plugin] User ${identity} already has ${existingRoles.join(', ')} on property ${propertyId}`);
+          console.log(`[GA4Plugin] User ${identity} already has ${existingRoles.join(', ')} on ${resourceLabel} ${resourceId}`);
           return {
             success: true,
             data: true,
@@ -450,15 +448,12 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
               foundRoles: existingRoles,
               expectedRole: ga4Role,
               identity,
-              message: 'User already has the required access level',
+              message: `User already has the required access level on this ${resourceLabel}`,
               binding: existingBinding
             }
           };
         }
         
-        // User has access but with a lower role - we'll need to update
-        // GA4 API doesn't have a patch endpoint for access bindings, so we'd need to delete and recreate
-        // For now, log a warning and return the existing binding
         console.warn(`[GA4Plugin] User ${identity} has ${existingRoles.join(', ')} but requested ${ga4Role}. Manual update may be required.`);
         return {
           success: true,
@@ -474,15 +469,12 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
         };
       }
 
-      // Create new access binding
-      const newBinding = await createAccessBinding(
-        authResult,
-        propertyId,
-        identity,
-        [ga4Role as GA4Role]
-      );
+      // Create new access binding at the appropriate level
+      const newBinding = isAccountTarget
+        ? await createAccountAccessBinding(authResult, resourceId, identity, [ga4Role as GA4Role])
+        : await createAccessBinding(authResult, resourceId, identity, [ga4Role as GA4Role]);
 
-      console.log(`[GA4Plugin] Successfully granted ${ga4Role} to ${identity} on property ${propertyId}`);
+      console.log(`[GA4Plugin] Successfully granted ${ga4Role} to ${identity} on ${resourceLabel} ${resourceId}`);
 
       return {
         success: true,
@@ -492,7 +484,7 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
           foundRoles: [ga4Role],
           expectedRole: ga4Role,
           identity,
-          message: 'Access granted successfully',
+          message: `Access granted successfully on ${resourceLabel}`,
           binding: {
             name: newBinding.name,
             user: newBinding.user,
