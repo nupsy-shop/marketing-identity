@@ -162,7 +162,7 @@ function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, b
     const pamConfig = agencyConfig || body?.agencyConfigJson || {};
     const pamOwnership = pamConfig.pamOwnership;
     const identityPurpose = pamConfig.identityPurpose;
-    const identityStrategy = pamConfig.pamIdentityStrategy;
+    const identityStrategy = pamConfig.pamIdentityStrategy || pamConfig.identityStrategy;
     
     // ═══ RULE A: CLIENT_OWNED - Reject identity generation fields ═══
     if (pamOwnership === 'CLIENT_OWNED') {
