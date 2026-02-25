@@ -2,7 +2,7 @@
  * Salesforce Plugin - Manifest
  */
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities, PamOwnership, HumanIdentityStrategy, PamIdentityStrategy, VerificationMode } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
