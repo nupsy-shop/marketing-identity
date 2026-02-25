@@ -8,13 +8,28 @@ import { HttpClient } from '../../common/utils/httpClient';
 import type { GA4Account, GA4Property, GA4DataStream, GA4AccessBinding, GA4Role } from '../types';
 
 const GA4_ADMIN_API_BASE = 'https://analyticsadmin.googleapis.com/v1beta';
+const GA4_ADMIN_API_ALPHA = 'https://analyticsadmin.googleapis.com/v1alpha';
 
 /**
- * Create an authenticated HTTP client for GA4 Admin API
+ * Create an authenticated HTTP client for GA4 Admin API (v1beta - stable)
  */
 function createClient(auth: AuthResult): HttpClient {
   return new HttpClient({
     baseUrl: GA4_ADMIN_API_BASE,
+    defaultHeaders: {
+      'Authorization': `${auth.tokenType || 'Bearer'} ${auth.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
+/**
+ * Create an authenticated HTTP client for GA4 Admin API (v1alpha - access bindings)
+ * AccessBinding operations are only available in v1alpha, not v1beta.
+ */
+function createAlphaClient(auth: AuthResult): HttpClient {
+  return new HttpClient({
+    baseUrl: GA4_ADMIN_API_ALPHA,
     defaultHeaders: {
       'Authorization': `${auth.tokenType || 'Bearer'} ${auth.accessToken}`,
       'Content-Type': 'application/json',
