@@ -438,6 +438,8 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
       const ga4Role = ROLE_MAPPING[role.toLowerCase()] || `roles/${role.toLowerCase()}`;
       
       console.log(`[GA4Plugin] Granting ${ga4Role} access to ${identity} on ${resourceLabel} ${resourceId}`);
+      console.log(`[GA4Plugin] API: v1alpha, target="${target}", isAccountTarget=${isAccountTarget}, resourceId="${resourceId}"`);
+      console.log(`[GA4Plugin] Will call: https://analyticsadmin.googleapis.com/v1alpha/${isAccountTarget ? 'accounts' : 'properties'}/${resourceId}/accessBindings`);
 
       // Check existing access using the appropriate API level
       const bindings = isAccountTarget
