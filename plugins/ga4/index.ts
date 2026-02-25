@@ -230,22 +230,19 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
         tokenType: auth.tokenType || 'Bearer'
       };
 
-      // Normalize property ID (GA4 API expects just the numeric ID)
-      const propertyId = target.replace(/^properties\//, '');
+      // Determine if target is an account or a property
+      const isAccountTarget = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      const resourceId = isAccountTarget
+        ? target.replace(/^accounts\//, '').replace(/^accounts%2F/, '')
+        : target.replace(/^properties\//, '');
+      const resourceLabel = isAccountTarget ? 'account' : 'property';
       
-      // Reject account-level targets — verify must target a specific property
-      if (propertyId.startsWith('accounts/') || propertyId.startsWith('accounts%2F')) {
-        return {
-          success: false,
-          error: `"${target}" is an account, not a property. Please select a specific GA4 property to verify access.`,
-          details: { found: false }
-        };
-      }
-      
-      console.log(`[GA4Plugin] Verifying access for ${identity} on property ${propertyId} with role ${role}`);
+      console.log(`[GA4Plugin] Verifying access for ${identity} on ${resourceLabel} ${resourceId} with role ${role}`);
 
-      // List all access bindings on the property
-      const bindings = await listAccessBindings(authResult, propertyId);
+      // List all access bindings at the appropriate level
+      const bindings = isAccountTarget
+        ? await listAccountAccessBindings(authResult, resourceId)
+        : await listAccessBindings(authResult, resourceId);
       
       // Find binding for the identity
       const userBinding = bindings.find(b => 
