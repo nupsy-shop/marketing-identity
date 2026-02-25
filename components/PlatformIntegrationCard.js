@@ -2,7 +2,7 @@
 
 /**
  * Platform Integration (Agency) Card
- * Client-centric governance view with onboarded accounts and OAuth integration scope.
+ * Client-centric governance: one row per client, drill-down for item details.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -12,12 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -53,9 +50,13 @@ function deriveClientStatus(items) {
   return 'pending';
 }
 
-// ─── Client Summary Bar ────────────────────────────────────────
-function ClientSummaryBar({ clientMap }) {
-  const clients = Object.values(clientMap);
+function maxDate(items, field) {
+  const dates = items.map(i => i[field]).filter(Boolean).map(d => new Date(d).getTime());
+  return dates.length ? new Date(Math.max(...dates)) : null;
+}
+
+// ─── Summary Bar ───────────────────────────────────────────────
+function ClientSummaryBar({ clients }) {
   const total = clients.length;
   const verified = clients.filter(c => c.status === 'validated').length;
   const failed = clients.filter(c => c.status === 'failed').length;
@@ -83,6 +84,93 @@ function ClientSummaryBar({ clientMap }) {
   );
 }
 
+// ─── Client Detail Sheet ───────────────────────────────────────
+function ClientDetailSheet({ client, open, onClose, isConnected, onVerifyItem, verifyingItem, onVerifyClient, verifyingClient }) {
+  if (!client) return null;
+  const st = STATUS_BADGE[client.status] || { label: 'Unknown', cls: 'bg-gray-100 text-gray-600' };
+
+  return (
+    <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <SheetContent className="sm:max-w-lg overflow-y-auto" data-testid="client-detail-sheet">
+        <SheetHeader className="pb-4">
+          <SheetTitle className="flex items-center gap-2">
+            <i className="fas fa-building text-primary" aria-hidden="true" />
+            {client.name}
+          </SheetTitle>
+          <SheetDescription>{client.email || 'No email'}</SheetDescription>
+        </SheetHeader>
+
+        {/* Client-level summary */}
+        <div className="flex items-center gap-3 mb-4 p-3 bg-muted/30 rounded-lg">
+          <Badge variant="outline" className={`text-xs ${st.cls}`}>{st.label}</Badge>
+          <span className="text-xs text-muted-foreground">{client.items.length} access item{client.items.length !== 1 ? 's' : ''}</span>
+          {client.lastVerified && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              Last verified {client.lastVerified.toLocaleDateString()}
+            </span>
+          )}
+        </div>
+
+        {isConnected && (
+          <div className="flex justify-end mb-3">
+            <Button variant="outline" size="sm" onClick={() => onVerifyClient(client)} disabled={verifyingClient} data-testid="verify-client-btn" className="h-7 text-xs">
+              {verifyingClient
+                ? <><i className="fas fa-spinner fa-spin mr-1" aria-hidden="true" />Verifying...</>
+                : <><i className="fas fa-check-double mr-1" aria-hidden="true" />Re-verify All Items</>}
+            </Button>
+          </div>
+        )}
+
+        {/* Item-level table */}
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40">
+                <TableHead className="text-xs font-semibold">Target</TableHead>
+                <TableHead className="text-xs font-semibold">Type</TableHead>
+                <TableHead className="text-xs font-semibold">Role</TableHead>
+                <TableHead className="text-xs font-semibold">Status</TableHead>
+                <TableHead className="text-xs font-semibold">Verified</TableHead>
+                {isConnected && <TableHead className="text-xs font-semibold w-[72px]">Action</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {client.items.map(item => {
+                const tgt = parseTarget(item.clientProvidedTarget);
+                const itemSt = STATUS_BADGE[item.status] || { label: item.status || 'Unknown', cls: 'bg-gray-100 text-gray-600' };
+                return (
+                  <TableRow key={item.id} data-testid={`detail-item-${item.id}`}>
+                    <TableCell className="py-2">
+                      <span className="text-sm font-medium block truncate max-w-[160px]">{tgt.name}</span>
+                      <span className="text-[10px] text-muted-foreground block truncate max-w-[160px]">{tgt.id}</span>
+                    </TableCell>
+                    <TableCell className="py-2 text-xs text-muted-foreground">{ITEM_TYPE_LABELS[item.itemType] || item.itemType}</TableCell>
+                    <TableCell className="py-2"><Badge variant="outline" className="text-[10px] font-normal">{item.role}</Badge></TableCell>
+                    <TableCell className="py-2"><Badge variant="outline" className={`text-[10px] ${itemSt.cls}`}>{itemSt.label}</Badge></TableCell>
+                    <TableCell className="py-2 text-xs text-muted-foreground">{item.validatedAt ? new Date(item.validatedAt).toLocaleDateString() : '—'}</TableCell>
+                    {isConnected && (
+                      <TableCell className="py-2">
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2"
+                          disabled={verifyingItem === item.id || verifyingClient}
+                          onClick={() => onVerifyItem(item)}
+                          data-testid={`verify-item-btn-${item.id}`}>
+                          {verifyingItem === item.id
+                            ? <i className="fas fa-spinner fa-spin" aria-hidden="true" />
+                            : <><i className="fas fa-redo mr-1" aria-hidden="true" />Verify</>}
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────
 export default function PlatformIntegrationCard({ platformKey, manifest }) {
   const { toast } = useToast();
@@ -95,14 +183,16 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
   const [onboardedAccounts, setOnboardedAccounts] = useState([]);
   const [loadingOnboarded, setLoadingOnboarded] = useState(true);
   const [verifyingItem, setVerifyingItem] = useState(null);
+  const [verifyingClient, setVerifyingClient] = useState(false);
   const [verifyingAll, setVerifyingAll] = useState(false);
-  const [clientFilter, setClientFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedClient, setSelectedClient] = useState(null);
 
   const oauthSupported = manifest?.automationCapabilities?.oauthSupported === true;
   const discoverTargetsSupported = manifest?.automationCapabilities?.discoverTargetsSupported === true;
 
-  // ─── Data fetching (unchanged) ─────────────────────────────
+  // ─── Data fetching ─────────────────────────────────────────
   const fetchOAuthData = useCallback(async () => {
     if (!platformKey || !oauthSupported) { setLoading(false); return; }
     try {
@@ -138,85 +228,41 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
   useEffect(() => { fetchOAuthData(); }, [fetchOAuthData]);
   useEffect(() => { fetchOnboardedAccounts(); }, [fetchOnboardedAccounts]);
 
-  // ─── Derived: client map + filtered items ──────────────────
-  const clientMap = useMemo(() => {
+  // ─── Derived: group by client ──────────────────────────────
+  const clientList = useMemo(() => {
     const map = {};
     for (const item of onboardedAccounts) {
       const key = item.clientEmail || item.clientName || 'unknown';
-      if (!map[key]) map[key] = { name: item.clientName || '—', email: item.clientEmail || '', items: [] };
+      if (!map[key]) map[key] = { key, name: item.clientName || '—', email: item.clientEmail || '', items: [] };
       map[key].items.push(item);
     }
-    for (const c of Object.values(map)) c.status = deriveClientStatus(c.items);
-    return map;
+    return Object.values(map).map(c => ({
+      ...c,
+      status: deriveClientStatus(c.items),
+      lastVerified: maxDate(c.items, 'validatedAt'),
+    })).sort((a, b) => a.name.localeCompare(b.name));
   }, [onboardedAccounts]);
 
-  const clientOptions = useMemo(() =>
-    Object.entries(clientMap).map(([key, c]) => ({ key, name: c.name, email: c.email, status: c.status }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  [clientMap]);
-
-  const filteredItems = useMemo(() => {
+  const filteredClients = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return onboardedAccounts.filter(item => {
-      if (clientFilter !== 'all') {
-        const ck = item.clientEmail || item.clientName || 'unknown';
-        if (ck !== clientFilter) return false;
-      }
+    return clientList.filter(c => {
+      if (statusFilter !== 'all' && c.status !== statusFilter) return false;
       if (q) {
-        const tgt = parseTarget(item.clientProvidedTarget);
-        const haystack = `${item.clientName || ''} ${item.clientEmail || ''} ${tgt.name} ${tgt.id}`.toLowerCase();
+        const haystack = `${c.name} ${c.email} ${c.items.map(i => { const t = parseTarget(i.clientProvidedTarget); return `${t.name} ${t.id}`; }).join(' ')}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [onboardedAccounts, clientFilter, searchQuery]);
+  }, [clientList, statusFilter, searchQuery]);
 
-  // ─── Actions ───────────────────────────────────────────────
-  const handleConnect = async () => {
-    setConnecting(true);
-    try {
-      const res = await fetch(`/api/oauth/${platformKey}/start`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ redirectUri: `${window.location.origin}/api/oauth/callback`, scope: 'AGENCY' })
-      });
-      const data = await res.json();
-      if (data.success && data.data?.authUrl) {
-        sessionStorage.setItem('oauth_state', data.data.state);
-        sessionStorage.setItem('oauth_platform', platformKey);
-        sessionStorage.setItem('oauth_scope', 'AGENCY');
-        sessionStorage.setItem('oauth_return_url', window.location.href);
-        window.location.href = data.data.authUrl;
-      } else toast({ title: 'OAuth Error', description: data.error || 'Failed to start', variant: 'destructive' });
-    } catch (e) { toast({ title: 'Connection Error', description: e.message, variant: 'destructive' }); }
-    finally { setConnecting(false); }
-  };
+  // Keep selected client in sync after refetch
+  const activeClient = useMemo(() => {
+    if (!selectedClient) return null;
+    return clientList.find(c => c.key === selectedClient.key) || null;
+  }, [clientList, selectedClient]);
 
-  const handleDisconnect = async () => {
-    if (!agencyToken) return;
-    try {
-      const res = await fetch(`/api/oauth/tokens/${agencyToken.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: false })
-      });
-      if ((await res.json()).success) {
-        toast({ title: 'Disconnected', description: `${manifest?.displayName || platformKey} disconnected.` });
-        setAgencyToken(null); setTargets([]);
-      }
-    } catch { toast({ title: 'Error', description: 'Failed to disconnect', variant: 'destructive' }); }
-  };
-
-  const handleRefreshTargets = async () => {
-    if (!agencyToken) return;
-    setRefreshingTargets(true);
-    try {
-      const data = await (await fetch(`/api/oauth/tokens/${agencyToken.id}/refresh-targets`, { method: 'POST' })).json();
-      if (data.success) { setTargets(data.data?.targets || []); toast({ title: 'Refreshed', description: `${data.data?.targets?.length || 0} targets found.` }); }
-      else toast({ title: 'Refresh Failed', description: data.error, variant: 'destructive' });
-    } catch (e) { toast({ title: 'Error', description: e.message, variant: 'destructive' }); }
-    finally { setRefreshingTargets(false); }
-  };
-
-  const verifyOneItem = async (item) => {
+  // ─── Verify helpers ────────────────────────────────────────
+  const callVerify = async (item) => {
     const target = item.clientProvidedTarget;
     const targetId = typeof target === 'string' ? JSON.parse(target) : target;
     const externalId = targetId?.id || targetId?.externalId || '';
@@ -232,12 +278,12 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
     return res.json();
   };
 
-  const handleReVerify = async (item) => {
-    if (!agencyToken?.accessToken) { toast({ title: 'Not Connected', description: 'Connect to enable verification.', variant: 'destructive' }); return; }
+  const handleVerifyItem = async (item) => {
+    if (!agencyToken?.accessToken) { toast({ title: 'Not Connected', variant: 'destructive' }); return; }
     setVerifyingItem(item.id);
     try {
-      const data = await verifyOneItem(item);
-      if (data.success && data.data?.verified) toast({ title: 'Verified', description: `Access confirmed for ${item.resolvedIdentity || item.agencyGroupEmail || 'identity'}.` });
+      const data = await callVerify(item);
+      if (data.success && data.data?.verified) toast({ title: 'Verified', description: `Access confirmed.` });
       else if (data.success) toast({ title: 'Not Verified', description: 'Expected access not found.', variant: 'destructive' });
       else toast({ title: 'Failed', description: data.error || 'Could not verify', variant: 'destructive' });
       await fetchOnboardedAccounts();
@@ -245,24 +291,75 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
     finally { setVerifyingItem(null); }
   };
 
-  const handleReVerifyAll = async () => {
-    if (!agencyToken?.accessToken) { toast({ title: 'Not Connected', description: 'Connect to enable verification.', variant: 'destructive' }); return; }
-    setVerifyingAll(true);
-    const itemsToVerify = filteredItems.length > 0 ? filteredItems : onboardedAccounts;
+  const handleVerifyClient = async (client) => {
+    if (!agencyToken?.accessToken) { toast({ title: 'Not Connected', variant: 'destructive' }); return; }
+    setVerifyingClient(true);
     let ok = 0, fail = 0;
-    for (const item of itemsToVerify) {
-      try {
-        const data = await verifyOneItem(item);
-        if (data.success && data.data?.verified) ok++; else fail++;
-      } catch { fail++; }
+    for (const item of client.items) {
+      try { const d = await callVerify(item); if (d.success && d.data?.verified) ok++; else fail++; } catch { fail++; }
+    }
+    await fetchOnboardedAccounts();
+    toast({ title: 'Client Verification Done', description: `${ok} verified, ${fail} failed/skipped.` });
+    setVerifyingClient(false);
+  };
+
+  const handleReVerifyAll = async () => {
+    if (!agencyToken?.accessToken) { toast({ title: 'Not Connected', variant: 'destructive' }); return; }
+    setVerifyingAll(true);
+    let ok = 0, fail = 0;
+    for (const item of onboardedAccounts) {
+      try { const d = await callVerify(item); if (d.success && d.data?.verified) ok++; else fail++; } catch { fail++; }
     }
     await fetchOnboardedAccounts();
     toast({ title: 'Re-verify Complete', description: `${ok} verified, ${fail} failed/skipped.` });
     setVerifyingAll(false);
   };
 
-  if (!oauthSupported) return null;
+  // ─── OAuth actions ─────────────────────────────────────────
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await fetch(`/api/oauth/${platformKey}/start`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirectUri: `${window.location.origin}/api/oauth/callback`, scope: 'AGENCY' })
+      });
+      const data = await res.json();
+      if (data.success && data.data?.authUrl) {
+        sessionStorage.setItem('oauth_state', data.data.state);
+        sessionStorage.setItem('oauth_platform', platformKey);
+        sessionStorage.setItem('oauth_scope', 'AGENCY');
+        sessionStorage.setItem('oauth_return_url', window.location.href);
+        window.location.href = data.data.authUrl;
+      } else toast({ title: 'OAuth Error', description: data.error || 'Failed', variant: 'destructive' });
+    } catch (e) { toast({ title: 'Error', description: e.message, variant: 'destructive' }); }
+    finally { setConnecting(false); }
+  };
 
+  const handleDisconnect = async () => {
+    if (!agencyToken) return;
+    try {
+      const res = await fetch(`/api/oauth/tokens/${agencyToken.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: false })
+      });
+      if ((await res.json()).success) {
+        toast({ title: 'Disconnected' }); setAgencyToken(null); setTargets([]);
+      }
+    } catch { toast({ title: 'Error', description: 'Failed to disconnect', variant: 'destructive' }); }
+  };
+
+  const handleRefreshTargets = async () => {
+    if (!agencyToken) return;
+    setRefreshingTargets(true);
+    try {
+      const data = await (await fetch(`/api/oauth/tokens/${agencyToken.id}/refresh-targets`, { method: 'POST' })).json();
+      if (data.success) { setTargets(data.data?.targets || []); toast({ title: 'Refreshed', description: `${data.data?.targets?.length || 0} targets.` }); }
+      else toast({ title: 'Failed', description: data.error, variant: 'destructive' });
+    } catch (e) { toast({ title: 'Error', description: e.message, variant: 'destructive' }); }
+    finally { setRefreshingTargets(false); }
+  };
+
+  if (!oauthSupported) return null;
   const isConnected = agencyToken?.isActive;
   const isConfigured = oauthStatus?.configured === true;
 
@@ -291,20 +388,19 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
           <div className="animate-pulse space-y-2"><div className="h-4 bg-gray-200 rounded w-1/3" /><div className="h-8 bg-gray-200 rounded w-1/4" /></div>
         ) : (
           <>
-            {/* OAuth not configured */}
+            {/* OAuth status banners */}
             {!isConfigured && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
                 <i className="fas fa-exclamation-triangle text-amber-600 mt-0.5" aria-hidden="true" />
                 <div className="text-sm">
                   <p className="font-medium text-amber-800">OAuth Not Configured</p>
-                  <p className="text-amber-700 text-xs mt-1">{manifest?.displayName || platformKey} OAuth credentials are not set.
+                  <p className="text-amber-700 text-xs mt-1">{manifest?.displayName || platformKey} credentials not set.
                     {oauthStatus?.developerPortalUrl && <> Get them from <a href={oauthStatus.developerPortalUrl} target="_blank" rel="noopener noreferrer" className="underline">{oauthStatus.provider} Portal</a>.</>}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Connected info + disconnect */}
             {isConnected && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -337,7 +433,6 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
               </div>
             )}
 
-            {/* Not connected CTA */}
             {!isConnected && isConfigured && (
               <Button data-testid="connect-platform-btn" onClick={handleConnect} disabled={connecting}>
                 {connecting ? <><i className="fas fa-spinner fa-spin mr-2" aria-hidden="true" />Connecting...</> : <><i className="fas fa-plug mr-2" aria-hidden="true" />Connect {manifest?.displayName || platformKey}</>}
@@ -352,14 +447,14 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
               <TabsList className="w-full grid grid-cols-2">
                 <TabsTrigger value="onboarded" data-testid="tab-onboarded-accounts">
                   Onboarded Accounts
-                  {onboardedAccounts.length > 0 && <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">{onboardedAccounts.length}</Badge>}
+                  {clientList.length > 0 && <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">{clientList.length}</Badge>}
                 </TabsTrigger>
                 <TabsTrigger value="scope" data-testid="tab-integration-scope">Integration Scope</TabsTrigger>
               </TabsList>
 
-              {/* ──── Tab 1: Onboarded Accounts ──── */}
+              {/* ──── Tab 1: Onboarded Accounts (client rows) ──── */}
               <TabsContent value="onboarded" data-testid="onboarded-accounts-panel" className="space-y-3 mt-3">
-                {!isConnected && onboardedAccounts.length > 0 && (
+                {!isConnected && clientList.length > 0 && (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-xs text-amber-800 flex items-center gap-1.5">
                       <i className="fas fa-info-circle" aria-hidden="true" />Connect to enable validation. Status stays unknown until connected.
@@ -369,44 +464,33 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
 
                 {loadingOnboarded ? (
                   <div className="animate-pulse space-y-2 py-4"><div className="h-4 bg-gray-200 rounded w-2/3" /><div className="h-4 bg-gray-200 rounded w-1/2" /></div>
-                ) : onboardedAccounts.length === 0 ? (
+                ) : clientList.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-sm" data-testid="no-onboarded-accounts">
                     <i className="fas fa-inbox text-2xl mb-2 block opacity-40" aria-hidden="true" />No onboarded accounts yet.
                   </div>
                 ) : (
                   <>
-                    {/* Client Summary Bar */}
-                    <ClientSummaryBar clientMap={clientMap} />
+                    <ClientSummaryBar clients={clientList} />
 
-                    {/* Filters row */}
+                    {/* Filters */}
                     <div className="flex items-center gap-2" data-testid="onboarded-filters">
-                      <Select value={clientFilter} onValueChange={setClientFilter}>
-                        <SelectTrigger className="w-[220px] h-8 text-xs" data-testid="client-filter-select">
-                          <SelectValue placeholder="All Clients" />
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[160px] h-8 text-xs" data-testid="status-filter-select">
+                          <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Clients</SelectItem>
-                          {clientOptions.map(c => (
-                            <SelectItem key={c.key} value={c.key}>
-                              <span className="flex items-center gap-1.5">
-                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${c.status === 'validated' ? 'bg-emerald-500' : c.status === 'failed' ? 'bg-red-500' : 'bg-amber-500'}`} />
-                                {c.name}
-                              </span>
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="validated"><span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />Verified</span></SelectItem>
+                          <SelectItem value="pending"><span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Pending</span></SelectItem>
+                          <SelectItem value="failed"><span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />Failed</span></SelectItem>
                         </SelectContent>
                       </Select>
 
-                      <Input
-                        placeholder="Search client or target..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="h-8 text-xs flex-1 max-w-[260px]"
-                        data-testid="onboarded-search-input"
-                      />
+                      <Input placeholder="Search client or target..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                        className="h-8 text-xs flex-1 max-w-[260px]" data-testid="onboarded-search-input" />
 
                       <div className="ml-auto flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''}</span>
+                        <span className="text-xs text-muted-foreground">{filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''}</span>
                         {isConnected && (
                           <Button variant="outline" size="sm" onClick={handleReVerifyAll} disabled={verifyingAll} data-testid="re-verify-all-btn" className="h-7 text-xs">
                             {verifyingAll ? <><i className="fas fa-spinner fa-spin mr-1" aria-hidden="true" />Verifying...</> : <><i className="fas fa-check-double mr-1" aria-hidden="true" />Re-verify All</>}
@@ -415,61 +499,54 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
                       </div>
                     </div>
 
-                    {/* Table */}
+                    {/* Client rows table */}
                     <div className="border rounded-lg overflow-hidden">
                       <div className="max-h-[420px] overflow-y-auto">
                         <Table>
                           <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow className="bg-muted/40">
                               <TableHead className="text-xs font-semibold">Client</TableHead>
-                              <TableHead className="text-xs font-semibold">Target</TableHead>
-                              <TableHead className="text-xs font-semibold">Type</TableHead>
-                              <TableHead className="text-xs font-semibold">Role</TableHead>
-                              <TableHead className="text-xs font-semibold">Status</TableHead>
-                              <TableHead className="text-xs font-semibold">Verified</TableHead>
-                              {isConnected && <TableHead className="text-xs font-semibold w-[80px]">Action</TableHead>}
+                              <TableHead className="text-xs font-semibold text-center w-[70px]">Items</TableHead>
+                              <TableHead className="text-xs font-semibold w-[90px]">Status</TableHead>
+                              <TableHead className="text-xs font-semibold w-[100px]">Last Verified</TableHead>
+                              <TableHead className="text-xs font-semibold text-right w-[170px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredItems.length === 0 ? (
-                              <TableRow><TableCell colSpan={isConnected ? 7 : 6} className="text-center text-muted-foreground text-sm py-6">No items match the current filter.</TableCell></TableRow>
-                            ) : filteredItems.map(item => {
-                              const tgt = parseTarget(item.clientProvidedTarget);
-                              const st = STATUS_BADGE[item.status] || { label: item.status || 'Unknown', cls: 'bg-gray-100 text-gray-600' };
+                            {filteredClients.length === 0 ? (
+                              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">No clients match the current filter.</TableCell></TableRow>
+                            ) : filteredClients.map(client => {
+                              const st = STATUS_BADGE[client.status] || { label: 'Unknown', cls: 'bg-gray-100 text-gray-600' };
                               return (
-                                <TableRow key={item.id} data-testid={`onboarded-row-${item.id}`}>
-                                  <TableCell className="py-2">
-                                    <span className="text-sm font-medium block truncate max-w-[140px]">{item.clientName || '—'}</span>
-                                    {item.clientEmail && <span className="text-[10px] text-muted-foreground block truncate max-w-[140px]">{item.clientEmail}</span>}
+                                <TableRow key={client.key} data-testid={`client-row-${client.key}`} className="group">
+                                  <TableCell className="py-2.5">
+                                    <span className="text-sm font-medium block truncate max-w-[200px]">{client.name}</span>
+                                    {client.email && <span className="text-[10px] text-muted-foreground block truncate max-w-[200px]">{client.email}</span>}
                                   </TableCell>
-                                  <TableCell className="py-2">
-                                    <span className="text-sm font-medium block truncate max-w-[180px]">{tgt.name}</span>
-                                    <span className="text-[10px] text-muted-foreground block truncate max-w-[180px]">{tgt.id}</span>
+                                  <TableCell className="py-2.5 text-center">
+                                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{client.items.length}</Badge>
                                   </TableCell>
-                                  <TableCell className="py-2">
-                                    <span className="text-xs text-muted-foreground">{ITEM_TYPE_LABELS[item.itemType] || item.itemType}</span>
-                                  </TableCell>
-                                  <TableCell className="py-2">
-                                    <Badge variant="outline" className="text-[10px] font-normal">{item.role}</Badge>
-                                  </TableCell>
-                                  <TableCell className="py-2">
+                                  <TableCell className="py-2.5">
                                     <Badge variant="outline" className={`text-[10px] ${st.cls}`}>{st.label}</Badge>
                                   </TableCell>
-                                  <TableCell className="py-2 text-xs text-muted-foreground">
-                                    {item.validatedAt ? new Date(item.validatedAt).toLocaleDateString() : '—'}
+                                  <TableCell className="py-2.5 text-xs text-muted-foreground">
+                                    {client.lastVerified ? client.lastVerified.toLocaleDateString() : '—'}
                                   </TableCell>
-                                  {isConnected && (
-                                    <TableCell className="py-2">
-                                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2"
-                                        disabled={verifyingItem === item.id || verifyingAll}
-                                        onClick={() => handleReVerify(item)}
-                                        data-testid={`re-verify-btn-${item.id}`}>
-                                        {verifyingItem === item.id
-                                          ? <i className="fas fa-spinner fa-spin" aria-hidden="true" />
-                                          : <><i className="fas fa-redo mr-1" aria-hidden="true" />Verify</>}
+                                  <TableCell className="py-2.5 text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Button variant="outline" size="sm" className="h-6 text-[10px] px-2"
+                                        onClick={() => setSelectedClient(client)} data-testid={`view-details-btn-${client.key}`}>
+                                        <i className="fas fa-list-ul mr-1" aria-hidden="true" />View Details
                                       </Button>
-                                    </TableCell>
-                                  )}
+                                      {isConnected && (
+                                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2"
+                                          onClick={() => handleVerifyClient(client)} disabled={verifyingAll}
+                                          data-testid={`reverify-client-btn-${client.key}`}>
+                                          <i className="fas fa-redo mr-1" aria-hidden="true" />Re-verify
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </TableCell>
                                 </TableRow>
                               );
                             })}
@@ -510,7 +587,7 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">No targets discovered. Click Refresh to discover.</p>
+                      <p className="text-sm text-muted-foreground text-center py-4">No targets discovered. Click Refresh.</p>
                     )}
                   </>
                 )}
@@ -519,6 +596,18 @@ export default function PlatformIntegrationCard({ platformKey, manifest }) {
           </>
         )}
       </CardContent>
+
+      {/* Client Detail Sheet */}
+      <ClientDetailSheet
+        client={activeClient}
+        open={!!activeClient}
+        onClose={() => setSelectedClient(null)}
+        isConnected={isConnected}
+        onVerifyItem={handleVerifyItem}
+        verifyingItem={verifyingItem}
+        onVerifyClient={handleVerifyClient}
+        verifyingClient={verifyingClient}
+      />
     </Card>
   );
 }
