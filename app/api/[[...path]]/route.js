@@ -1096,10 +1096,8 @@ export async function POST(request, { params }) {
       // Check supportedItemTypes from plugin or platform
       if (platformKey && PluginRegistry.has(platformKey)) {
         const supportedTypes = PluginRegistry.getSupportedAccessItemTypes(platformKey);
-        // Map legacy types to plugin types for checking
-        const checkType = itemType === 'GROUP_ACCESS' ? 'GROUP_SERVICE' : 
-                         itemType === 'SHARED_ACCOUNT_PAM' ? 'PAM_SHARED_ACCOUNT' : itemType;
-        if (supportedTypes.length > 0 && !supportedTypes.includes(checkType)) {
+        // Plugin types use the canonical type names directly (GROUP_ACCESS, SHARED_ACCOUNT, etc.)
+        if (supportedTypes.length > 0 && !supportedTypes.includes(itemType)) {
           return NextResponse.json({
             success: false,
             error: `Item type "${itemType}" is not supported by ${platform.name}. Supported types: ${supportedTypes.join(', ')}`
