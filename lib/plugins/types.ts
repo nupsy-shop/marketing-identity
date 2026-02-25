@@ -269,6 +269,20 @@ export interface PluginManifest {
    * If not specified for an access type, defaults to manual flow with evidence upload.
    */
   accessTypeCapabilities?: AccessTypeCapabilities;
+
+  // ─── Allowed Configuration Models ─────────────────────────────────────────
+  
+  /** Which PAM ownership models are valid for SHARED_ACCOUNT on this platform */
+  allowedOwnershipModels: PamOwnership[];
+
+  /** Which identity strategies (human + PAM) this platform supports */
+  allowedIdentityStrategies: (HumanIdentityStrategy | PamIdentityStrategy)[];
+
+  /** Which access item types this platform supports (enum array, mirrors supportedAccessItemTypes) */
+  allowedAccessTypes: AccessItemType[];
+
+  /** Which verification modes are available for this platform */
+  verificationModes: VerificationMode[];
   
   pluginVersion: string;
 }
