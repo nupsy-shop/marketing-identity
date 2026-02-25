@@ -2075,6 +2075,31 @@ export async function POST(request, { params }) {
           }, { status: 400 });
         }
 
+        // Update the access request item status to "validated" after successful grant
+        if (accessRequestItemId) {
+          try {
+            await db.updateAccessRequestItem(accessRequestItemId, {
+              status: 'validated',
+              validatedAt: new Date().toISOString(),
+              validationMode: 'AUTO_GRANT',
+              validationResult: {
+                method: 'programmatic_grant',
+                platformKey,
+                target,
+                role,
+                identity,
+                grantedAt: new Date().toISOString(),
+                details: result.details || result.data
+              },
+              ...(clientProvidedTarget ? { clientProvidedTarget: JSON.stringify(clientProvidedTarget) } : {})
+            });
+            console.log(`[grant-access] Updated item ${accessRequestItemId} status to validated`);
+          } catch (updateError) {
+            console.error(`[grant-access] Failed to update item status: ${updateError.message}`);
+            // Don't fail the grant response — access was still granted successfully
+          }
+        }
+
         return NextResponse.json({ 
           success: true, 
           data: {
