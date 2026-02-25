@@ -349,7 +349,7 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
    * GA4 role hierarchy: viewer < analyst < editor < admin
    */
   private hasRoleOrHigher(userRoles: string[], expectedRole: string): boolean {
-    const roleHierarchy: GA4Role[] = ['roles/viewer', 'roles/analyst', 'roles/editor', 'roles/admin'];
+    const roleHierarchy: GA4Role[] = ['predefinedRoles/viewer', 'predefinedRoles/analyst', 'predefinedRoles/editor', 'predefinedRoles/admin'];
     
     const expectedIndex = roleHierarchy.indexOf(expectedRole as GA4Role);
     if (expectedIndex === -1) {
