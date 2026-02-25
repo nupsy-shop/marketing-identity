@@ -727,16 +727,32 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
           </div>
         )}
         
-        {/* Client Target Schema Form (from plugin) */}
+        {/* Client Target Schema Form (from plugin) - shown as fallback when:
+            - OAuth not available (manual flow), OR
+            - OAuth available but no target discovered/selected yet (as manual fallback)
+            When a target has been selected via OAuth, hide manual fields since discovery replaces them */}
         {item.clientTargetSchema && Object.keys(item.clientTargetSchema).length > 0 && (
-          <SchemaForm
-            schema={item.clientTargetSchema}
-            value={clientTarget}
-            onChange={setClientTarget}
-            title="Your Account Information"
-            description="Please provide your account details so we can verify access"
-            errors={errors}
-          />
+          (!canUseOAuth || !selectedTarget) ? (
+            <SchemaForm
+              schema={item.clientTargetSchema}
+              value={clientTarget}
+              onChange={setClientTarget}
+              title="Your Account Information"
+              description={canUseOAuth 
+                ? "Or manually enter your account details below" 
+                : "Please provide your account details so we can verify access"}
+              errors={errors}
+            />
+          ) : selectedTarget ? (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200" data-testid="selected-target-summary">
+              <p className="text-sm font-medium text-green-800 mb-1">
+                <i className="fas fa-check-circle mr-1"></i>Target Selected via Discovery
+              </p>
+              <p className="text-xs text-green-700">
+                <strong>{selectedTarget.displayName}</strong> ({selectedTarget.externalId})
+              </p>
+            </div>
+          ) : null
         )}
         
         {/* Client-Owned PAM: Credential submission */}
