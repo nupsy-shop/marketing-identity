@@ -12,16 +12,11 @@ Build a plugin-based Marketing Identity Platform that manages agency-client acce
 ## What's Been Implemented
 
 ### Feb 25, 2026 — Session 3 (Current)
-1. **GA4 Access Binding API Fix (v1alpha)**: All access binding operations (list, create, delete) now use `v1alpha` API instead of `v1beta`, which didn't support access bindings at all
-2. **GA4 Role Format Fix**: Changed role format from `roles/editor` to `predefinedRoles/editor` (correct GA4 Admin API v1alpha format)
-3. **Grant/Verify Status Update**: After successful grant-access or verify-access, the backend now updates the AccessRequestItem status to "validated" with `validationMode: AUTO_GRANT/AUTO_VERIFY` and stores `clientProvidedTarget`
-4. **Platform Integration Card Redesign**: Replaced "Accessible Targets" with a tabbed interface:
-   - **Onboarded Accounts** (default): Table of access request items with Target, Type, Role, Status, Verified date, and Re-verify action
-   - **Integration Scope**: OAuth-discovered targets (read-only, with "Detected via OAuth; not governed by PAM" banner)
-   - Added Re-verify (per-row) and Re-verify All functionality
-5. **New API Endpoint**: `GET /api/admin/platforms/:platformKey/onboarded-accounts` - Returns access request items for a platform
-6. **New DB Function**: `getOnboardedAccountsByPlatformSlug()` - Queries onboarded accounts with client info
-7. **Improved Error Diagnostics**: GA4 grant/verify error messages now include Google API response body details
+1. **GA4 Access Binding API Fix (v1alpha)**: All access binding operations now use `v1alpha` API instead of `v1beta`
+2. **GA4 Role Format Fix**: Changed from `roles/editor` to `predefinedRoles/editor` (correct GA4 format)
+3. **Grant/Verify Status Update**: Backend updates AccessRequestItem status to "validated" after successful grant/verify
+4. **Platform Integration Card Redesign**: Replaced "Accessible Targets" with tabbed interface (Onboarded Accounts + Integration Scope)
+5. **Client-Centric Governance**: Added Client column (first), Client Summary Bar (Total/Verified/Pending/Failed), client filter dropdown, search input, scrollable table for 100+ clients, client status derived from items
 
 ### Feb 25, 2026 — Session 2
 1. **Environment Reset**: Cleaned all transactional tables
