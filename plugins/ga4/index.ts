@@ -34,7 +34,7 @@ import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportRe
 // Import modular components
 import { GA4_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { authorize, refreshToken, isGA4OAuthConfigured, getOAuthConfig, GA4OAuthNotConfiguredError } from './auth';
-import { getAllAccountsAndProperties, checkUserAccess, listAllAccountSummaries, listAccessBindings, createAccessBinding } from './api/management';
+import { getAllAccountsAndProperties, checkUserAccess, listAllAccountSummaries, listAccessBindings, createAccessBinding, listAccountAccessBindings, createAccountAccessBinding } from './api/management';
 import { runReport } from './api/reporting';
 import { mapGA4Accounts, mapGA4Properties } from './mappers/account.mapper';
 import { mapGA4Report } from './mappers/report.mapper';
