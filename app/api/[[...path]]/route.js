@@ -2122,7 +2122,7 @@ export async function POST(request, { params }) {
     // POST /api/oauth/:platformKey/verify-access - Verify access has been granted
     if (path.match(/^oauth\/[^/]+\/verify-access$/)) {
       const platformKey = path.split('/')[1];
-      const { accessToken, tokenType, target, role, identity, accessItemType, pamOwnership, identityPurpose, identityStrategy } = body || {};
+      const { accessToken, tokenType, target, role, identity, accessItemType, pamOwnership, identityPurpose, identityStrategy, accessRequestItemId, accessRequestId, clientProvidedTarget } = body || {};
       
       if (!accessToken || !target || !role || !identity || !accessItemType) {
         return NextResponse.json({ 
