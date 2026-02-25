@@ -233,6 +233,15 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
       // Normalize property ID (GA4 API expects just the numeric ID)
       const propertyId = target.replace(/^properties\//, '');
       
+      // Reject account-level targets — verify must target a specific property
+      if (propertyId.startsWith('accounts/') || propertyId.startsWith('accounts%2F')) {
+        return {
+          success: false,
+          error: `"${target}" is an account, not a property. Please select a specific GA4 property to verify access.`,
+          details: { found: false }
+        };
+      }
+      
       console.log(`[GA4Plugin] Verifying access for ${identity} on property ${propertyId} with role ${role}`);
 
       // List all access bindings on the property
