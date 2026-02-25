@@ -143,7 +143,7 @@ export async function listAccessBindings(
   auth: AuthResult,
   propertyId: string
 ): Promise<GA4AccessBinding[]> {
-  const client = createClient(auth);
+  const client = createAlphaClient(auth);
   const bindings: GA4AccessBinding[] = [];
   let pageToken: string | undefined;
 
@@ -169,7 +169,7 @@ export async function listAccountAccessBindings(
   auth: AuthResult,
   accountId: string
 ): Promise<GA4AccessBinding[]> {
-  const client = createClient(auth);
+  const client = createAlphaClient(auth);
   const bindings: GA4AccessBinding[] = [];
   let pageToken: string | undefined;
 
@@ -197,7 +197,7 @@ export async function createAccessBinding(
   userEmail: string,
   roles: GA4Role[]
 ): Promise<GA4AccessBinding> {
-  const client = createClient(auth);
+  const client = createAlphaClient(auth);
   return client.post<GA4AccessBinding>(
     `/properties/${propertyId}/accessBindings`,
     {
@@ -216,7 +216,7 @@ export async function createAccountAccessBinding(
   userEmail: string,
   roles: GA4Role[]
 ): Promise<GA4AccessBinding> {
-  const client = createClient(auth);
+  const client = createAlphaClient(auth);
   return client.post<GA4AccessBinding>(
     `/accounts/${accountId}/accessBindings`,
     {
@@ -233,7 +233,7 @@ export async function deleteAccessBinding(
   auth: AuthResult,
   bindingName: string
 ): Promise<void> {
-  const client = createClient(auth);
+  const client = createAlphaClient(auth);
   await client.delete<void>(`/${bindingName}`);
 }
 
@@ -245,7 +245,7 @@ export async function checkUserAccess(
   propertyId: string,
   userEmail: string
 ): Promise<GA4AccessBinding | null> {
-  const bindings = await listAccessBindings(auth, propertyId);
+  const bindings = await listAccessBindings(auth, propertyId);  // uses v1alpha
   return bindings.find(b => b.user?.toLowerCase() === userEmail.toLowerCase()) || null;
 }
 
