@@ -303,29 +303,42 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
     } catch (error) {
       console.error('[GA4Plugin] verifyAccess error:', error);
       
-      // Handle specific API errors
+      // Extract full error details including Google API response body
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorBody = (error as any)?.body || '';
+      let googleErrorDetail = '';
+      try {
+        if (errorBody) {
+          const parsed = JSON.parse(errorBody);
+          googleErrorDetail = parsed?.error?.message || parsed?.message || '';
+        }
+      } catch { /* not JSON */ }
+      const fullError = googleErrorDetail || errorMessage;
       
-      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
+      console.error(`[GA4Plugin] verifyAccess full error: message=${errorMessage}, body=${errorBody}`);
+      
+      const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      const resourceLabel = isAcct ? 'account' : 'property';
+      
+      if (errorMessage.includes('403') || fullError.toLowerCase().includes('permission denied')) {
         return {
           success: false,
-          error: 'The OAuth token does not have permission to view access bindings on this property. The client may need to grant Admin access.',
+          error: `Permission denied on ${resourceLabel} ${target}. The connected Google account needs Administrator role. Detail: ${fullError}`,
           details: { found: false }
         };
       }
       
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      if (errorMessage.includes('404') || fullError.toLowerCase().includes('not found')) {
         return {
           success: false,
-          error: `${isAcct ? 'Account' : 'Property'} ${target} was not found or is not accessible with this token.`,
+          error: `${isAcct ? 'Account' : 'Property'} ${target} was not found or is not accessible. Detail: ${fullError}`,
           details: { found: false }
         };
       }
       
       return {
         success: false,
-        error: `Failed to verify access: ${errorMessage}`,
+        error: `Failed to verify access: ${fullError}`,
         details: { found: false }
       };
     }
