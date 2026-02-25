@@ -2181,6 +2181,30 @@ export async function POST(request, { params }) {
           }, { status: 400 });
         }
 
+        // If verification succeeded and we have an item ID, update the status
+        if (result.data === true && accessRequestItemId) {
+          try {
+            await db.updateAccessRequestItem(accessRequestItemId, {
+              status: 'validated',
+              validatedAt: new Date().toISOString(),
+              validationMode: 'AUTO_VERIFY',
+              validationResult: {
+                method: 'api_verification',
+                platformKey,
+                target,
+                role,
+                identity,
+                verifiedAt: new Date().toISOString(),
+                details: result.details
+              },
+              ...(clientProvidedTarget ? { clientProvidedTarget: JSON.stringify(clientProvidedTarget) } : {})
+            });
+            console.log(`[verify-access] Updated item ${accessRequestItemId} status to validated`);
+          } catch (updateError) {
+            console.error(`[verify-access] Failed to update item status: ${updateError.message}`);
+          }
+        }
+
         return NextResponse.json({ 
           success: true, 
           data: {
