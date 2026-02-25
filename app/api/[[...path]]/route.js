@@ -2015,7 +2015,7 @@ export async function POST(request, { params }) {
     // POST /api/oauth/:platformKey/grant-access - Programmatically grant access
     if (path.match(/^oauth\/[^/]+\/grant-access$/)) {
       const platformKey = path.split('/')[1];
-      const { accessToken, tokenType, target, role, identity, accessItemType, options, pamOwnership, identityPurpose, identityStrategy } = body || {};
+      const { accessToken, tokenType, target, role, identity, accessItemType, options, pamOwnership, identityPurpose, identityStrategy, accessRequestItemId, accessRequestId, clientProvidedTarget } = body || {};
       
       if (!accessToken || !target || !role || !identity || !accessItemType) {
         return NextResponse.json({ 
