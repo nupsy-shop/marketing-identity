@@ -109,6 +109,7 @@ model AccessItem {
 
   agencyPlatform AgencyPlatform @relation(fields: [agencyPlatformId], references: [id], onDelete: Cascade)
 
+  @@unique([agencyPlatformId, itemType, role, label])
   @@index([agencyPlatformId])
   @@index([itemType])
   @@map("access_items")
