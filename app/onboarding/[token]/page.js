@@ -692,6 +692,7 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
                         onClick={handleGrantAccess} 
                         disabled={grantingAccess}
                         className="w-full bg-green-600 hover:bg-green-700"
+                        data-testid="grant-access-btn"
                       >
                         {grantingAccess ? (
                           <><i className="fas fa-spinner fa-spin mr-2"></i>Granting Access...</>
