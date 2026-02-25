@@ -4,7 +4,7 @@
  */
 
 import type { PluginManifest } from '../common/manifest';
-import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities, AccessTypeCapabilityWithRules } from '../../lib/plugins/types';
+import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, AccessTypeCapabilities, AccessTypeCapabilityWithRules, PamOwnership, HumanIdentityStrategy, PamIdentityStrategy, VerificationMode } from '../../lib/plugins/types';
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 // ─── Access Item Type Definitions ────────────────────────────────────────────
@@ -136,7 +136,7 @@ export const GA4_MANIFEST: PluginManifest = {
   // Identity
   platformKey: 'ga4',
   displayName: 'Google Analytics / GA4',
-  pluginVersion: '2.2.0',
+  pluginVersion: '2.3.0',
 
   // Categorization
   category: 'Analytics',
@@ -155,9 +155,21 @@ export const GA4_MANIFEST: PluginManifest = {
   automationCapabilities: AUTOMATION_CAPABILITIES,
   accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
 
+  // Allowed configuration models
+  allowedOwnershipModels: ['CLIENT_OWNED' as PamOwnership, 'AGENCY_OWNED' as PamOwnership],
+  allowedIdentityStrategies: [
+    'AGENCY_GROUP' as HumanIdentityStrategy,
+    'INDIVIDUAL_USERS' as HumanIdentityStrategy,
+    'CLIENT_DEDICATED' as HumanIdentityStrategy,
+    'STATIC' as PamIdentityStrategy,
+    'CLIENT_DEDICATED' as PamIdentityStrategy,
+  ],
+  allowedAccessTypes: ['NAMED_INVITE' as AccessItemType, 'GROUP_ACCESS' as AccessItemType, 'SHARED_ACCOUNT' as AccessItemType],
+  verificationModes: ['AUTO' as VerificationMode, 'EVIDENCE_REQUIRED' as VerificationMode],
+
   // Feature Flags
   supportsReporting: true,
-  supportsEventUpload: false, // GA4 doesn't support server-side event uploads via Admin API
+  supportsEventUpload: false,
   supportsWebhooks: false,
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
