@@ -16,7 +16,7 @@ Build a plugin-based Marketing Identity Platform that manages agency-client acce
 2. **GA4 Role Format Fix**: Changed from `roles/editor` to `predefinedRoles/editor` (correct GA4 format)
 3. **Grant/Verify Status Update**: Backend updates AccessRequestItem status to "validated" after successful grant/verify
 4. **Platform Integration Card Redesign**: Replaced "Accessible Targets" with tabbed interface (Onboarded Accounts + Integration Scope)
-5. **Client-Centric Governance**: Added Client column (first), Client Summary Bar (Total/Verified/Pending/Failed), client filter dropdown, search input, scrollable table for 100+ clients, client status derived from items
+5. **Client-Centric Governance v2**: Onboarded Accounts tab now shows one row per client (no Target column). Columns: Client, Items count, Status (derived), Last Verified (max), Actions (View Details, Re-verify Client). "View Details" opens a Sheet panel with full item-level drill-down including Target, Type, Role, Status, Verified, per-item Verify.
 
 ### Feb 25, 2026 — Session 2
 1. **Environment Reset**: Cleaned all transactional tables
