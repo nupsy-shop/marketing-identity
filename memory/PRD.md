@@ -11,32 +11,43 @@ Build a plugin-based Marketing Identity Platform that manages agency-client acce
 
 ## What's Been Implemented
 
-### Feb 25, 2026 — Current Session
-1. **Environment Reset**: Cleaned all transactional tables (clients, agency_platforms, access_items, access_requests, access_request_items, oauth_tokens, accessible_targets, pam_sessions, audit_logs)
+### Feb 25, 2026 — Session 3 (Current)
+1. **GA4 Access Binding API Fix (v1alpha)**: All access binding operations (list, create, delete) now use `v1alpha` API instead of `v1beta`, which didn't support access bindings at all
+2. **GA4 Role Format Fix**: Changed role format from `roles/editor` to `predefinedRoles/editor` (correct GA4 Admin API v1alpha format)
+3. **Grant/Verify Status Update**: After successful grant-access or verify-access, the backend now updates the AccessRequestItem status to "validated" with `validationMode: AUTO_GRANT/AUTO_VERIFY` and stores `clientProvidedTarget`
+4. **Platform Integration Card Redesign**: Replaced "Accessible Targets" with a tabbed interface:
+   - **Onboarded Accounts** (default): Table of access request items with Target, Type, Role, Status, Verified date, and Re-verify action
+   - **Integration Scope**: OAuth-discovered targets (read-only, with "Detected via OAuth; not governed by PAM" banner)
+   - Added Re-verify (per-row) and Re-verify All functionality
+5. **New API Endpoint**: `GET /api/admin/platforms/:platformKey/onboarded-accounts` - Returns access request items for a platform
+6. **New DB Function**: `getOnboardedAccountsByPlatformSlug()` - Queries onboarded accounts with client info
+7. **Improved Error Diagnostics**: GA4 grant/verify error messages now include Google API response body details
+
+### Feb 25, 2026 — Session 2
+1. **Environment Reset**: Cleaned all transactional tables
 2. **Data Integrity**: Added `@@unique([agencyPlatformId, itemType, role, label])` constraint on AccessItem model
-3. **GTM Schema Update**: Added `containerName` field to NamedInviteClientSchema, GroupAccessClientSchema, and SharedAccountClientSchema
-4. **API Bug Fixes**:
-   - Fixed GROUP_ACCESS type mapping (`GROUP_ACCESS` → `GROUP_SERVICE` was incorrect; now uses canonical type names)
-   - Fixed `identityStrategy` field resolution (now accepts both `pamIdentityStrategy` and `identityStrategy`)
-   - Added missing `createAuditLogEntry` function to db.js
-5. **Onboarding UI Enhancement**: Manual fields hidden when OAuth target is selected; shown as fallback when OAuth is available but no target selected
-6. **Admin Visibility**: `clientProvidedTarget` now exposed in access request detail view with formatted display of selected targets
-7. **Full E2E Verification**: All 10 CSV variations created and tested across 4 platforms with correct effective capabilities
+3. **GTM Schema Update**: Added `containerName` field
+4. **API Bug Fixes**: Fixed GROUP_ACCESS type mapping, identityStrategy field resolution, added createAuditLogEntry
+5. **Onboarding UI Enhancement**: Manual fields hidden when OAuth target is selected
+6. **Admin Visibility**: `clientProvidedTarget` exposed in access request detail view
+7. **Full E2E Verification**: All 10 CSV variations tested across 4 platforms
 
 ### Previous Sessions
-- Conditional capability engine (`getEffectiveCapabilities`) in `lib/plugins/types.ts`
+- Conditional capability engine (`getEffectiveCapabilities`)
 - Plugin manifests for GA4, GTM, Google Ads, GSC with conditional rules
 - Backend API endpoints refactored to use dynamic capabilities
 - Frontend hardcoded logic removed in favor of capability-driven rendering
-- Empty onboarding page bug fix
 
 ## Prioritized Backlog
 
 ### P0
-- Google Ads Developer Token needed for `discoverTargets` endpoint (BLOCKED on user input)
+- ~~GA4 Access Binding v1alpha fix~~ DONE
+- ~~GA4 predefinedRoles format fix~~ DONE
+- ~~Status update after grant/verify~~ DONE
+- ~~Platform Integration Card redesign with tabs~~ DONE
 
 ### P1
-- Implement `grantAccess` for DV360 plugin
+- Google Ads Developer Token needed for `discoverTargets` endpoint (BLOCKED on user input)
 - Unit tests for `getEffectiveCapabilities` and plugin modules
 
 ### P2
