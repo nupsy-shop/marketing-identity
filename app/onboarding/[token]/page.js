@@ -619,6 +619,7 @@ function AccessItemCard({ item, client, isActive, onComplete }) {
                   disabled={oauthConnecting}
                   variant="outline"
                   className="w-full"
+                  data-testid="oauth-connect-btn"
                 >
                   {oauthConnecting ? (
                     <><i className="fas fa-spinner fa-spin mr-2"></i>Connecting...</>
