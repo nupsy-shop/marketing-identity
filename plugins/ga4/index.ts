@@ -410,6 +410,15 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
       // Normalize property ID (GA4 API expects just the numeric ID)
       const propertyId = target.replace(/^properties\//, '');
       
+      // Reject account-level targets — grant must target a specific property
+      if (propertyId.startsWith('accounts/') || propertyId.startsWith('accounts%2F')) {
+        return {
+          success: false,
+          error: `"${target}" is an account, not a property. Please select a specific GA4 property to grant access.`,
+          details: { found: false }
+        };
+      }
+      
       // Map role key to GA4 role format
       const ga4Role = ROLE_MAPPING[role.toLowerCase()] || `roles/${role.toLowerCase()}`;
       
