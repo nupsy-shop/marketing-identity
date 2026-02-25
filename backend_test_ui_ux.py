@@ -19,7 +19,7 @@ from typing import Dict, Any, Optional
 
 class UIUXFeaturesTester:
     def __init__(self):
-        self.base_url = "https://google-ads-oauth.preview.emergentagent.com/api"
+        self.base_url = "https://ga4-dual-grant.preview.emergentagent.com/api"
         self.session = None
         self.test_results = []
         self.created_resources = {

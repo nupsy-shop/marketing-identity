@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List
 import uuid
 
 # Base URL from environment
-BASE_URL = "https://google-ads-oauth.preview.emergentagent.com"
+BASE_URL = "https://ga4-dual-grant.preview.emergentagent.com"
 
 class PAMStaticAgencyIdentityTester:
     def __init__(self, base_url: str):

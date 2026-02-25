@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://google-ads-oauth.preview.emergentagent.com"
+BASE_URL = "https://ga4-dual-grant.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 # Test data

@@ -5,7 +5,7 @@ Tests the newly implemented GA4 plugin's ability to programmatically grant acces
 to GA4 properties using the GA4 Admin API.
 """
 
-BASE_URL="https://google-ads-oauth.preview.emergentagent.com"
+BASE_URL="https://ga4-dual-grant.preview.emergentagent.com"
 PASSED=0
 FAILED=0
 TOTAL=0

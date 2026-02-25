@@ -9,7 +9,7 @@ import json
 from urllib.parse import urljoin
 
 # Test configuration
-BASE_URL = "https://google-ads-oauth.preview.emergentagent.com"
+BASE_URL = "https://ga4-dual-grant.preview.emergentagent.com"
 API_BASE = urljoin(BASE_URL, "/api/")
 
 def test_oauth_support_verification():
