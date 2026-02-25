@@ -11,7 +11,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Base URL from environment
-BASE_URL = "https://festive-thompson-4.preview.emergentagent.com"
+BASE_URL = "https://google-ads-oauth.preview.emergentagent.com"
 API_BASE = urljoin(BASE_URL, "/api/")
 
 def make_request(method, endpoint, data=None, headers=None, params=None):

@@ -4,7 +4,7 @@ import requests
 import json
 import sys
 
-BACKEND_URL = "https://festive-thompson-4.preview.emergentagent.com"
+BACKEND_URL = "https://google-ads-oauth.preview.emergentagent.com"
 
 def test_gsc_complete():
     """Test all GSC endpoints comprehensively"""

@@ -1,59 +1,79 @@
 <analysis>
 
 **original_problem_statement**:
-The user requested a major refactoring of the Marketing Identity Platform to make access-grant and verification flows entirely driven by plugin metadata. This involved extending plugin manifests with , adding  and  methods to plugins, and refactoring both the client onboarding and admin UIs to be dynamically driven by these capabilities.
+The user requested a significant architectural refactor to make the capabilities of  access types dynamic and configuration-driven, rather than being hardcoded to require manual evidence uploads.
 
-The core of the request is to implement the full automated access lifecycle ( ->  ->  ->  -> ) for a suite of Google marketing platforms.
+When a  is used with an agency-owned, human-interactive identity (, ), the system should treat it like a , enabling OAuth, programmatic access granting, and API-based verification. When the account is client-owned, it should fall back to the old behavior of requiring manual evidence.
 
 **PRODUCT REQUIREMENTS**:
-1.  **Implement :** Implement the  method for all relevant Google platforms (GA4, GTM, Google Ads, GSC, etc.).
-2.  **Client Onboarding Logic:** Implement the frontend logic for , , and  buttons on the  page, driven by plugin capabilities.
-3.  **Client-Side Target Discovery & Selection:** After a client connects a platform via OAuth, implement a UI to discover available resources (e.g., GA4 properties, GTM containers) and allow the user to select one, which should be saved against their access request.
-4.  **Multi-Client Google OAuth:** The backend has been refactored to support separate OAuth credentials for each Google-based platform. This must be maintained.
-5.  ** Implementation:** Implement  logic for all platforms where possible.
+1.  **Conditional Capabilities:** Implement a mechanism in the plugin manifests to define conditional capability rules. For example, if  is , then  should be .
+2.  **Runtime Capability Evaluation:** Create a generic function that computes the effective capabilities for an access item at runtime based on its type and configuration (, , etc.).
+3.  **UI Updates:** The onboarding UI (badges, CTAs like Verify Access) must be updated to render based on these effective capabilities, removing any hardcoded logic that treats all  items as manual.
+4.  **Backend API Updates:** The  and  endpoints must be updated to use the effective capabilities, allowing them to process  items when the rules permit.
+5.  **New Bug 1:** User reported that an onboarding session with no access items incorrectly shows All Access Verified!.
+6.  **New Bug 2:** User reported an error after connecting to Google Ads during onboarding, preventing target discovery.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application has a robust, plugin-driven architecture for managing access to Google marketing platforms.
-- ** Capability:** The  method, which programmatically grants user access, has been successfully implemented and tested for Google Analytics (GA4), Google Tag Manager (GTM), and Google Ads.
-- ** Capability:** The  method is implemented for GA4, GTM, Google Ads, and Google Search Console (GSC).
-- **Google Search Console (GSC) Plugin:** A full  implementation for GSC is complete. It supports OAuth connection, target discovery (listing sites), and access verification. The  method correctly informs the user that access must be granted manually, as the GSC API does not support programmatic user management.
-- **Client Onboarding UI:** The onboarding page () has been enhanced with a new  component. This allows users to connect to a platform, discover available targets (e.g., GA4 properties), and select one. The selection is saved to the database via a new API endpoint.
+The core architecture for conditional capabilities has been fully implemented.
+- A new  function exists in  that processes rules from plugin manifests.
+- Plugin manifests for GA4, GTM, Google Ads, and GSC have been updated with these new conditional rules for .
+- Backend API endpoints (, , ) have been refactored to use this new dynamic capability logic.
+- The frontend (, ) has been updated to remove hardcoded logic and rely on the effective capabilities, and a bug showing All Access Verified! for empty requests has been fixed.
+- A new bug was discovered in the Google Ads  flow. The agent has diagnosed the root cause: a missing  required by the Google Ads API. The code has been updated to throw a clear error message when this token is not configured.
 
 **Last working item**:
--   Last item agent was working: Implementing the  (and full plugin capabilities) for Google Search Console (GSC). The agent researched the GSC API, found that programmatic access grants are not supported, and correctly implemented the plugin to support OAuth, discovery, and verification, with a  method that provides a user-friendly message about manual steps.
--   Status: COMPLETED
--   Agent Testing Done: Y
--   Which testing method agent to use? NA
--   User Testing Done: N
+- Last item agent was working: Debugging the Google Ads  endpoint failure.
+- Status: BLOCKED
+- Agent Testing Done: N (Cannot test without the required token)
+- Which testing method agent to use? manual testing by curl
+- User Testing Done: N
 
 **All Pending/In progress Issue list**:
-There are no outstanding bugs or issues. The work has been focused on new feature implementation.
+-   **Issue 1: Google Ads target discovery is failing due to a missing developer token. (P0)**
+
+**Issues Detail**:
+-   **Issue 1**:
+    -   **Description**: When a user connects to Google Ads, the subsequent step to discover accessible ad accounts () fails.
+    -   **Root Cause**: The agent investigated and confirmed that all Google Ads API calls require a  in the request header. The current environment has a placeholder value for the  variable in the  file.
+    -   **Attempted fixes**: The agent refactored the API call logic in  to throw a clear, explicit error message if the developer token is missing or is a placeholder. This correctly identifies the problem but does not solve it.
+    -   **Next debug checklist**:
+        1.  The next agent **MUST** ask the user to provide a valid Google Ads Developer Token.
+        2.  Update the  in the  file with the key provided by the user.
+        3.  Restart the server using nginx-code-proxy: stopped
+mongodb: stopped
+mongodb: started
+nextjs: started
+nginx-code-proxy: started
+code-server: started.
+        4.  Manually test the onboarding flow for Google Ads to confirm that target discovery now works.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a critical bug blocking the entire onboarding flow for Google Ads, which is a key platform. Fixing it will restore core functionality.
+    -   **Status**: BLOCKED (Awaiting user input for the API token).
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue**: None.
 
 **In progress Task List**:
-There are no tasks currently in progress. The agent has completed all user requests from the session.
+None.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P0: Implement  for DV360:** The previous summary mentioned DV360 as a target platform. The next step should be to implement the  and  capabilities for DV360, following the pattern established with GA4 and GTM. (File: ).
-    - **P1: Review and Refine Client-Side Target Discovery UI:** The initial implementation of the target discovery and selection UI is complete. This may need user feedback and further refinement for usability on .
-
+    - **P0: Implement  for DV360:** Now that the conditional capability architecture is in place, implement the  and  capabilities for DV360, following the pattern established with the other Google plugins. (File: ).
 - **Future Tasks:**
-    - **P1: Implement Break-Glass Only Flow:** Add UI and backend logic for access types marked with .
-    - **P2: Create Unit Tests:** Add unit tests for the refactored plugin modules to improve code quality and prevent regressions. This was part of the original request but has been deferred.
+    - **P1: Create Unit Tests:** Add unit tests for the refactored plugin modules and the new  logic to improve code quality and prevent regressions. This was part of the original request but has been deferred.
 
 **Completed work in this session**
-- ** for GA4:** Implemented and tested the  method in the GA4 plugin.
-- ** for GTM:** Implemented and tested the  method in the GTM plugin.
-- ** for Google Ads:** Implemented and tested the  method in the Google Ads plugin.
-- **Client-Side Target Discovery & Selection UI:**
-    - Created a new  component for the onboarding page.
-    - Implemented a new API endpoint () and frontend logic to save the user's selected target.
-- **Full GSC Plugin Implementation:**
-    - Researched GSC API limitations and confirmed programmatic user grants are not possible.
-    - Implemented a full  for GSC with OAuth, , and .
-    - The  method for GSC now provides a message indicating that access must be granted manually.
+- **Conditional Capability Architecture:**
+    - Implemented a new generic system for evaluating effective capabilities based on rules in plugin manifests ().
+    - Updated manifests for GA4, GTM, Google Ads, and GSC with rules for .
+- **Backend Refactoring:**
+    - Updated  to use  for onboarding, grant, and verify endpoints, enabling dynamic behavior for .
+- **Frontend Refactoring:**
+    - Removed hardcoded  checks from  and  to allow UI elements to be driven by dynamic capabilities.
+    - Updated the evidence/attestation section to be driven by the  capability.
+- **Bug Fix:**
+    - Fixed a UI bug where an onboarding page with no access items would incorrectly display All Access Verified!. It now shows a No Access Items message.
 
 **Earlier issues found/mentioned but not fixed**
 -   **Issue 1: Unit Tests Not Implemented**
@@ -63,76 +83,72 @@ There are no tasks currently in progress. The agent has completed all user reque
     -   **Is recurring issue?** Y
 
 **Known issue recurrence from previous fork**
--   None.
+- None.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Metadata-Driven Architecture:** UI and API behavior are gated by  in plugin manifests.
--   **Plugin-level OAuth:** Each capable plugin implements its own OAuth logic (, , etc.).
--   **API-based Access Management:** The system uses platform-specific APIs to programmatically  and .
--   **Graceful Degradation:** For platforms like GSC without a grant-access API, the system falls back to providing manual instructions while still automating verification.
+-   **Metadata-Driven Architecture:** The application's behavior is dynamically controlled by  and new conditional  within plugin manifests.
+-   **Conditional Capability Evaluation:** A new core function, , evaluates manifest rules against an access item's configuration to determine its true capabilities at runtime.
+-   **Plugin-level OAuth:** Each capable plugin implements its own OAuth logic.
+-   **Google Ads API:** Requires a mandatory  for all API calls.
 
 **key DB schema**
--   **AccessRequest**:  - Represents the client's onboarding session.
--   **AccessRequestItem**:  - Represents a specific access task. The  field is now populated by the new target selection UI.
--   **OAuthToken**: 
+-   **AccessRequestItem**:  - These configuration fields are now used as input to determine the item's effective capabilities.
 
 **changes in tech stack**
--   None.
+- None.
 
 **All files of reference**
--   : The newly completed GSC plugin, demonstrating the pattern for platforms without a  API.
--   : The new UI component for client-side target selection.
--   : The client component that orchestrates the actions on the onboarding page, now updated with target selection logic.
--   : The main API router, which was modified to include the endpoint for saving a selected target.
--   : A reference implementation for a plugin with full  capability.
+-   : Contains the new core logic for .
+-   : A reference for how conditional capability  are implemented in a manifest.
+-   : Shows how the backend endpoints were updated to use the new dynamic capability logic.
+-   : Contains the improved error handling for the missing developer token.
 
 **Areas that need refactoring**:
--   **Redundant API Endpoint:** The agent added a new endpoint  in . An endpoint with similar functionality, , might have already existed. This should be reviewed and consolidated to avoid redundancy.
+- None at this time. The recent refactoring was extensive and well-structured.
 
 **key api endpoints**
--   : Executes the  method for a given platform.
--   : **(NEW)** Saves the user-selected target (e.g., GA4 Property ID) to an access request item.
+-   : This endpoint is currently **broken** for Google Ads due to the missing developer token.
+-   : Now uses effective capabilities.
+-   : Now uses effective capabilities.
 
 **Critical Info for New Agent**
--   The pattern for implementing  is well-established. You can reference the GA4, GTM, and Google Ads plugins for examples.
--   Be aware that not all Google platforms support programmatic user management via API. Before implementing  for a new platform (like DV360), perform a quick web search to verify its API capabilities, following the example set with the GSC implementation.
--   The client-side target selection UI is now functional. Future work may involve refining this user experience.
--   The project has consistently used the  agent after implementing new features. Continue this practice to ensure stability.
+-   **ACTION REQUIRED:** The Google Ads onboarding flow is **BLOCKED**. You **must** ask the user to provide a valid **Google Ads Developer Token**. This is not an OAuth key; it's a separate token required for all Google Ads API access. Once you have the token, update the  variable in the  file and restart the services.
+-   The new  function in  is the heart of the new dynamic capability system. All logic for what a user can or cannot do is now determined by this function processing rules in the plugin manifests.
+-   When adding new plugins or modifying existing ones, ensure the  capabilities are defined using the new  structure in the manifest file for consistency.
 
 **documents created in this job**
--   
--   
--   
--   
+- None.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (message #138):**  (COMPLETED)
-2.  **User (message #85):**  (COMPLETED)
-3.  **User (message #54):**  (COMPLETED)
-4.  **User (message #5):**  (COMPLETED - This initiated the  for GA4 implementation)
+1.  **User (message #155):** Reported an error with the Google Ads onboarding flow. (IN PROGRESS - BLOCKED)
+2.  **User (message #140):** Reported a bug where an empty onboarding page showed All Access Verified. (COMPLETED)
+3.  **User (message #83):**  (Agent continued with implementation) (COMPLETED)
+4.  **User (message #8):** Confirmed agent's plan (Option A) and provided detailed requirements for the conditional capability implementation. (COMPLETED)
+5.  **User (message #5):** Provided the main feature request to make  capabilities dynamic. (COMPLETED)
 
 **Project Health Check:**
--   **Healthy:** The application is stable and the core feature set has been significantly expanded in this session. All backend tests are passing, and the new functionality has been successfully implemented.
+-   **Broken**: A critical path for Google Ads onboarding is blocked due to a missing, required API token. The rest of the application and the new feature are functional, but this blockage impacts a key platform.
 
 **3rd Party Integrations**
 -   **Prisma:** ORM for database access.
 -   **PostgreSQL (Neon):** Cloud database.
 -   **Zod:** Schema definition and validation.
--   **Google APIs / Google OAuth2:** Used for GA4, GTM, Google Ads, and GSC. Each uses a separate OAuth 2.0 Client ID and Secret managed via environment variables.
+-   **Google APIs / Google OAuth2:** Used for GA4, GTM, Google Ads, and GSC.
+-   **Google Ads API**: Requires a user-provided Developer Token.
 
 **Testing status**
--   Testing agent used after significant changes: YES. The backend testing agent was successfully used multiple times to verify the  and GSC plugin implementations.
+-   Testing agent used after significant changes: YES. The backend testing agent was used to successfully verify the new conditional capabilities logic.
 -   Troubleshoot agent used after agent stuck in loop: NO.
 -   Test files created: None.
--   Known regressions: None.
+-   Known regressions: The Google Ads  flow is now broken due to the strict enforcement of the developer token requirement by the API, which was previously failing silently or with a less clear error.
 
 **Credentials to test flow:**
-All necessary Google OAuth credentials are in the  file. No new credentials are required.
+-   **A Google Ads Developer Token is REQUIRED to proceed.** The next agent must obtain this from the user. All other credentials are in the  file.
 
 **What agent forgot to execute**
--   The agent did not forget to execute any direct user requests from this session. It correctly deferred the long-standing task of adding **unit tests**, which was part of the original project scope but has been consistently de-prioritized in favor of feature development.
+-   The agent did not forget to execute anything. It correctly diagnosed that the Google Ads issue is blocked by an external dependency (a missing API token from the user) and cannot be resolved without user intervention.
 
 </analysis>
