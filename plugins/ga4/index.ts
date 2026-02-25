@@ -505,17 +505,19 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
       }
       
       if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
         return {
           success: false,
-          error: `Property ${target} was not found or is not accessible with this token.`,
+          error: `${isAcct ? 'Account' : 'Property'} ${target} was not found or is not accessible with this token.`,
           details: { found: false }
         };
       }
       
       if (errorMessage.includes('409') || errorMessage.includes('already exists')) {
+        const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
         return {
           success: false,
-          error: `User ${identity} already has an access binding on property ${target}.`,
+          error: `User ${identity} already has an access binding on ${isAcct ? 'account' : 'property'} ${target}.`,
           details: { found: false }
         };
       }
