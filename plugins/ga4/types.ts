@@ -53,21 +53,24 @@ export interface GA4DataStream {
 export interface GA4AccessBinding {
   name?: string; // Format: properties/{property_id}/accessBindings/{binding_id}
   user?: string; // Email address
-  roles: string[]; // e.g., ['roles/viewer', 'roles/analyst']
+  roles: string[]; // e.g., ['predefinedRoles/viewer', 'predefinedRoles/analyst']
 }
 
 export type GA4Role = 
-  | 'roles/viewer'
-  | 'roles/analyst'
-  | 'roles/editor'
-  | 'roles/admin';
+  | 'predefinedRoles/viewer'
+  | 'predefinedRoles/analyst'
+  | 'predefinedRoles/editor'
+  | 'predefinedRoles/admin'
+  | 'predefinedRoles/no-cost-data'
+  | 'predefinedRoles/no-revenue-data';
 
-// Map from our role keys to GA4 roles
+// Map from our role keys to GA4 predefined roles
 export const ROLE_MAPPING: Record<string, GA4Role> = {
-  viewer: 'roles/viewer',
-  analyst: 'roles/analyst',
-  editor: 'roles/editor',
-  administrator: 'roles/admin',
+  viewer: 'predefinedRoles/viewer',
+  analyst: 'predefinedRoles/analyst',
+  editor: 'predefinedRoles/editor',
+  administrator: 'predefinedRoles/admin',
+  admin: 'predefinedRoles/admin',
 };
 
 // ─── GA4 Reporting Types ───────────────────────────────────────────────────
