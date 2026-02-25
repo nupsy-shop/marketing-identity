@@ -130,12 +130,19 @@ function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, b
   };
   const normalizedItemType = normalizeType(itemType);
   
-  // 1. Validate itemType is supported by plugin
-  const supportedTypes = manifest.supportedAccessItemTypes || [];
-  if (supportedTypes.length > 0) {
-    const typeNames = supportedTypes.map(t => typeof t === 'string' ? t : (t.type || '')).map(normalizeType);
-    if (!typeNames.includes(normalizedItemType)) {
-      errors.push(`Item type "${itemType}" is not supported by this platform. Supported: ${typeNames.join(', ')}`);
+  // 1. Validate itemType against manifest.allowedAccessTypes (new field, single source of truth)
+  if (manifest.allowedAccessTypes?.length > 0) {
+    if (!manifest.allowedAccessTypes.includes(normalizedItemType)) {
+      errors.push(`Access type "${itemType}" is not allowed for ${manifest.displayName}. Allowed: ${manifest.allowedAccessTypes.join(', ')}`);
+    }
+  } else {
+    // Fallback to supportedAccessItemTypes for backwards compat
+    const supportedTypes = manifest.supportedAccessItemTypes || [];
+    if (supportedTypes.length > 0) {
+      const typeNames = supportedTypes.map(t => typeof t === 'string' ? t : (t.type || '')).map(normalizeType);
+      if (!typeNames.includes(normalizedItemType)) {
+        errors.push(`Item type "${itemType}" is not supported by this platform. Supported: ${typeNames.join(', ')}`);
+      }
     }
   }
   
