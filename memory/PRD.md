@@ -1,69 +1,64 @@
 # Access Provisioning Platform — PRD
 
 ## Problem Statement
-Build a robust, scalable platform for managing client access to marketing services across 15+ ad/analytics platforms. Three architectural pillars:
-
+Build a robust, scalable platform for managing client access to marketing services across 19 ad/analytics platforms. Three architectural pillars:
 1. **Client-Centric Governance**: Admin UI pivots from account-centric to client-centric views.
 2. **Declarative, Manifest-Driven Architecture**: All plugin capabilities declared in `PluginManifest`, driving runtime validation and UI.
 3. **Unified Plugin Interface**: Standardized `AccessProvisioningPlugin` interface with `grantAccess`, `verifyAccess`, `revokeAccess` across all plugins.
 
-## Core Requirements
-- Every plugin MUST implement `grantAccess`, `verifyAccess`, `revokeAccess` with unified `PluginOperationParams` / `PluginOperationResult` signatures.
-- Manifests MUST declare `canGrantAccess`, `canVerifyAccess`, `canRevokeAccess` per access type.
-- Route handler MUST gate on manifest capabilities before calling plugin methods.
-- `validateProvisioningRequest` MUST be used for centralized validation.
-- `buildPluginError` MUST be used for standardized error handling.
-
 ## What's Been Implemented
 
-### P0 — Unified Interface for 4 Google Plugins (DONE, TESTED)
-- GA4: Full `grantAccess`, `verifyAccess`, `revokeAccess` with live Google Analytics Admin API
-- GTM: Full interface with live Google Tag Manager API, including `deleteUserPermission`
-- Google Ads: Full interface with live Google Ads API, including `removeUserAccess` and `updateManagerLinkStatus`
-- GSC: Full `verifyAccess` via API; `grantAccess` and `revokeAccess` return "not supported" (API limitation)
+### P0 — Unified Interface for 4 Google Plugins (DONE)
+- GA4, GTM, Google Ads, GSC: Full implementations with live Google APIs
 
-### P1 — Unified Interface for 11 Remaining Plugins (DONE, TESTED)
-All 11 plugins migrated to unified interface with stubs.
+### P1 — Meta Plugin (DONE)
+- Full Graph API v21.0 integration: OAuth, discoverTargets, grantAccess (PARTNER_DELEGATION + NAMED_INVITE), verifyAccess, revokeAccess (NAMED_INVITE)
 
-### P1.1 — Meta Plugin Full Implementation (DONE, Feb 2026)
-- **OAuth**: Full `startOAuth` / `handleOAuthCallback` with short-to-long-lived token exchange (Graph API v21.0)
-- **Target Discovery**: `discoverTargets` lists businesses and ad accounts via `/me/businesses` + `/{biz}/owned_ad_accounts`
-- **grantAccess**:
-  - PARTNER_DELEGATION: Invites user/partner to business via `/{biz}/access_invite`
-  - NAMED_INVITE: Assigns user to ad account via `/act_{id}/assigned_users` with role-based tasks (MANAGE/ADVERTISE/ANALYZE). Resolves email→userId via business_users lookup, auto-invites if not found.
-- **verifyAccess**: Checks `/act_{id}/assigned_users` for identity match and task coverage
-- **revokeAccess** (NAMED_INVITE only): Removes user from ad account via `DELETE /act_{id}/assigned_users`
-- **Manifest updated**: `canRevokeAccess: true` for NAMED_INVITE, version bumped to 3.0.0
-- API module: `/app/plugins/meta/api/graph.ts` (typed Meta Graph API wrapper)
+### P1 — All 14 Remaining Plugins (DONE, Feb 2026)
 
-### P2 — Unit Tests (DONE, Feb 2026)
-- 6 test suites, 315 tests, all passing
-- Covers: `validateProvisioningRequest`, `buildPluginError`, `resolveNativeRole`, `getEffectiveCapabilities`, manifest validators, plugin interface compliance (all 15 plugins)
+**Full API implementations (real grant/verify/revoke):**
+| Plugin | API | Grant | Verify | Revoke |
+|--------|-----|-------|--------|--------|
+| HubSpot | Settings API v3 | Invite user by email + role | Find user by email | Remove user |
+| Salesforce | REST API v59.0 | Find/verify user by email | Query user + permission sets | Deactivate user |
+| Snowflake | SQL REST API v2 | GRANT ROLE TO USER | SHOW GRANTS TO USER | REVOKE ROLE FROM USER |
+| GA-UA | Management API v3 | Add entityUserLink | Find userLink by email | Delete entityUserLink |
+| Microsoft Ads | Bing SOAP API v13 | SendUserInvitation | GetUsersInfo | DeleteUser |
 
-### Earlier Completed Work
-- GA4 bug fixes (API versions, role formats, UI status updates)
-- Client-centric Admin UI refactor (PlatformIntegrationCard with Sheet, Tabs, filters)
-- Manifest-driven architecture (allowedOwnershipModels, allowedIdentityStrategies, allowedAccessTypes, verificationModes)
+**OAuth + Discovery (manual access management):**
+| Plugin | OAuth Provider | Discovery Endpoint |
+|--------|---------------|-------------------|
+| DV360 | Google OAuth | DV360 API v3 partners/advertisers |
+| LinkedIn | LinkedIn OAuth | Marketing API ad accounts |
+| TikTok | TikTok Business | oauth2/advertiser/get |
+| Snapchat | Snapchat OAuth | /v1/organizations/{id}/adaccounts |
+| Pinterest | Pinterest OAuth | /v5/ad_accounts |
+| Amazon Ads | Login with Amazon | /v2/profiles |
+| Reddit Ads | Reddit OAuth | /api/v3/me/accounts |
+
+**Manual only (no public API):**
+| Plugin | Status |
+|--------|--------|
+| Spotify Ads | No public API - full manual workflow |
+| Trade Desk | API auth-only discovery - manual user mgmt |
+
+### P2 — Unit Tests (DONE)
+- 6 test suites, 383 tests, all passing
+- Covers: validation, error handling, role mapping, capabilities, manifest validators, all 19 plugins interface compliance
 
 ## Architecture
-- 15 plugins in `/app/plugins/{key}/index.ts`
+- **19 plugins** in `/app/plugins/{key}/index.ts` + manifest.ts + api/ + schemas/
 - Unified types in `/app/lib/plugins/types.ts`
+- Plugin loader: `/app/lib/plugins/loader.js` (registers all 19)
 - API routes in `/app/app/api/[[...path]]/route.js`
-- Admin UI in `/app/components/admin/PlatformIntegrationCard.tsx`
 - Unit tests in `/app/tests/unit/*.test.ts`
-- Jest config: `/app/jest.config.js`, `/app/tsconfig.jest.json`
 
 ## Remaining Backlog
 
-### P1 — Implement Remaining Stubbed Plugins
-- 10 plugins still have stubs (DV360, Trade Desk, TikTok, Snapchat, LinkedIn, Pinterest, HubSpot, Salesforce, Snowflake, GA-UA)
-- Each needs: API credentials, OAuth flow, target discovery, grant/verify/revoke implementations
-
 ### P2 — Housekeeping & Cleanup
 - Remove root-level `.py` test files
-- Ensure consistent file naming across plugin folders
-- Remove dead code or legacy interfaces
+- Consistent file naming across plugin folders
 
 ## Known Issues
-- Google Ads `discoverTargets` flow requires `GOOGLE_ADS_DEVELOPER_TOKEN` (deferred)
-- 10 non-Google/Meta plugins still have stub implementations
+- Google Ads `discoverTargets` requires `GOOGLE_ADS_DEVELOPER_TOKEN` (deferred)
+- New plugins (Amazon, Reddit, Microsoft, Spotify) need real API credentials in `.env` to be fully functional
