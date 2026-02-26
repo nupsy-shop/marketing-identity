@@ -171,7 +171,7 @@ class GTMPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   // Access Verification
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async verifyAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
     if (!target) {
@@ -327,7 +327,7 @@ class GTMPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
     }
   }
 
-  async grantAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
     if (!target) {
