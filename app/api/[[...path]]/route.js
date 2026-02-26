@@ -706,6 +706,11 @@ export async function GET(request, { params }) {
         'hubspot': 'hubspot',
         'salesforce': 'salesforce',
         'snowflake': 'snowflake',
+        'ga-ua': 'ga-ua',
+        'amazon-ads': 'amazon-ads',
+        'reddit-ads': 'reddit-ads',
+        'microsoft-ads': 'microsoft-ads',
+        'spotify-ads': 'spotify-ads',
       };
       const slug = KEY_TO_SLUG[platformKey] || platformKey;
       try {
