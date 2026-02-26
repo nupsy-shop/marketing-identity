@@ -18,9 +18,9 @@ try:
                 BASE_URL = line.split('=', 1)[1].strip()
                 break
         else:
-            BASE_URL = 'https://access-provisioning.preview.emergentagent.com'
+            BASE_URL = 'https://plugin-unify.preview.emergentagent.com'
 except:
-    BASE_URL = 'https://access-provisioning.preview.emergentagent.com'
+    BASE_URL = 'https://plugin-unify.preview.emergentagent.com'
 
 API_BASE = f"{BASE_URL}/api"
 

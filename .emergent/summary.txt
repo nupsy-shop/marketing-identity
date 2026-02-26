@@ -1,81 +1,69 @@
 <analysis>
-**original_problem_statement**:
-The user's primary goal is to refactor the application to fully support and stabilize four core Google marketing platforms (Google Ads, Google Analytics/GA4, Google Search Console, Google Tag Manager), using a provided CSV file () as the single source of truth for all configurations. DV360 and other platforms are to be excluded.
+**original_problem_statement**: The user's overarching goal is to evolve the application into a robust, scalable platform for managing client access to marketing services. This involves a multi-phase refactoring initiative with three primary pillars:
 
-**PRODUCT REQUIREMENTS**:
-1.  **Environment Reset:** Clean the database by deleting all records from , , , , , and any other dependent tables to ensure a clean baseline.
-2.  **Plugin Manifest Alignment:** For the four specified platforms, ensure plugin manifests, roles, and capabilities match the provided CSV and platform reality. The UI and backend logic must be driven solely by dynamically computed effective capabilities. The  button should only appear if .
-3.  **Schema Alignment:** Update agency and client configuration schemas (, ) to match the requirements in the CSV, including conditional field validation based on identity strategies.
-4.  **Data Integrity:** Add a unique constraint to the  table for the combination of  to prevent duplicate entries.
-5.  **OAuth & Target Discovery:** The OAuth flow should lead to a target discovery mechanism that replaces manual ID entry. The selected target should be stored in the  field. Manual fields should serve as a fallback.
-6.  **GA4 Access Granting:** The GA4 plugin must support granting access at both the **Account** and **Property** level. The UI should allow users to select either, and the backend must call the appropriate API endpoint based on the selection.
-7.  **Admin Visibility:** The  (containing the name and ID of the resource selected by the client during onboarding) must be visible in the Admin UI's access request detail view.
-8.  **OAuth Configuration:** The system uses two distinct OAuth callback URLs (one for admin, one for client onboarding) and separate Google Cloud OAuth clients for each of the four platforms. All clients must have both callback URLs registered.
+1.  **Client-Centric Governance:** Refactor the admin UI to pivot from an account-centric to a client-centric view.
+2.  **Declarative, Manifest-Driven Architecture:** All plugin capabilities must be explicitly declared in a , which drives the application's runtime logic, validation, and UI.
+3.  **Unified Plugin Interface:** Standardize the core access provisioning operations (, , ) into a single, consistent interface () that all plugins must implement.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application has undergone a significant refactoring to align with the user's CSV-driven requirements for the four Google platforms. The database has been reset, and a unique constraint has been added to the  model. The frontend onboarding flow is now fully driven by dynamic capabilities, correctly showing/hiding the Connect button and manual input fields based on the access item's configuration.
-
-The agent successfully debugged and guided the user through fixing several configuration issues, including a  and an un-enabled Tag Manager API.
-
-Most recently, the agent refactored the Google Analytics (GA4) plugin to support granting and verifying access at both the **Account** and **Property** level. The backend logic in  and  now inspects the target ID ( vs ) and calls the correct Google Admin API. The corresponding UI component was also updated to allow the user to select either an account or a property.
+The major architectural refactoring is complete. All 15 plugins in the application now implement the unified  interface. The four core Google plugins (GA4, GTM, GSC, Google Ads) have full implementations for granting, verifying, and revoking access. The remaining 11 plugins have standardized stub implementations for these methods, returning not supported or API integration pending based on their declared capabilities. The API layer consistently validates requests against plugin manifests and provides standardized responses. The Admin UI remains client-centric.
 
 **Last working item**:
-- Last item agent was working: Implementing support for both Account-level and Property-level access granting in the Google Analytics (GA4) plugin.
-    - The agent refactored  and  to detect the target type (account or property) and call the appropriate Google Admin API. It also reverted a UI change in  to ensure both types are selectable.
-- Status: IN PROGRESS
-- Agent Testing Done: N
+- Last item agent was working: Completing the P1 task: migrating the remaining 11 non-Google plugins to the unified  interface. This involved updating their manifests, adding the new interface methods with stub implementations, and running a comprehensive end-to-end test.
+- Status: USER VERIFICATION PENDING
+- Agent Testing Done: Y
 - Which testing method agent to use? both
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: GA4 Account-level and Property-level access grant/verify flow is untested. (P0)
+- Issue 1: Google Ads integration is partially non-functional. (P1)
 
   Issues Detail:
-  - Issue 1: 
-     - **Description**: The agent has just implemented the backend logic and UI changes to allow granting access to GA4 at both the Account and Property level. This critical new functionality has not been tested or verified by the user.
-     - **Attempted fixes**: This is the implementation of the fix itself.
-     - **Next debug checklist**: 
-       1.  Use the screenshot tool on the onboarding page for a GA4 item. After connecting and discovering targets, verify that the dropdown list () allows selecting both Account-level items (e.g., My Demo Account) and Property-level items (e.g., My Website Property).
-       2.  Select an **Account** and click Grant Access. Verify the flow completes successfully. Check backend logs for calls to .
-       3.  Create another onboarding session. This time, select a **Property** and click Grant Access. Verify the flow completes successfully. Check backend logs for calls to .
-       4.  Repeat the process for the Verify Access flow for both an Account and a Property.
-     - **Why fix this issue and what will be achieved with the fix?** This is the final piece of functionality required to correctly support the Google Analytics integration as per the user's request.
-     - **Status**: IN PROGRESS
-     - **Is recurring issue?** N
+  - Issue 1:
+     - **Description**: The Google Ads  flow fails because it requires a valid  to be set in the  file. While the grant/verify/revoke methods are implemented, the initial step of finding accounts to manage is blocked.
+     - **Attempted fixes**: This issue has been deferred in previous sessions to prioritize the larger architectural refactor. No direct fixes have been attempted.
+     - **Next debug checklist**:
+       1. Obtain a valid Google Ads Developer Token from the user.
+       2. Add the token to the  file: .
+       3. Restart the backend service.
+       4. Test the Onboard Account flow for the Google Ads integration in the UI.
+     - **Why fix this issue and what will be achieved with the fix?** This will make the Google Ads plugin fully functional, enabling users to onboard and manage Google Ads accounts.
+     - **Status**: NOT STARTED
+     - **Is recurring issue?** Y
      - **Should Test frontend/backend/both after fix?** both
-     - **Blocked on other issue**: None
+     - **Blocked on other issue**: User input (developer token).
 
 **In progress Task List**:
 None.
 
 **Upcoming and Future Tasks**
+- **Upcoming Tasks**:
+    - **P0: Add Unit Tests**: The user's original plan included a P2 task to create unit tests. Now that the architecture is stable, this is the highest priority next step. Create unit tests for the new centralized helpers (, ) and the  logic in the Google plugins to prevent regressions.
 - **Future Tasks**:
-    - **P1: Create Unit Tests:** Add unit tests for the refactored plugin modules, especially the new dynamic capability logic and the GA4 account/property grant logic, to improve code quality and prevent regressions.
+    - **P1: Implement Stubbed Plugin Methods**: The 11 non-Google plugins have stubbed  and  methods. These need to be implemented with actual API integrations to make them functional.
+    - **P2: Housekeeping & Cleanup**: Perform general code cleanup, remove any obsolete code from the refactor, and ensure file structures are consistent.
 
 **Completed work in this session**
-- **Full Refactor for 4 Google Platforms:** The application's plugins, schemas, and capabilities for Google Ads, GA4, GSC, and GTM were aligned with the user-provided CSV file.
-- **Database Reset & Migration:** Successfully cleared all relevant data and applied a new  constraint to the  model in .
-- **Capability-Driven UI/UX:** Verified and enhanced the onboarding flow to be strictly driven by , correctly handling OAuth vs. manual flows. Added  attributes for testability.
-- **Admin Visibility:** Updated the admin client detail page () to display the  field.
-- **GA4 Account & Property Granting:** Implemented backend logic to support granting access at both the GA4 Account and Property levels, updating  and .
-- **OAuth & API Debugging:** Successfully diagnosed and provided solutions for:
-    - A  error by instructing the user to update all four of their Google Cloud OAuth clients.
-    - A Tag Manager API not enabled error.
-- **Backend Bug Fixes:** Resolved multiple bugs found during testing, including incorrect API payload validation, a missing  function, and an incorrect type mapping for .
+- **P0 - Unified Interface Validation**:
+  - Fully implemented and tested the  method for all 4 core Google plugins (GA4, GTM, GSC, Google Ads).
+  - Standardized all , , and  methods to use the centralized  helper.
+  - Ensured all API operations return a consistent, standardized .
+  - Conducted extensive testing via  and a full run of the .
+- **P1 - Unified Interface Migration**:
+  - Migrated the remaining 11 plugins (Meta, Salesforce, Snowflake, etc.) to the  interface.
+  - Added standardized stub methods (, , ) to all 11 plugins.
+  - Updated all 11 plugin manifests to include the  capability.
+  - Validated the complete migration of all 15 plugins with a second comprehensive  run, confirming system stability.
+- **PRD Update**: Updated  to reflect the completion of the unification effort.
 
 **Earlier issues found/mentioned but not fixed**
    - **Issue 1: Unit Tests Not Implemented**
-     - The user's initial design requested unit tests, but this has been deferred to prioritize feature implementation and bug fixing.
-     - **Why to solve this issue and what will be achieved with this?** Adding unit tests will improve code quality, prevent future regressions, and make individual plugin modules easier to maintain.
+     - This was noted in the previous handoff and designated as a future task (P2). Now that the major refactoring (P0, P1) is complete, this is the next high-priority task.
+     - **Why to solve this issue and what will be achieved with this?** Adding unit tests will improve code quality, prevent regressions in the core plugin logic, and make the system more maintainable.
      - **Should Test frontend/backend/both after fix:** backend
      - **Is recurring issue?** Y
-   - **Issue 2: Google Ads Developer Token**
-     - The very first handoff summary noted that the Google Ads flow was blocked by a missing developer token. This task was superseded by the user's large refactoring request and has not been addressed. The Google Ads flow will still be blocked if the  in  is not a valid token.
-     - **Why to solve this issue and what will be achieved with this?** The Google Ads  flow will fail without a valid token.
-     - **Should Test frontend/backend/both after fix:** both
-     - **Is recurring issue?** N
 
 **Known issue recurrence from previous fork**
 - None.
@@ -84,76 +72,67 @@ None.
 
 
 **Key Technical Concepts**
--   **Metadata-Driven Architecture:** Application behavior is dynamically controlled by plugin manifests and .
--   **Dynamic API Dispatch:** The GA4 plugin now uses the format of the target ID string ( vs. ) to dispatch calls to different Google Admin API endpoints.
--   **Prisma Migrations:** Database schema changes are managed via .
--   **Multi-Client OAuth:** The application integrates with a single provider (Google) but uses multiple distinct OAuth client IDs, one for each platform (GA4, GTM, GSC, Ads), requiring careful configuration of redirect URIs for all of them.
+-   **Unified Plugin Interface:** The  interface is now successfully implemented by **all 15 plugins**, standardizing , , and  operations across the entire application.
+-   **Declarative Manifests:** Plugin behavior (e.g., , ) is declared in manifests and enforced at the API route level, providing a single source of truth for capabilities.
+-   **Centralized Validation:** A single helper, , is used by all plugins to validate incoming requests against manifest declarations, reducing code duplication and ensuring consistency.
 
 **key DB schema**
-- **AccessItem**:  now has a  constraint.
+- No database schema changes were made.
 
 **changes in tech stack**
 - None.
 
 **All files of reference**
--   : Contains the primary logic for the last implemented feature (GA4 account/property grant).
--   : Contains the new helper functions for calling account-level Google Admin APIs.
--   : The UI component that was reverted to allow both account and property selection.
--   : Defines the new unique constraint on the  table.
+-   : The source of truth for the unified plugin architecture.
+-   : The central API router that orchestrates all plugin operations based on manifest capabilities.
+-   All 15  files: All now implement the  interface.
+-   All 15  files: All now include the full set of capability flags, including .
 
 **Areas that need refactoring**:
-- None. The codebase just underwent a major refactoring.
+- The 11 non-Google plugins contain stubbed methods. The next major effort will be to replace these stubs with functional API integrations.
 
 **key api endpoints**
--   : Now supports  values for both accounts () and properties (). **NEEDS TESTING**.
--   : Same as above. **NEEDS TESTING**.
--   : Endpoint for creating access items, which was heavily debugged.
--   : The server-side callback for admin OAuth flows.
--   : The client-side page for handling onboarding OAuth callbacks.
+The following endpoints are now standardized and apply to all 15 plugins, with behavior determined by each plugin's manifest:
+-   
+-   
+-   
 
 **Critical Info for New Agent**
--   Your immediate priority is to **test the GA4 account and property level access grant/verify flow**. This is the last feature that was implemented and it is completely untested. Follow the checklist in the Pending Issues section.
--   The user has **four separate Google Cloud OAuth clients**. If they report a  error again, it is highly likely they missed adding the two required callback URLs to one of the clients.
--   The original task from the previous fork, fixing the Google Ads flow by getting a  from the user, was superseded and never completed. The Google Ads  flow is likely still broken and will require this token to work.
+-   The primary goals of the refactor (P0 and P1) are **complete**. The entire plugin architecture has been successfully unified and tested.
+-   Your immediate priority should be the user's P2 task: **adding unit tests** for the new shared logic to lock in the stability gains.
+-   The only remaining blocker for full functionality of an existing plugin is the **Google Ads developer token**. You may need to ask the user for this to proceed with any work on that integration.
+-   The 11 non-Google plugins are unified but not implemented. Their core methods are currently stubs that return API integration pending.
 
 **documents created in this job**
--   : Contains a summary of the project goals and completed work.
--   : A script to reset the database.
+-    (Updated)
+-    (Generated by testing agent)
+-    (Generated by testing agent)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (message #428):** Stated that for GA4, the UI should allow selecting either an account or its properties, and the backend must call the correct API for each. (IN PROGRESS - Agent has implemented the code but not tested it).
-2.  **User (message #390):** . (COMPLETED).
-3.  **User (message #387):** Reported an error during GA4 grant access, showing an image where the wrong ID format was being used. (COMPLETED - Agent diagnosed and implemented a fix).
-4.  **User (message #379):** Reported that the Tag Manager connection was failing. (COMPLETED - Agent diagnosed it as a disabled API and instructed the user).
-5.  **User (message #329):** Reported a  error with a screenshot. (COMPLETED - Agent diagnosed the multi-client config issue and provided instructions).
-6.  **User (message #317):** Clarified they need two callback URLs: one for admin, one for onboarding. (COMPLETED - Agent provided both).
-7.  **User (message #315):** Asked what OAuth callback URLs to register. (COMPLETED).
-8.  **User (message #64):** Provided a critical correction to the agent's plan, clarifying that manifests should NOT be pruned and that the  button logic must be purely capability-driven. (COMPLETED - Agent followed this guidance).
-9.  **User (message #5):** Provided the main, detailed feature request in the form of a CSV file and a list of requirements, superseding the previous work. (COMPLETED).
-10. **User (message #3):**  (COMPLETED).
+1.  **User:** Unify access provisioning across all plugins. First, finish P0: verify and test the new  interface on GA4, GTM, GSC and Google Ads... Once stable, move to P1: migrate the remaining 11 plugins... After migration, proceed to P2: add unit tests... (COMPLETED P0 and P1)
 
 **Project Health Check:**
--   **Broken**: The Google Ads  flow is likely still broken due to the missing developer token.
--   **Mocked**: None. The core functionality is working against live (sandboxed) APIs, pending user configuration (API keys/enabled APIs).
+-   **Broken**: The Google Ads  flow is blocked pending a developer token.
+-   **Mocked**: The  and  methods for the 11 non-Google plugins are stubs and do not perform real operations.
 
 **3rd Party Integrations**
--   **Google Ads API**: Used for Google Ads integration. Requires a user-provided Developer Token in .
--   **Google Analytics Admin API**: Used for GA4 integration.
--   **Google Search Console API**: Used for GSC integration.
--   **Google Tag Manager API**: Used for GTM integration.
--   **Google OAuth2**: Used for authentication against all four Google platforms.
+-   Google Ads API
+-   Google Analytics Admin API
+-   Google Search Console API
+-   Google Tag Manager API
+-   Google OAuth2
+-   (Plus 11 other services like Meta, Salesforce, etc., with stubbed integrations)
 
 **Testing status**
--   Testing agent used after significant changes: NO (User instructed not to use UI automation).
--   Troubleshoot agent used after agent stuck in loop: NO.
--   Test files created: None.
--   Known regressions: None, but the GA4 grant/verify flow is a new, untested feature.
+-   Testing agent used after significant changes: YES (twice, for P0 and P1 completion)
+-   Troubleshoot agent used after agent stuck in loop: NO
+-   Test files created: None. Unit tests are the next task.
+-   Known regressions: None. The testing agent confirmed the stability of the system after the refactor.
 
 **Credentials to test flow:**
-- All OAuth credentials are in .
-- A Google Ads Developer Token is still required in  to make the Google Ads flow fully functional.
+- All necessary credentials should be in the  files.
+- To fully test the Google Ads plugin, a valid  must be added to .
 
 **What agent forgot to execute**
-- The task to get the **Google Ads Developer Token** from the user and fix the Google Ads  flow was superseded by the user's much larger refactoring request. It was not forgotten, but deprioritized and never returned to. This remains an outstanding issue for the Google Ads platform to be fully functional.
-
+- The agent successfully executed all planned tasks (P0 and P1) from the user's instructions. The next task (P2 - unit tests) was correctly identified as the next step and not forgotten.
 </analysis>

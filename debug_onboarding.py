@@ -6,7 +6,7 @@ Debug script to investigate onboarding test failures
 import requests
 import json
 
-BASE_URL = "https://access-provisioning.preview.emergentagent.com"
+BASE_URL = "https://plugin-unify.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def calculate_google_analytics_id():

@@ -23,7 +23,7 @@ import sys
 from typing import Dict, Any, List, Optional
 
 # Base URL from environment variable  
-BASE_URL = "https://access-provisioning.preview.emergentagent.com"
+BASE_URL = "https://plugin-unify.preview.emergentagent.com"
 
 class AllPluginInterfaceTest:
     def __init__(self):
