@@ -94,6 +94,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
           clientOAuthSupported: true,
           canGrantAccess: true,
           canVerifyAccess: true,
+          canRevokeAccess: true,
           requiresEvidenceUpload: false
         }
       },
@@ -104,6 +105,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
           clientOAuthSupported: true,
           canGrantAccess: true,
           canVerifyAccess: true,
+          canRevokeAccess: true,
           requiresEvidenceUpload: false
         }
       },
@@ -114,6 +116,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
           clientOAuthSupported: false,
           canGrantAccess: false,
           canVerifyAccess: false,
+          canRevokeAccess: false,
           requiresEvidenceUpload: true
         }
       }
