@@ -344,6 +344,9 @@ export async function GET(request, { params }) {
   try {
     // GET /api/platforms - List all catalog platforms
     if (path === 'platforms') {
+      // Auto-sync plugins to catalog on first access
+      await ensureCatalogSynced();
+      
       const clientFacing = url.searchParams.get('clientFacing') === 'true';
       const domain = url.searchParams.get('domain');
       const tier = url.searchParams.get('tier');
