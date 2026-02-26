@@ -42,7 +42,14 @@ function getPlatformKeyFromName(name) {
     'google tag manager': 'gtm',
     'gtm': 'gtm',
     'google analytics (universal)': 'ga-ua',
+    'google analytics ua (legacy)': 'ga-ua',
     'universal analytics': 'ga-ua',
+    'amazon ads': 'amazon-ads',
+    'reddit ads': 'reddit-ads',
+    'microsoft ads (bing ads)': 'microsoft-ads',
+    'microsoft ads': 'microsoft-ads',
+    'bing ads': 'microsoft-ads',
+    'spotify ads': 'spotify-ads',
   };
   
   return keyMap[normalized] || normalized.replace(/[^a-z0-9]+/g, '-');
