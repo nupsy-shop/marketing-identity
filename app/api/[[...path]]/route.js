@@ -16,6 +16,7 @@ import {
 } from '@/plugins/common/oauth-config';
 import { getAccessTypeCapability, getEffectiveCapabilities } from '@/lib/plugins/types';
 import { isPlatformOAuthConfigured, getPlatformConfig, PlatformOAuthError } from '@/lib/oauthProviders';
+import { getPlatformKeyFromName, getSlugForPlatformKey } from '@/lib/platform-mappings';
 
 // Initialize plugins on module load
 initializePlugins();
@@ -40,48 +41,6 @@ async function getBody(request) {
   } catch {
     return null;
   }
-}
-
-// Helper to get platform key from display name
-function getPlatformKeyFromName(name) {
-  if (!name) return null;
-  const normalized = name.toLowerCase();
-  
-  const keyMap = {
-    'google ads': 'google-ads',
-    'meta': 'meta',
-    'facebook': 'meta',
-    'google analytics / ga4': 'ga4',
-    'google analytics': 'ga4',
-    'ga4': 'ga4',
-    'google search console': 'google-search-console',
-    'search console': 'google-search-console',
-    'snowflake': 'snowflake',
-    'dv360': 'dv360',
-    'display & video 360': 'dv360',
-    'the trade desk': 'trade-desk',
-    'trade desk': 'trade-desk',
-    'tiktok': 'tiktok',
-    'snapchat': 'snapchat',
-    'linkedin': 'linkedin',
-    'pinterest': 'pinterest',
-    'hubspot': 'hubspot',
-    'salesforce': 'salesforce',
-    'google tag manager': 'gtm',
-    'gtm': 'gtm',
-    'google analytics ua': 'ga-ua',
-    'universal analytics': 'ga-ua',
-    'amazon ads': 'amazon-ads',
-    'reddit ads': 'reddit-ads',
-    'microsoft ads': 'microsoft-ads',
-    'bing ads': 'microsoft-ads',
-    'spotify ads': 'spotify-ads',
-  };
-  
-  for (const [key, value] of Object.entries(keyMap)) {
-    if (normalized.includes(key)) return value;
-  }
-  return normalized.replace(/[^a-z0-9]/g, '-');
 }
 
 // Map itemType to accessPattern
