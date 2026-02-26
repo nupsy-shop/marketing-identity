@@ -6,61 +6,36 @@ import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, Acce
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
-  { type: 'NAMED_INVITE' as AccessItemType, label: 'Named Invite', description: 'Invite user to property', icon: 'fas fa-user-plus',
-    roleTemplates: [{ key: 'administrator', label: 'Administrator', description: 'Full access' }, { key: 'editor', label: 'Editor', description: 'Edit access' }, { key: 'analyst', label: 'Analyst', description: 'Create reports' }, { key: 'viewer', label: 'Viewer', description: 'View only' }] },
-  { type: 'GROUP_ACCESS' as AccessItemType, label: 'Group/Service Account', description: 'Grant access to groups', icon: 'fas fa-users',
-    roleTemplates: [{ key: 'administrator', label: 'Administrator', description: 'Full access' }, { key: 'editor', label: 'Editor', description: 'Edit access' }, { key: 'viewer', label: 'Viewer', description: 'View only' }] },
+  { type: 'NAMED_INVITE' as AccessItemType, label: 'Named Invite', description: 'Add user to GA UA account', icon: 'fas fa-user-plus',
+    roleTemplates: [{ key: 'administrator', label: 'Administrator', description: 'Full access including user management' }, { key: 'editor', label: 'Editor', description: 'Edit settings and data' }, { key: 'analyst', label: 'Analyst', description: 'Create and share reports' }, { key: 'viewer', label: 'Viewer', description: 'Read-only access' }] },
   { type: 'SHARED_ACCOUNT' as AccessItemType, label: 'Shared Account (PAM)', description: 'Privileged access via credential vault', icon: 'fas fa-key',
     roleTemplates: [{ key: 'administrator', label: 'Administrator', description: 'Full access' }] }
 ];
 
 export const SECURITY_CAPABILITIES: SecurityCapabilities = {
   supportsDelegation: false, supportsGroupAccess: true, supportsOAuth: true, supportsCredentialLogin: true,
-  pamRecommendation: 'not_recommended', pamRationale: 'Google Analytics UA supports group-based and named-user access. Use PAM only for break-glass scenarios.'
+  pamRecommendation: 'not_recommended', pamRationale: 'GA UA supports named-user access via Google accounts. PAM only for break-glass.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
-  oauthSupported: true, 
-  apiVerificationSupported: true, 
-  automatedProvisioningSupported: true,
-  discoverTargetsSupported: true,
-  targetTypes: ['ACCOUNT', 'PROPERTY']
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
+  oauthSupported: true, apiVerificationSupported: true, automatedProvisioningSupported: true,
+  discoverTargetsSupported: true, targetTypes: ['ACCOUNT', 'WEB_PROPERTY']
 };
 
-// GA UA (legacy) uses same Management API as GA4 for user management
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
-  NAMED_INVITE: {
-    clientOAuthSupported: true,
-    canGrantAccess: true,      // GA Management API supports adding users
-    canVerifyAccess: true,     // Can list user links
-    canRevokeAccess: false,
-    requiresEvidenceUpload: false
-  },
-  GROUP_ACCESS: {
-    clientOAuthSupported: true,
-    canGrantAccess: true,
-    canVerifyAccess: true,
-    canRevokeAccess: false,
-    requiresEvidenceUpload: false
-  },
-  SHARED_ACCOUNT: {
-    clientOAuthSupported: false,
-    canGrantAccess: false,
-    canVerifyAccess: false,
-    canRevokeAccess: false,
-    requiresEvidenceUpload: true
-  }
+  NAMED_INVITE: { clientOAuthSupported: true, canGrantAccess: true, canVerifyAccess: true, canRevokeAccess: true, requiresEvidenceUpload: false, verificationMode: 'AUTO' as VerificationMode },
+  SHARED_ACCOUNT: { clientOAuthSupported: false, canGrantAccess: false, canVerifyAccess: false, canRevokeAccess: false, requiresEvidenceUpload: true, verificationMode: 'EVIDENCE_REQUIRED' as VerificationMode }
 };
 
 export const GA_UA_MANIFEST: PluginManifest = {
-  platformKey: 'ga-ua', displayName: 'Google Analytics (Universal)', pluginVersion: '2.2.0', category: 'Analytics',
-  description: 'Google Analytics Universal Analytics (Legacy)', tier: 2, clientFacing: true,
+  platformKey: 'ga-ua', displayName: 'Google Analytics UA (Legacy)', pluginVersion: '3.0.0', category: 'Analytics',
+  description: 'Google Analytics Universal Analytics (sunset - read-only + user management)', tier: 2, clientFacing: true,
   icon: 'fas fa-chart-line', logoPath: '/logos/ga-ua.svg', brandColor: '#E37400',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
   accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
   allowedOwnershipModels: ['CLIENT_OWNED' as PamOwnership, 'AGENCY_OWNED' as PamOwnership],
-  allowedIdentityStrategies: ['AGENCY_GROUP' as HumanIdentityStrategy, 'INDIVIDUAL_USERS' as HumanIdentityStrategy],
-  allowedAccessTypes: ['NAMED_INVITE' as AccessItemType, 'GROUP_ACCESS' as AccessItemType, 'SHARED_ACCOUNT' as AccessItemType],
+  allowedIdentityStrategies: ['INDIVIDUAL_USERS' as HumanIdentityStrategy, 'AGENCY_GROUP' as HumanIdentityStrategy],
+  allowedAccessTypes: ['NAMED_INVITE' as AccessItemType, 'SHARED_ACCOUNT' as AccessItemType],
   verificationModes: ['AUTO' as VerificationMode, 'EVIDENCE_REQUIRED' as VerificationMode],
 };
 export default GA_UA_MANIFEST;

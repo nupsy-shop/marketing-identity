@@ -6,61 +6,36 @@ import type { SecurityCapabilities, AutomationCapabilities, AccessItemType, Acce
 import type { AccessItemTypeMetadata } from '../common/manifest';
 
 export const ACCESS_ITEM_TYPES: AccessItemTypeMetadata[] = [
-  { type: 'NAMED_INVITE' as AccessItemType, label: 'Named Invite', description: 'Invite user to portal', icon: 'fas fa-user-plus',
-    roleTemplates: [{ key: 'super-admin', label: 'Super Admin', description: 'Full portal access' }, { key: 'marketing', label: 'Marketing', description: 'Marketing tools access' }, { key: 'sales', label: 'Sales', description: 'Sales tools access' }, { key: 'service', label: 'Service', description: 'Service tools access' }] },
-  { type: 'PARTNER_DELEGATION' as AccessItemType, label: 'Partner Delegation', description: 'Partner access via app marketplace', icon: 'fas fa-handshake',
-    roleTemplates: [{ key: 'partner', label: 'Partner', description: 'Partner access' }] },
+  { type: 'NAMED_INVITE' as AccessItemType, label: 'Named Invite', description: 'Invite user to HubSpot portal', icon: 'fas fa-user-plus',
+    roleTemplates: [{ key: 'super-admin', label: 'Super Admin', description: 'Full portal access' }, { key: 'admin', label: 'Admin', description: 'Admin access' }, { key: 'sales', label: 'Sales', description: 'Sales tools access' }, { key: 'marketing', label: 'Marketing', description: 'Marketing tools access' }, { key: 'service', label: 'Service', description: 'Service tools access' }, { key: 'viewer', label: 'Viewer', description: 'Read-only access' }] },
   { type: 'SHARED_ACCOUNT' as AccessItemType, label: 'Shared Account (PAM)', description: 'Privileged access via credential vault', icon: 'fas fa-key',
-    roleTemplates: [{ key: 'super-admin', label: 'Super Admin', description: 'Full access' }] }
+    roleTemplates: [{ key: 'super-admin', label: 'Super Admin', description: 'Full portal access' }] }
 ];
 
 export const SECURITY_CAPABILITIES: SecurityCapabilities = {
-  supportsDelegation: true, supportsGroupAccess: false, supportsOAuth: true, supportsCredentialLogin: true,
-  pamRecommendation: 'not_recommended', pamRationale: 'HubSpot supports named-user and partner access. Use PAM only for break-glass scenarios.'
+  supportsDelegation: false, supportsGroupAccess: false, supportsOAuth: true, supportsCredentialLogin: true,
+  pamRecommendation: 'not_recommended', pamRationale: 'HubSpot supports named-user invites with granular roles. PAM only for break-glass.'
 };
 
-export const AUTOMATION_CAPABILITIES: AutomationCapabilities = { 
-  oauthSupported: true, 
-  apiVerificationSupported: false, 
-  automatedProvisioningSupported: false,
-  discoverTargetsSupported: true,
-  targetTypes: ['PORTAL'],
+export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
+  oauthSupported: true, apiVerificationSupported: true, automatedProvisioningSupported: true,
+  discoverTargetsSupported: true, targetTypes: ['PORTAL']
 };
 
-// HubSpot does not have public APIs for user management
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
-  NAMED_INVITE: {
-    clientOAuthSupported: true,
-    canGrantAccess: false,     // No public API for user provisioning
-    canVerifyAccess: false,    // No API to verify user access
-    canRevokeAccess: false,
-    requiresEvidenceUpload: true
-  },
-  PARTNER_DELEGATION: {
-    clientOAuthSupported: true,
-    canGrantAccess: false,
-    canVerifyAccess: false,
-    canRevokeAccess: false,
-    requiresEvidenceUpload: true
-  },
-  SHARED_ACCOUNT: {
-    clientOAuthSupported: false,
-    canGrantAccess: false,
-    canVerifyAccess: false,
-    canRevokeAccess: false,
-    requiresEvidenceUpload: true
-  }
+  NAMED_INVITE: { clientOAuthSupported: true, canGrantAccess: true, canVerifyAccess: true, canRevokeAccess: true, requiresEvidenceUpload: false, verificationMode: 'AUTO' as VerificationMode },
+  SHARED_ACCOUNT: { clientOAuthSupported: false, canGrantAccess: false, canVerifyAccess: false, canRevokeAccess: false, requiresEvidenceUpload: true, verificationMode: 'EVIDENCE_REQUIRED' as VerificationMode }
 };
 
 export const HUBSPOT_MANIFEST: PluginManifest = {
-  platformKey: 'hubspot', displayName: 'HubSpot', pluginVersion: '2.2.0', category: 'CRM',
-  description: 'HubSpot CRM, Marketing, Sales, and Service Hub', tier: 1, clientFacing: true,
+  platformKey: 'hubspot', displayName: 'HubSpot', pluginVersion: '3.0.0', category: 'CRM & Marketing Automation',
+  description: 'HubSpot CRM, Marketing Hub, Sales Hub, Service Hub', tier: 2, clientFacing: true,
   icon: 'fab fa-hubspot', logoPath: '/logos/hubspot.svg', brandColor: '#FF7A59',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
   accessTypeCapabilities: ACCESS_TYPE_CAPABILITIES,
   allowedOwnershipModels: ['CLIENT_OWNED' as PamOwnership, 'AGENCY_OWNED' as PamOwnership],
-  allowedIdentityStrategies: ['INDIVIDUAL_USERS' as HumanIdentityStrategy, 'AGENCY_GROUP' as HumanIdentityStrategy],
-  allowedAccessTypes: ['NAMED_INVITE' as AccessItemType, 'PARTNER_DELEGATION' as AccessItemType, 'SHARED_ACCOUNT' as AccessItemType],
-  verificationModes: ['EVIDENCE_REQUIRED' as VerificationMode, 'ATTESTATION_ONLY' as VerificationMode],
+  allowedIdentityStrategies: ['INDIVIDUAL_USERS' as HumanIdentityStrategy],
+  allowedAccessTypes: ['NAMED_INVITE' as AccessItemType, 'SHARED_ACCOUNT' as AccessItemType],
+  verificationModes: ['AUTO' as VerificationMode, 'EVIDENCE_REQUIRED' as VerificationMode],
 };
 export default HUBSPOT_MANIFEST;
