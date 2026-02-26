@@ -1,56 +1,57 @@
-# Marketing Identity Platform - PRD
+# Access Provisioning Platform — PRD
 
-## Original Problem Statement
-Build a plugin-based Marketing Identity Platform that manages agency-client access provisioning across marketing platforms (Google Ads, GA4, GSC, GTM, etc.) with dynamic, metadata-driven capabilities.
+## Problem Statement
+Build a robust, scalable platform for managing client access to marketing services across 15+ ad/analytics platforms. Three architectural pillars:
 
-## Core Architecture
-- **Next.js** full-stack app with **Prisma** ORM and **PostgreSQL (Neon)**
-- **Plugin system** with manifests defining platform capabilities, schemas, and OAuth
-- **Capability-driven UI**: `getEffectiveCapabilities()` evaluates runtime capabilities from manifest rules
-- **Conditional capabilities** based on `pamOwnership`, `identityPurpose`, `identityStrategy`
+1. **Client-Centric Governance**: Admin UI pivots from account-centric to client-centric views.
+2. **Declarative, Manifest-Driven Architecture**: All plugin capabilities declared in `PluginManifest`, driving runtime validation and UI.
+3. **Unified Plugin Interface**: Standardized `AccessProvisioningPlugin` interface with `grantAccess`, `verifyAccess`, `revokeAccess` across all plugins.
+
+## Core Requirements
+- Every plugin MUST implement `grantAccess`, `verifyAccess`, `revokeAccess` with unified `PluginOperationParams` / `PluginOperationResult` signatures.
+- Manifests MUST declare `canGrantAccess`, `canVerifyAccess`, `canRevokeAccess` per access type.
+- Route handler MUST gate on manifest capabilities before calling plugin methods.
+- `validateProvisioningRequest` MUST be used for centralized validation.
+- `buildPluginError` MUST be used for standardized error handling.
 
 ## What's Been Implemented
 
-### Feb 25, 2026 — Session 3 (Current)
-1. **GA4 Access Binding API Fix (v1alpha)**: All access binding operations now use `v1alpha` API instead of `v1beta`
-2. **GA4 Role Format Fix**: Changed from `roles/editor` to `predefinedRoles/editor` (correct GA4 format)
-3. **Grant/Verify Status Update**: Backend updates AccessRequestItem status to "validated" after successful grant/verify
-4. **Platform Integration Card Redesign**: Replaced "Accessible Targets" with tabbed interface (Onboarded Accounts + Integration Scope)
-5. **Client-Centric Governance v2**: Onboarded Accounts tab now shows one row per client (no Target column). Columns: Client, Items count, Status (derived), Last Verified (max), Actions (View Details, Re-verify Client). "View Details" opens a Sheet panel with full item-level drill-down including Target, Type, Role, Status, Verified, per-item Verify.
-6. **Extended PluginManifest**: Added 4 new fields to `PluginManifest` in both `lib/plugins/types.ts` and `plugins/common/manifest.ts`:
-   - `allowedOwnershipModels: PamOwnership[]`
-   - `allowedIdentityStrategies: (HumanIdentityStrategy | PamIdentityStrategy)[]`
-   - `allowedAccessTypes: AccessItemType[]`
-   - `verificationModes: VerificationMode[]`
-   Populated in all 15 plugin manifests. Runtime validation in `validateAgainstPluginRules()` now validates ownership models and identity strategies against manifest. Added 5 validator functions exported from types.ts.
+### P0 — Unified Interface for 4 Google Plugins (DONE, TESTED)
+- GA4: Full `grantAccess`, `verifyAccess`, `revokeAccess` with live Google Analytics Admin API
+- GTM: Full interface with live Google Tag Manager API, including `deleteUserPermission`
+- Google Ads: Full interface with live Google Ads API, including `removeUserAccess` and `updateManagerLinkStatus`
+- GSC: Full `verifyAccess` via API; `grantAccess` and `revokeAccess` return "not supported" (API limitation)
 
-### Feb 25, 2026 — Session 2
-1. **Environment Reset**: Cleaned all transactional tables
-2. **Data Integrity**: Added `@@unique([agencyPlatformId, itemType, role, label])` constraint on AccessItem model
-3. **GTM Schema Update**: Added `containerName` field
-4. **API Bug Fixes**: Fixed GROUP_ACCESS type mapping, identityStrategy field resolution, added createAuditLogEntry
-5. **Onboarding UI Enhancement**: Manual fields hidden when OAuth target is selected
-6. **Admin Visibility**: `clientProvidedTarget` exposed in access request detail view
-7. **Full E2E Verification**: All 10 CSV variations tested across 4 platforms
+### P1 — Unified Interface for 11 Remaining Plugins (DONE, TESTED)
+All 11 plugins (Meta, DV360, Trade Desk, TikTok, Snapchat, LinkedIn, Pinterest, HubSpot, Salesforce, Snowflake, GA-UA) now implement:
+- `grantAccess`, `verifyAccess`, `revokeAccess` with proper `PluginOperationParams`/`PluginOperationResult`
+- `validateProvisioningRequest` for centralized validation
+- Manifest `canRevokeAccess: false` (no live API integration yet)
+- Plugins with `canGrantAccess: true` (Meta, Salesforce, GA-UA) return "API integration pending"
+- Plugins with `canGrantAccess: false` get 501 at route level
 
-### Previous Sessions
-- Conditional capability engine (`getEffectiveCapabilities`)
-- Plugin manifests for GA4, GTM, Google Ads, GSC with conditional rules
-- Backend API endpoints refactored to use dynamic capabilities
-- Frontend hardcoded logic removed in favor of capability-driven rendering
+### Earlier Completed Work
+- GA4 bug fixes (API versions, role formats, UI status updates)
+- Client-centric Admin UI refactor (PlatformIntegrationCard with Sheet, Tabs, filters)
+- Manifest-driven architecture (allowedOwnershipModels, allowedIdentityStrategies, allowedAccessTypes, verificationModes)
 
-## Prioritized Backlog
+## Architecture
+- 15 plugins in `/app/plugins/{key}/index.ts`
+- Unified types in `/app/lib/plugins/types.ts`
+- API routes in `/app/app/api/[[...path]]/route.js`
+- Admin UI in `/app/components/admin/PlatformIntegrationCard.tsx`
 
-### P0
-- ~~GA4 Access Binding v1alpha fix~~ DONE
-- ~~GA4 predefinedRoles format fix~~ DONE
-- ~~Status update after grant/verify~~ DONE
-- ~~Platform Integration Card redesign with tabs~~ DONE
+## Remaining Backlog
 
-### P1
-- Google Ads Developer Token needed for `discoverTargets` endpoint (BLOCKED on user input)
-- Unit tests for `getEffectiveCapabilities` and plugin modules
+### P2 — Unit Tests
+- Add unit tests for `validateProvisioningRequest`, `buildPluginError`
+- Test `revokeAccess` logic per plugin
+- Create `/app/backend/tests/` structure
 
-### P2
-- Enhanced error handling for OAuth failures
-- Credential encryption for CLIENT_OWNED PAM flows
+### P3 — File Cleanup & Structural Consistency
+- Ensure consistent file naming across all plugin folders
+- Remove any dead code or legacy interfaces
+
+### Known Issues
+- Google Ads `discoverTargets` flow requires `GOOGLE_ADS_DEVELOPER_TOKEN` (not available)
+- Meta/Salesforce/GA-UA `grantAccess`/`verifyAccess` are stubs (API integration pending)
