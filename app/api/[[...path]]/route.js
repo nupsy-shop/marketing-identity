@@ -108,6 +108,7 @@ function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, b
     return t.replace(/_PAM$/i, '').replace('PAM_', '').toUpperCase();
   };
   const normalizedItemType = normalizeType(itemType);
+  const supportedTypes = manifest.supportedAccessItemTypes || [];
   
   // 1. Validate itemType against manifest.allowedAccessTypes (new field, single source of truth)
   if (manifest.allowedAccessTypes?.length > 0) {
@@ -116,7 +117,6 @@ function validateAgainstPluginRules(platformKey, itemType, role, agencyConfig, b
     }
   } else {
     // Fallback to supportedAccessItemTypes for backwards compat
-    const supportedTypes = manifest.supportedAccessItemTypes || [];
     if (supportedTypes.length > 0) {
       const typeNames = supportedTypes.map(t => typeof t === 'string' ? t : (t.type || '')).map(normalizeType);
       if (!typeNames.includes(normalizedItemType)) {
