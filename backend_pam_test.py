@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://plugin-unify.preview.emergentagent.com"
+BASE_URL = "https://access-mgmt-2.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 # Test data

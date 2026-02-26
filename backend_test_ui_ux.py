@@ -19,7 +19,7 @@ from typing import Dict, Any, Optional
 
 class UIUXFeaturesTester:
     def __init__(self):
-        self.base_url = "https://plugin-unify.preview.emergentagent.com/api"
+        self.base_url = "https://access-mgmt-2.preview.emergentagent.com/api"
         self.session = None
         self.test_results = []
         self.created_resources = {

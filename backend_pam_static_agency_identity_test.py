@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List
 import uuid
 
 # Base URL from environment
-BASE_URL = "https://plugin-unify.preview.emergentagent.com"
+BASE_URL = "https://access-mgmt-2.preview.emergentagent.com"
 
 class PAMStaticAgencyIdentityTester:
     def __init__(self, base_url: str):

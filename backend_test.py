@@ -10,7 +10,7 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # Configuration
-BASE_URL = "https://plugin-unify.preview.emergentagent.com"
+BASE_URL = "https://access-mgmt-2.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 # Expected 19 plugin keys

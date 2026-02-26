@@ -6,7 +6,7 @@ Debug agency platform item addition
 import requests
 import json
 
-BASE_URL = "https://plugin-unify.preview.emergentagent.com"
+BASE_URL = "https://access-mgmt-2.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def debug_agency_item_addition():
