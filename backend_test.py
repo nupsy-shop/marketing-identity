@@ -123,14 +123,14 @@ def test_plugin_registration(results: TestResults):
         return
     
     # Check total count
-    if len(response) != 19:
-        results.add_result("Plugin Count", "FAIL", f"Expected 19 plugins, got {len(response)}")
+    if len(plugins_list) != 19:
+        results.add_result("Plugin Count", "FAIL", f"Expected 19 plugins, got {len(plugins_list)}")
     else:
         results.add_result("Plugin Count", "PASS", f"Found exactly 19 plugins")
     
     # Check each plugin has required fields
     plugin_keys = []
-    for plugin in response:
+    for plugin in plugins_list:
         if not all(key in plugin for key in ['platformKey', 'displayName', 'pluginVersion', 'category']):
             results.add_result("Plugin Structure", "FAIL", f"Plugin missing required fields: {plugin}")
             return
