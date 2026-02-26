@@ -488,6 +488,107 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // Access Revocation
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Revoke access from an identity on a Google Ads customer account.
+   * For NAMED_INVITE: Removes the user's access link.
+   * For PARTNER_DELEGATION: Cancels/deactivates the manager link.
+   */
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    const { auth, target, role, identity, accessItemType } = params;
+
+    // Centralized validation
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; ') };
+    }
+
+    try {
+      const authResult: AuthResult = {
+        success: true,
+        accessToken: auth.accessToken,
+        tokenType: auth.tokenType || 'Bearer'
+      };
+
+      const customerId = target.replace(/^customers\//, '').replace(/-/g, '');
+
+      console.log(`[GoogleAdsPlugin] Revoking ${accessItemType} access for ${identity} on customer ${customerId}`);
+
+      if (accessItemType === 'NAMED_INVITE') {
+        const result = await removeUserAccess(authResult, customerId, identity);
+
+        if (!result.removed) {
+          return {
+            success: false,
+            error: `No access found for ${identity} on customer ${customerId}.`,
+            details: { identity }
+          };
+        }
+
+        console.log(`[GoogleAdsPlugin] Revoked user access for ${identity} (${result.resourceName})`);
+        return {
+          success: true,
+          details: {
+            identity,
+            bindingRemoved: result.resourceName,
+            previousRoles: role ? [role] : [],
+          }
+        };
+      }
+
+      if (accessItemType === 'PARTNER_DELEGATION') {
+        const managerCustomerId = identity.replace(/^customers\//, '').replace(/-/g, '');
+
+        // Find the active manager link
+        const links = await listManagerLinks(authResult, customerId);
+        const managerResourceName = managerCustomerId.startsWith('customers/')
+          ? managerCustomerId
+          : `customers/${managerCustomerId}`;
+
+        const link = links.find(l =>
+          l.managerCustomer === managerResourceName ||
+          l.managerCustomer?.includes(managerCustomerId)
+        );
+
+        if (!link || !link.resourceName) {
+          return {
+            success: false,
+            error: `No manager link found between MCC ${managerCustomerId} and customer ${customerId}.`,
+            details: { identity: managerCustomerId }
+          };
+        }
+
+        // Cancel/deactivate the manager link
+        await updateManagerLinkStatus(authResult, customerId, link.resourceName, 'CANCELED');
+
+        console.log(`[GoogleAdsPlugin] Canceled manager link ${link.resourceName}`);
+        return {
+          success: true,
+          details: {
+            identity: managerCustomerId,
+            bindingRemoved: link.resourceName,
+            previousRoles: ['PARTNER_LINK'],
+          }
+        };
+      }
+
+      return {
+        success: false,
+        error: `Unsupported access type for revocation: ${accessItemType}`,
+        details: { identity }
+      };
+
+    } catch (error) {
+      const e = buildPluginError(error, 'google-ads', 'revoke');
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied. Admin access required. Detail: ${e.message}` };
+      if (e.isNotFound) return { success: false, error: `Resource not found: ${e.message}` };
+      return { success: false, error: `Failed to revoke access: ${e.message}` };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Authentication Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
