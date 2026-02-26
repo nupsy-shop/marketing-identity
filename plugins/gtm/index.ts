@@ -422,47 +422,12 @@ class GTMPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
       };
 
     } catch (error) {
-      console.error('[GTMPlugin] grantAccess error:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
-        return {
-          success: false,
-          error: 'The OAuth token does not have permission to manage user permissions. The client needs to grant Admin access.',
-          details: { found: false }
-        };
-      }
-      
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        return {
-          success: false,
-          error: `Account ${target.split('/')[0]} was not found or is not accessible.`,
-          details: { found: false }
-        };
-      }
-      
-      if (errorMessage.includes('409') || errorMessage.includes('already exists')) {
-        return {
-          success: false,
-          error: `User ${identity} already has an access permission on this account.`,
-          details: { found: false }
-        };
-      }
-      
-      if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
-        return {
-          success: false,
-          error: `Invalid request: ${errorMessage}. Please verify the email address and account ID are correct.`,
-          details: { found: false }
-        };
-      }
-      
-      return {
-        success: false,
-        error: `Failed to grant access: ${errorMessage}`,
-        details: { found: false }
-      };
+      const e = buildPluginError(error, 'gtm', 'grant');
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied. Admin role required. Detail: ${e.message}`, details: { found: false } };
+      if (e.isNotFound) return { success: false, error: `Account ${target.split('/')[0]} not found or inaccessible. Detail: ${e.message}`, details: { found: false } };
+      if (e.isConflict) return { success: false, error: `User ${identity} already has access.`, details: { found: false, alreadyExists: true } };
+      if (e.isBadRequest) return { success: false, error: `Invalid request: ${e.message}`, details: { found: false } };
+      return { success: false, error: `Failed to grant access: ${e.message}`, details: { found: false } };
     }
   }
 
