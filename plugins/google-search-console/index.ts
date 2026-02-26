@@ -209,37 +209,10 @@ class GSCPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
-    // Validate inputs
-    if (!target) {
-      return { 
-        success: false, 
-        error: 'Site URL (target) is required',
-        details: { found: false }
-      };
-    }
-
-    if (!identity) {
-      return { 
-        success: false, 
-        error: 'Identity (email) to grant access to is required',
-        details: { found: false }
-      };
-    }
-
-    if (!role) {
-      return { 
-        success: false, 
-        error: 'Role is required',
-        details: { found: false }
-      };
-    }
-
-    if (accessItemType === 'SHARED_ACCOUNT') {
-      return {
-        success: false,
-        error: 'Shared Account (PAM) access cannot be granted via API. Manual credential handoff required.',
-        details: { found: false }
-      };
+    // Centralized validation
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; '), details: { found: false } };
     }
 
     // Search Console API limitation: Cannot add users programmatically
