@@ -26,15 +26,21 @@ import type {
   InstructionContext,
   InstructionStep,
   VerificationContext,
-  AccessItemType
+  AccessItemType,
+  PluginOperationParams,
+  VerifyResult,
+  GrantResult,
+  RevokeResult,
+  AccessProvisioningPlugin
 } from '../../lib/plugins/types';
+import { buildPluginError, resolveNativeRole, validateProvisioningRequest } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
 import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, IncomingRequest, DiscoverTargetsResult } from '../common/types';
 
 // Import modular components
 import { GA4_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
 import { authorize, refreshToken, isGA4OAuthConfigured, getOAuthConfig, GA4OAuthNotConfiguredError } from './auth';
-import { getAllAccountsAndProperties, checkUserAccess, listAllAccountSummaries, listAccessBindings, createAccessBinding, listAccountAccessBindings, createAccountAccessBinding } from './api/management';
+import { getAllAccountsAndProperties, checkUserAccess, listAllAccountSummaries, listAccessBindings, createAccessBinding, listAccountAccessBindings, createAccountAccessBinding, deleteAccessBinding } from './api/management';
 import { runReport } from './api/reporting';
 import { mapGA4Accounts, mapGA4Properties } from './mappers/account.mapper';
 import { mapGA4Report } from './mappers/report.mapper';
@@ -42,29 +48,6 @@ import { NamedInviteAgencySchema, GroupAccessAgencySchema, SharedAccountAgencySc
 import { NamedInviteClientSchema, GroupAccessClientSchema, SharedAccountClientSchema } from './schemas/client';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GA4Role } from './types';
-
-// ─── Verify Access Types ────────────────────────────────────────────────────────
-
-interface VerifyAccessParams {
-  auth: { accessToken: string; tokenType?: string };
-  target: string;  // Property ID (e.g., "123456789")
-  role: string;    // Expected role key (e.g., "viewer", "editor", "admin")
-  identity: string; // Email to verify
-  accessItemType: AccessItemType;
-}
-
-interface VerifyAccessResult {
-  success: boolean;
-  data?: boolean;  // true = verified, false = not verified
-  error?: string;
-  details?: {
-    found: boolean;
-    foundRoles?: string[];
-    expectedRole?: string;
-    identity?: string;
-    binding?: Record<string, unknown>;
-  };
-}
 
 // ─── GA4 Plugin Implementation ─────────────────────────────────────────────────
 
