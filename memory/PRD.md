@@ -53,11 +53,19 @@ Build a robust, scalable platform for managing client access to marketing servic
 - API routes in `/app/app/api/[[...path]]/route.js`
 - Unit tests in `/app/tests/unit/*.test.ts`
 
+### P2 — Housekeeping & Cleanup (DONE, Feb 2026)
+- Removed 22 obsolete root-level test files (20 `.py` + 2 `.sh`, ~10K lines)
+- Removed 10 empty `api/` placeholder directories from plugins
+- Removed Python artifact (`tests/__init__.py`) and stale `test_result.md`
+- Verified: 383 tests still passing, app serving 200
+
 ## Remaining Backlog
 
-### P2 — Housekeeping & Cleanup
-- Remove root-level `.py` test files
-- Consistent file naming across plugin folders
+### P1 — Full End-to-End Testing
+- Systematically test each of the 19 plugins with real API credentials
+
+### P2 — Additional Cleanup
+- Consistent file naming across plugin folders (some lack `types.ts`)
 
 ## Known Issues
 - Google Ads `discoverTargets` requires `GOOGLE_ADS_DEVELOPER_TOKEN` (deferred)
