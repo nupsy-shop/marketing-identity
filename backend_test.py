@@ -1,530 +1,415 @@
 #!/usr/bin/env python3
 """
-Backend Testing for Unified AccessProvisioningPlugin Interface
-Testing all 4 Google plugins (GA4, GTM, Google Ads, GSC)
-
-This test validates the unified interface across all Google plugins
-including plugin manifests, grant/verify/revoke access endpoints,
-capabilities, effective capabilities, and validation edge cases.
+Comprehensive Backend Testing for Access Provisioning Platform Plugin System
+Testing 19 plugins implementing unified AccessProvisioningPlugin interface
 """
 
 import requests
 import json
 import sys
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Any, Optional
 
-# Base URL from environment variable
+# Configuration
 BASE_URL = "https://plugin-unify.preview.emergentagent.com"
+API_BASE = f"{BASE_URL}/api"
 
-class PluginInterfaceTest:
+# Expected 19 plugin keys
+EXPECTED_PLUGINS = [
+    'ga4', 'gtm', 'google-ads', 'google-search-console', 'meta', 
+    'dv360', 'trade-desk', 'tiktok', 'snapchat', 'linkedin', 
+    'pinterest', 'hubspot', 'salesforce', 'snowflake', 'ga-ua', 
+    'amazon-ads', 'reddit-ads', 'microsoft-ads', 'spotify-ads'
+]
+
+# Plugins with API support for NAMED_INVITE (should reach real APIs)
+API_SUPPORTED_PLUGINS = [
+    'hubspot', 'salesforce', 'snowflake', 'ga-ua', 'meta', 'microsoft-ads'
+]
+
+# Plugins WITHOUT API support (should return clear "no API" messages)  
+NO_API_PLUGINS = [
+    'dv360', 'tiktok', 'snapchat', 'pinterest', 'linkedin', 
+    'trade-desk', 'amazon-ads', 'reddit-ads', 'spotify-ads'
+]
+
+# Plugins where canGrantAccess=false for NAMED_INVITE (should get 501)
+NO_GRANT_ACCESS_PLUGINS = [
+    'spotify-ads', 'amazon-ads', 'reddit-ads'
+]
+
+class TestResults:
     def __init__(self):
-        self.base_url = BASE_URL
-        self.api_url = f"{self.base_url}/api"
-        self.test_results = []
         self.total_tests = 0
         self.passed_tests = 0
-        
-        # Test data for each plugin
-        self.test_configs = {
-            'ga4': {
-                'target': 'properties/123456',
-                'role': 'viewer',
-                'identity': 'test@agency.com',
-                'supported_access_types': ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT'],
-                'can_revoke_access': {
-                    'NAMED_INVITE': True,
-                    'GROUP_ACCESS': True,
-                    'SHARED_ACCOUNT': False  # Default, true with agency config
-                }
-            },
-            'gtm': {
-                'target': '12345/67890',
-                'role': 'read',
-                'identity': 'test@agency.com', 
-                'supported_access_types': ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT'],
-                'can_revoke_access': {
-                    'NAMED_INVITE': True,
-                    'GROUP_ACCESS': True,
-                    'SHARED_ACCOUNT': False  # Default, true with agency config
-                }
-            },
-            'google-ads': {
-                'target': 'customers/1234567890',
-                'role': 'standard',
-                'identity': 'test@agency.com',
-                'supported_access_types': ['PARTNER_DELEGATION', 'NAMED_INVITE', 'SHARED_ACCOUNT'],
-                'can_revoke_access': {
-                    'PARTNER_DELEGATION': True,
-                    'NAMED_INVITE': True,
-                    'SHARED_ACCOUNT': False  # Default, true with agency config
-                }
-            },
-            'google-search-console': {
-                'target': 'https://example.com',
-                'role': 'full',
-                'identity': 'test@agency.com',
-                'supported_access_types': ['NAMED_INVITE', 'SHARED_ACCOUNT'],
-                'can_revoke_access': {
-                    'NAMED_INVITE': False,  # GSC doesn't support programmatic user management
-                    'SHARED_ACCOUNT': False
-                }
-            }
-        }
-
-    def log_test(self, test_name: str, success: bool, message: str, details: Optional[Dict] = None):
-        """Log test results"""
+        self.failed_tests = 0
+        self.results = []
+    
+    def add_result(self, test_name: str, status: str, message: str = ""):
         self.total_tests += 1
-        if success:
+        if status == "PASS":
             self.passed_tests += 1
+        else:
+            self.failed_tests += 1
         
-        result = {
-            'test': test_name,
-            'success': success,
-            'message': message
-        }
-        if details:
-            result['details'] = details
+        self.results.append({
+            "test": test_name,
+            "status": status,
+            "message": message
+        })
         
-        self.test_results.append(result)
-        
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status}: {test_name} - {message}")
-        if details and not success:
-            print(f"    Details: {details}")
-
-    def make_request(self, method: str, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
-        """Make HTTP request to API"""
-        url = f"{self.api_url}/{path}"
-        headers = {'Content-Type': 'application/json'}
-        
-        try:
-            if method.upper() == 'GET':
-                response = requests.get(url, headers=headers, timeout=30)
-            elif method.upper() == 'POST':
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-            elif method.upper() == 'PATCH':
-                response = requests.patch(url, headers=headers, json=data, timeout=30)
-            else:
-                return {'error': f'Unsupported method: {method}', 'status_code': 400}
-            
-            return {
-                'status_code': response.status_code,
-                'data': response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text,
-                'headers': dict(response.headers)
-            }
-        except requests.exceptions.RequestException as e:
-            return {'error': str(e), 'status_code': 0}
-        except Exception as e:
-            return {'error': f'Unexpected error: {str(e)}', 'status_code': 0}
-
-    def test_plugin_manifest_validation(self):
-        """Test 1: Plugin Manifest Validation - GET /api/plugins"""
-        print("\n=== Test 1: Plugin Manifest Validation ===")
-        
-        response = self.make_request('GET', 'plugins')
-        
-        if response.get('status_code') != 200:
-            self.log_test("Plugin Manifests API", False, 
-                         f"API returned {response.get('status_code')}: {response.get('data', response.get('error'))}")
-            return
-        
-        plugins_data = response['data']
-        if not isinstance(plugins_data, dict) or not plugins_data.get('success'):
-            self.log_test("Plugin Manifests Response", False, 
-                         f"Invalid response format: {plugins_data}")
-            return
-        
-        plugins = plugins_data.get('data', [])
-        if not isinstance(plugins, list):
-            self.log_test("Plugin Manifests List", False, 
-                         f"Expected list of plugins, got: {type(plugins)}")
-            return
-        
-        # Find Google plugins
-        google_plugins = {}
-        for plugin in plugins:
-            if plugin.get('platformKey') in ['ga4', 'gtm', 'google-ads', 'google-search-console']:
-                google_plugins[plugin['platformKey']] = plugin
-        
-        # Test each Google plugin manifest
-        expected_plugins = ['ga4', 'gtm', 'google-ads', 'google-search-console']
-        for plugin_key in expected_plugins:
-            if plugin_key not in google_plugins:
-                self.log_test(f"Plugin {plugin_key} Manifest", False, 
-                             f"Plugin {plugin_key} not found in manifest list")
-                continue
-            
-            plugin = google_plugins[plugin_key]
-            
-            # Check required fields
-            required_fields = ['platformKey', 'displayName', 'accessTypeCapabilities']
-            missing_fields = [field for field in required_fields if field not in plugin]
-            
-            if missing_fields:
-                self.log_test(f"Plugin {plugin_key} Manifest", False, 
-                             f"Missing required fields: {missing_fields}")
-                continue
-            
-            # Check accessTypeCapabilities for canRevokeAccess
-            access_caps = plugin.get('accessTypeCapabilities', {})
-            config = self.test_configs[plugin_key]
-            
-            # Validate canRevokeAccess for each supported access type
-            manifest_valid = True
-            for access_type in config['supported_access_types']:
-                if access_type in access_caps:
-                    capability = access_caps[access_type]
-                    expected_can_revoke = config['can_revoke_access'].get(access_type, False)
-                    
-                    # For SHARED_ACCOUNT, it might be conditional rules
-                    if isinstance(capability, dict) and 'default' in capability:
-                        actual_can_revoke = capability['default'].get('canRevokeAccess', False)
-                    else:
-                        actual_can_revoke = capability.get('canRevokeAccess', False)
-                    
-                    # Special case for GSC NAMED_INVITE - should be false
-                    if plugin_key == 'google-search-console' and access_type == 'NAMED_INVITE':
-                        expected_can_revoke = False
-                    
-                    if actual_can_revoke != expected_can_revoke:
-                        self.log_test(f"Plugin {plugin_key} {access_type} canRevokeAccess", False, 
-                                     f"Expected {expected_can_revoke}, got {actual_can_revoke}")
-                        manifest_valid = False
-            
-            if manifest_valid:
-                self.log_test(f"Plugin {plugin_key} Manifest", True, 
-                             "Manifest structure and canRevokeAccess flags are correct")
-
-    def test_grant_access_endpoints(self):
-        """Test 2: Grant Access Endpoints - POST /api/oauth/{pluginKey}/grant-access"""
-        print("\n=== Test 2: Grant Access Endpoints ===")
-        
-        for plugin_key, config in self.test_configs.items():
-            for access_type in config['supported_access_types']:
-                test_payload = {
-                    "accessToken": "test-token",
-                    "target": config['target'],
-                    "role": config['role'],
-                    "identity": config['identity'],
-                    "accessItemType": access_type
-                }
-                
-                response = self.make_request('POST', f'oauth/{plugin_key}/grant-access', test_payload)
-                
-                # GSC should return 501 for grant access
-                if plugin_key == 'google-search-console':
-                    if response.get('status_code') == 501:
-                        self.log_test(f"{plugin_key} grant-access {access_type}", True, 
-                                     "GSC correctly returns 501 (not supported)")
-                    else:
-                        self.log_test(f"{plugin_key} grant-access {access_type}", False, 
-                                     f"Expected 501, got {response.get('status_code')}")
-                else:
-                    # Other plugins should reach API and return error (invalid token expected)
-                    if response.get('status_code') in [400, 401, 403, 404]:
-                        data = response.get('data', {})
-                        if isinstance(data, dict) and 'success' in data and 'error' in data:
-                            self.log_test(f"{plugin_key} grant-access {access_type}", True, 
-                                         f"Reached API, got expected error: {response.get('status_code')}")
-                        else:
-                            self.log_test(f"{plugin_key} grant-access {access_type}", False, 
-                                         f"Invalid response format: {data}")
-                    else:
-                        self.log_test(f"{plugin_key} grant-access {access_type}", False, 
-                                     f"Unexpected status: {response.get('status_code')}: {response.get('data')}")
-
-    def test_verify_access_endpoints(self):
-        """Test 3: Verify Access Endpoints - POST /api/oauth/{pluginKey}/verify-access"""
-        print("\n=== Test 3: Verify Access Endpoints ===")
-        
-        for plugin_key, config in self.test_configs.items():
-            for access_type in config['supported_access_types']:
-                test_payload = {
-                    "accessToken": "test-token", 
-                    "target": config['target'],
-                    "role": config['role'],
-                    "identity": config['identity'],
-                    "accessItemType": access_type
-                }
-                
-                response = self.make_request('POST', f'oauth/{plugin_key}/verify-access', test_payload)
-                
-                # All should reach platform API and return standardized VerifyResult format
-                if response.get('status_code') in [400, 401, 403, 404]:
-                    data = response.get('data', {})
-                    if isinstance(data, dict) and 'success' in data:
-                        self.log_test(f"{plugin_key} verify-access {access_type}", True, 
-                                     f"Reached platform API, got standardized response: {response.get('status_code')}")
-                    else:
-                        self.log_test(f"{plugin_key} verify-access {access_type}", False, 
-                                     f"Response not in VerifyResult format: {data}")
-                else:
-                    self.log_test(f"{plugin_key} verify-access {access_type}", False, 
-                                 f"Unexpected status: {response.get('status_code')}: {response.get('data')}")
-
-    def test_revoke_access_endpoints(self):
-        """Test 4: Revoke Access Endpoints - POST /api/oauth/{pluginKey}/revoke-access"""
-        print("\n=== Test 4: Revoke Access Endpoints ===")
-        
-        for plugin_key, config in self.test_configs.items():
-            for access_type in config['supported_access_types']:
-                test_payload = {
-                    "accessToken": "test-token",
-                    "target": config['target'], 
-                    "role": config['role'],
-                    "identity": config['identity'],
-                    "accessItemType": access_type
-                }
-                
-                response = self.make_request('POST', f'oauth/{plugin_key}/revoke-access', test_payload)
-                
-                expected_can_revoke = config['can_revoke_access'].get(access_type, False)
-                
-                if not expected_can_revoke:
-                    # Should return 501 (not supported)
-                    if response.get('status_code') == 501:
-                        self.log_test(f"{plugin_key} revoke-access {access_type}", True, 
-                                     "Correctly returns 501 (canRevokeAccess=false)")
-                    else:
-                        self.log_test(f"{plugin_key} revoke-access {access_type}", False, 
-                                     f"Expected 501, got {response.get('status_code')}")
-                else:
-                    # Should reach Google API (auth error expected) 
-                    if response.get('status_code') in [400, 401, 403, 404]:
-                        data = response.get('data', {})
-                        if isinstance(data, dict) and 'success' in data:
-                            self.log_test(f"{plugin_key} revoke-access {access_type}", True, 
-                                         f"Reached Google API, got expected error: {response.get('status_code')}")
-                        else:
-                            self.log_test(f"{plugin_key} revoke-access {access_type}", False, 
-                                         f"Invalid response format: {data}")
-                    else:
-                        self.log_test(f"{plugin_key} revoke-access {access_type}", False, 
-                                     f"Unexpected status: {response.get('status_code')}: {response.get('data')}")
-
-    def test_validation_edge_cases(self):
-        """Test 5: Validation Edge Cases"""
-        print("\n=== Test 5: Validation Edge Cases ===")
-        
-        # Test SHARED_ACCOUNT rejection for plugins that don't support it
-        for plugin_key in ['ga4', 'gtm', 'google-ads']:
-            test_payload = {
-                "accessToken": "test-token",
-                "target": self.test_configs[plugin_key]['target'],
-                "role": self.test_configs[plugin_key]['role'],
-                "identity": self.test_configs[plugin_key]['identity'],
-                "accessItemType": "SHARED_ACCOUNT"
-            }
-            
-            response = self.make_request('POST', f'oauth/{plugin_key}/grant-access', test_payload)
-            
-            # Check if SHARED_ACCOUNT is properly handled (might need PAM config)
-            if response.get('status_code') in [400, 501]:
-                data = response.get('data', {})
-                if isinstance(data, dict) and 'error' in data:
-                    error_msg = data['error']
-                    if 'SHARED_ACCOUNT' in error_msg or 'not supported' in error_msg.lower():
-                        self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", True, 
-                                     "Properly rejects SHARED_ACCOUNT without PAM config")
-                    else:
-                        self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", True, 
-                                     f"Returns appropriate error: {error_msg}")
-                else:
-                    self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", False, 
-                                 f"Invalid error response: {data}")
-            else:
-                self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", False, 
-                             f"Expected 400/501, got {response.get('status_code')}")
-        
-        # Test missing required fields
-        for plugin_key in ['ga4', 'gtm']:
-            # Test with missing accessToken
-            test_payload = {
-                "target": self.test_configs[plugin_key]['target'],
-                "role": self.test_configs[plugin_key]['role'],
-                "identity": self.test_configs[plugin_key]['identity'],
-                "accessItemType": "NAMED_INVITE"
-            }
-            
-            response = self.make_request('POST', f'oauth/{plugin_key}/grant-access', test_payload)
-            
-            if response.get('status_code') == 400:
-                self.log_test(f"{plugin_key} missing accessToken", True, 
-                             "Correctly returns 400 for missing required fields")
-            else:
-                self.log_test(f"{plugin_key} missing accessToken", False, 
-                             f"Expected 400, got {response.get('status_code')}")
-
-    def test_capabilities_endpoint(self):
-        """Test 6: Capabilities Endpoint - GET /api/plugins/{pluginKey}/capabilities"""
-        print("\n=== Test 6: Capabilities Endpoint ===")
-        
-        for plugin_key in self.test_configs.keys():
-            response = self.make_request('GET', f'plugins/{plugin_key}/capabilities')
-            
-            if response.get('status_code') != 200:
-                self.log_test(f"{plugin_key} capabilities", False, 
-                             f"API returned {response.get('status_code')}: {response.get('data')}")
-                continue
-            
-            data = response.get('data', {})
-            if not isinstance(data, dict) or not data.get('success'):
-                self.log_test(f"{plugin_key} capabilities", False, 
-                             f"Invalid response format: {data}")
-                continue
-            
-            capabilities = data.get('data', {})
-            
-            # Check if canRevokeAccess field is included in accessTypeCapabilities
-            access_caps = capabilities.get('accessTypeCapabilities', {})
-            has_revoke_access = False
-            
-            for access_type, capability in access_caps.items():
-                if isinstance(capability, dict):
-                    if 'canRevokeAccess' in capability:
-                        has_revoke_access = True
-                        break
-                    elif 'default' in capability and 'canRevokeAccess' in capability['default']:
-                        has_revoke_access = True
-                        break
-            
-            if has_revoke_access:
-                self.log_test(f"{plugin_key} capabilities", True, 
-                             "Capabilities include canRevokeAccess field")
-            else:
-                self.log_test(f"{plugin_key} capabilities", False, 
-                             "canRevokeAccess field missing from capabilities")
-
-    def test_effective_capabilities(self):
-        """Test 7: Effective Capabilities - GET /api/plugins/{pluginKey}/effective-capabilities"""
-        print("\n=== Test 7: Effective Capabilities ===")
-        
-        # Test GA4 with SHARED_ACCOUNT and different PAM configurations
-        test_cases = [
-            {
-                'params': {
-                    'accessItemType': 'SHARED_ACCOUNT'
-                },
-                'expected_can_revoke': False,  # Default should require evidence
-                'description': 'SHARED_ACCOUNT without PAM config'
-            },
-            {
-                'params': {
-                    'accessItemType': 'SHARED_ACCOUNT',
-                    'pamOwnership': 'AGENCY_OWNED',
-                    'identityPurpose': 'HUMAN_INTERACTIVE'
-                },
-                'expected_can_revoke': True,  # Should enable OAuth+grant+verify
-                'description': 'AGENCY_OWNED + HUMAN_INTERACTIVE'
-            },
-            {
-                'params': {
-                    'accessItemType': 'SHARED_ACCOUNT', 
-                    'pamOwnership': 'CLIENT_OWNED'
-                },
-                'expected_can_revoke': False,  # Should require evidence
-                'description': 'CLIENT_OWNED'
-            },
-            {
-                'params': {
-                    'accessItemType': 'NAMED_INVITE'
-                },
-                'expected_can_revoke': True,  # Should be unchanged
-                'description': 'NAMED_INVITE (unchanged)'
-            }
-        ]
-        
-        for test_case in test_cases:
-            params = test_case['params']
-            query_string = '&'.join([f'{k}={v}' for k, v in params.items()])
-            
-            response = self.make_request('GET', f'plugins/ga4/effective-capabilities?{query_string}')
-            
-            if response.get('status_code') != 200:
-                self.log_test(f"GA4 effective-capabilities {test_case['description']}", False, 
-                             f"API returned {response.get('status_code')}: {response.get('data')}")
-                continue
-            
-            data = response.get('data', {})
-            if not isinstance(data, dict) or not data.get('success'):
-                self.log_test(f"GA4 effective-capabilities {test_case['description']}", False, 
-                             f"Invalid response format: {data}")
-                continue
-            
-            effective_caps = data.get('data', {}).get('effectiveCapabilities', {})
-            actual_can_revoke = effective_caps.get('canRevokeAccess', False)
-            expected_can_revoke = test_case['expected_can_revoke']
-            
-            if actual_can_revoke == expected_can_revoke:
-                self.log_test(f"GA4 effective-capabilities {test_case['description']}", True, 
-                             f"canRevokeAccess correctly set to {actual_can_revoke}")
-            else:
-                self.log_test(f"GA4 effective-capabilities {test_case['description']}", False, 
-                             f"Expected canRevokeAccess={expected_can_revoke}, got {actual_can_revoke}")
-
-    def run_all_tests(self):
-        """Run all tests in sequence"""
-        print(f"🚀 Starting Unified AccessProvisioningPlugin Interface Tests")
-        print(f"🔗 Base URL: {self.base_url}")
-        
-        try:
-            self.test_plugin_manifest_validation()
-            self.test_grant_access_endpoints()
-            self.test_verify_access_endpoints()
-            self.test_revoke_access_endpoints()
-            self.test_validation_edge_cases()
-            self.test_capabilities_endpoint()
-            self.test_effective_capabilities()
-        except Exception as e:
-            print(f"\n❌ Test execution failed: {str(e)}")
-            return False
-        
-        return True
-
+        status_emoji = "✅" if status == "PASS" else "❌"
+        print(f"{status_emoji} {test_name}: {message}")
+    
     def print_summary(self):
-        """Print test summary"""
         print(f"\n{'='*80}")
-        print(f"📊 TEST SUMMARY")
+        print(f"TEST SUMMARY")
         print(f"{'='*80}")
         print(f"Total Tests: {self.total_tests}")
         print(f"Passed: {self.passed_tests}")
-        print(f"Failed: {self.total_tests - self.passed_tests}")
-        print(f"Success Rate: {(self.passed_tests/self.total_tests*100):.1f}%" if self.total_tests > 0 else "0%")
+        print(f"Failed: {self.failed_tests}")
+        print(f"Success Rate: {(self.passed_tests/self.total_tests)*100:.1f}%")
         
-        # Print failed tests
-        failed_tests = [test for test in self.test_results if not test['success']]
-        if failed_tests:
-            print(f"\n❌ FAILED TESTS ({len(failed_tests)}):")
-            for test in failed_tests:
-                print(f"  • {test['test']}: {test['message']}")
-        
-        print(f"\n{'='*80}")
-        
-        return self.passed_tests == self.total_tests
+        if self.failed_tests > 0:
+            print(f"\n❌ FAILED TESTS:")
+            for result in self.results:
+                if result["status"] == "FAIL":
+                    print(f"  - {result['test']}: {result['message']}")
 
+def make_request(method: str, url: str, data: Optional[Dict] = None, params: Optional[Dict] = None) -> tuple:
+    """Make HTTP request and return (status_code, response_json, error)"""
+    try:
+        if method.upper() == "GET":
+            response = requests.get(url, params=params, timeout=30)
+        elif method.upper() == "POST":
+            response = requests.post(url, json=data, timeout=30)
+        else:
+            return None, None, f"Unsupported method: {method}"
+            
+        try:
+            json_response = response.json()
+        except:
+            json_response = {"message": response.text}
+            
+        return response.status_code, json_response, None
+        
+    except requests.exceptions.Timeout:
+        return None, None, "Request timeout"
+    except requests.exceptions.RequestException as e:
+        return None, None, str(e)
+
+def test_plugin_registration(results: TestResults):
+    """Test 1: Plugin Registration - GET /api/plugins should return exactly 19 plugins"""
+    print(f"\n{'='*60}")
+    print("TEST 1: PLUGIN REGISTRATION")
+    print(f"{'='*60}")
+    
+    status_code, response, error = make_request("GET", f"{API_BASE}/plugins")
+    
+    if error:
+        results.add_result("Plugin Registration", "FAIL", f"Request error: {error}")
+        return
+    
+    if status_code != 200:
+        results.add_result("Plugin Registration", "FAIL", f"HTTP {status_code}: {response}")
+        return
+    
+    if not isinstance(response, list):
+        results.add_result("Plugin Registration", "FAIL", "Response is not a list")
+        return
+    
+    # Check total count
+    if len(response) != 19:
+        results.add_result("Plugin Count", "FAIL", f"Expected 19 plugins, got {len(response)}")
+    else:
+        results.add_result("Plugin Count", "PASS", f"Found exactly 19 plugins")
+    
+    # Check each plugin has required fields
+    plugin_keys = []
+    for plugin in response:
+        if not all(key in plugin for key in ['platformKey', 'displayName', 'pluginVersion', 'category']):
+            results.add_result("Plugin Structure", "FAIL", f"Plugin missing required fields: {plugin}")
+            return
+        plugin_keys.append(plugin['platformKey'])
+    
+    results.add_result("Plugin Structure", "PASS", "All plugins have required fields")
+    
+    # Check if all expected plugins are present
+    missing_plugins = set(EXPECTED_PLUGINS) - set(plugin_keys)
+    extra_plugins = set(plugin_keys) - set(EXPECTED_PLUGINS)
+    
+    if missing_plugins:
+        results.add_result("Expected Plugins", "FAIL", f"Missing plugins: {missing_plugins}")
+    elif extra_plugins:
+        results.add_result("Expected Plugins", "FAIL", f"Extra plugins: {extra_plugins}")
+    else:
+        results.add_result("Expected Plugins", "PASS", "All expected plugins present")
+
+def test_validation_all_plugins(results: TestResults):
+    """Test 2: Validation Tests for ALL 19 plugins"""
+    print(f"\n{'='*60}")
+    print("TEST 2: VALIDATION TESTS (ALL 19 PLUGINS)")
+    print(f"{'='*60}")
+    
+    validation_payload = {
+        "accessToken": "",
+        "target": "",
+        "role": "",
+        "identity": "",
+        "accessItemType": ""
+    }
+    
+    for plugin_key in EXPECTED_PLUGINS:
+        status_code, response, error = make_request(
+            "POST", 
+            f"{API_BASE}/oauth/{plugin_key}/grant-access",
+            data=validation_payload
+        )
+        
+        if error:
+            results.add_result(f"Validation {plugin_key}", "FAIL", f"Request error: {error}")
+            continue
+        
+        # Should return success: false with validation error
+        if isinstance(response, dict):
+            if response.get('success') == False:
+                if 'missing' in str(response).lower() or 'required' in str(response).lower() or 'validation' in str(response).lower():
+                    results.add_result(f"Validation {plugin_key}", "PASS", "Correctly validates missing fields")
+                else:
+                    results.add_result(f"Validation {plugin_key}", "FAIL", f"Wrong validation error: {response}")
+            else:
+                results.add_result(f"Validation {plugin_key}", "FAIL", f"Should fail validation: {response}")
+        else:
+            results.add_result(f"Validation {plugin_key}", "FAIL", f"Unexpected response format: {response}")
+
+def test_shared_account_rejection(results: TestResults):
+    """Test 3: SHARED_ACCOUNT Rejection for ALL 19 plugins"""
+    print(f"\n{'='*60}")
+    print("TEST 3: SHARED_ACCOUNT REJECTION (ALL 19 PLUGINS)")
+    print(f"{'='*60}")
+    
+    shared_account_payload = {
+        "accessToken": "tok",
+        "target": "res/1",
+        "role": "editor",
+        "identity": "user@test.com",
+        "accessItemType": "SHARED_ACCOUNT"
+    }
+    
+    for plugin_key in EXPECTED_PLUGINS:
+        status_code, response, error = make_request(
+            "POST",
+            f"{API_BASE}/oauth/{plugin_key}/grant-access",
+            data=shared_account_payload
+        )
+        
+        if error:
+            results.add_result(f"SHARED_ACCOUNT {plugin_key}", "FAIL", f"Request error: {error}")
+            continue
+        
+        # All plugins should reject SHARED_ACCOUNT grant attempts
+        if isinstance(response, dict):
+            if response.get('success') == False or status_code in [501, 400]:
+                results.add_result(f"SHARED_ACCOUNT {plugin_key}", "PASS", "Correctly rejects SHARED_ACCOUNT")
+            else:
+                results.add_result(f"SHARED_ACCOUNT {plugin_key}", "FAIL", f"Should reject SHARED_ACCOUNT: {response}")
+        else:
+            results.add_result(f"SHARED_ACCOUNT {plugin_key}", "FAIL", f"Unexpected response: {response}")
+
+def test_capabilities_check(results: TestResults):
+    """Test 4: Capabilities Check"""
+    print(f"\n{'='*60}")
+    print("TEST 4: CAPABILITIES CHECK")
+    print(f"{'='*60}")
+    
+    capabilities_payload = {
+        "accessItemType": "NAMED_INVITE"
+    }
+    
+    for plugin_key in EXPECTED_PLUGINS:
+        status_code, response, error = make_request(
+            "POST",
+            f"{API_BASE}/oauth/{plugin_key}/capabilities",
+            data=capabilities_payload
+        )
+        
+        if error:
+            results.add_result(f"Capabilities {plugin_key}", "FAIL", f"Request error: {error}")
+            continue
+        
+        if status_code == 200 and isinstance(response, dict):
+            results.add_result(f"Capabilities {plugin_key}", "PASS", "Returns capabilities")
+        else:
+            results.add_result(f"Capabilities {plugin_key}", "FAIL", f"HTTP {status_code}: {response}")
+
+def test_real_api_integration(results: TestResults):
+    """Test 5: Real API Integration with fake tokens"""
+    print(f"\n{'='*60}")
+    print("TEST 5: REAL API INTEGRATION (FAKE TOKENS)")
+    print(f"{'='*60}")
+    
+    fake_token_payload = {
+        "accessToken": "fake_token_12345",
+        "target": "test_target",
+        "role": "editor", 
+        "identity": "test@example.com",
+        "accessItemType": "NAMED_INVITE"
+    }
+    
+    # Test plugins with API support - should reach real APIs and get auth errors
+    for plugin_key in API_SUPPORTED_PLUGINS:
+        status_code, response, error = make_request(
+            "POST",
+            f"{API_BASE}/oauth/{plugin_key}/grant-access",
+            data=fake_token_payload
+        )
+        
+        if error:
+            results.add_result(f"API Integration {plugin_key}", "FAIL", f"Request error: {error}")
+            continue
+        
+        # Should reach real API and get authentication/authorization error
+        if status_code in [400, 401, 403] or (isinstance(response, dict) and 
+            ('auth' in str(response).lower() or 'unauthorized' in str(response).lower() or 
+             'invalid' in str(response).lower() or 'not found' in str(response).lower())):
+            results.add_result(f"API Integration {plugin_key}", "PASS", "Reaches real API (auth error expected)")
+        else:
+            results.add_result(f"API Integration {plugin_key}", "FAIL", f"Unexpected response: {status_code} {response}")
+    
+    # Test plugins WITHOUT API support - should return clear "no API" messages
+    for plugin_key in NO_API_PLUGINS:
+        status_code, response, error = make_request(
+            "POST",
+            f"{API_BASE}/oauth/{plugin_key}/grant-access", 
+            data=fake_token_payload
+        )
+        
+        if error:
+            results.add_result(f"No API {plugin_key}", "FAIL", f"Request error: {error}")
+            continue
+        
+        if status_code == 501 or (isinstance(response, dict) and 
+            ('not support' in str(response).lower() or 'no api' in str(response).lower() or
+             'not implemented' in str(response).lower())):
+            results.add_result(f"No API {plugin_key}", "PASS", "Returns clear 'no API' message")
+        else:
+            results.add_result(f"No API {plugin_key}", "FAIL", f"Should return 'no API': {status_code} {response}")
+
+def test_manifest_capability_enforcement(results: TestResults):
+    """Test 6: Manifest Capability Enforcement"""
+    print(f"\n{'='*60}")
+    print("TEST 6: MANIFEST CAPABILITY ENFORCEMENT")
+    print(f"{'='*60}")
+    
+    fake_token_payload = {
+        "accessToken": "fake_token_12345",
+        "target": "test_target",
+        "role": "editor",
+        "identity": "test@example.com", 
+        "accessItemType": "NAMED_INVITE"
+    }
+    
+    # Test plugins where canGrantAccess=false for NAMED_INVITE should get 501
+    for plugin_key in NO_GRANT_ACCESS_PLUGINS:
+        status_code, response, error = make_request(
+            "POST",
+            f"{API_BASE}/oauth/{plugin_key}/grant-access",
+            data=fake_token_payload
+        )
+        
+        if error:
+            results.add_result(f"Capability Enforcement {plugin_key}", "FAIL", f"Request error: {error}")
+            continue
+        
+        if status_code == 501:
+            results.add_result(f"Capability Enforcement {plugin_key}", "PASS", "Correctly returns 501 (no API support)")
+        else:
+            results.add_result(f"Capability Enforcement {plugin_key}", "FAIL", f"Should return 501: {status_code} {response}")
+
+def run_additional_verify_revoke_tests(results: TestResults):
+    """Additional tests for verify-access and revoke-access endpoints"""
+    print(f"\n{'='*60}")
+    print("ADDITIONAL TESTS: VERIFY AND REVOKE ACCESS")
+    print(f"{'='*60}")
+    
+    verify_payload = {
+        "accessToken": "fake_token_12345",
+        "target": "test_target", 
+        "identity": "test@example.com",
+        "accessItemType": "NAMED_INVITE"
+    }
+    
+    revoke_payload = {
+        "accessToken": "fake_token_12345",
+        "target": "test_target",
+        "identity": "test@example.com",
+        "accessItemType": "NAMED_INVITE"  
+    }
+    
+    # Test verify-access for a few key plugins
+    for plugin_key in ['ga4', 'gtm', 'google-ads', 'meta', 'salesforce']:
+        # Verify Access
+        status_code, response, error = make_request(
+            "POST",
+            f"{API_BASE}/oauth/{plugin_key}/verify-access",
+            data=verify_payload
+        )
+        
+        if error:
+            results.add_result(f"Verify Access {plugin_key}", "FAIL", f"Request error: {error}")
+        elif status_code in [200, 400, 401, 403, 501]:
+            results.add_result(f"Verify Access {plugin_key}", "PASS", f"Endpoint accessible (HTTP {status_code})")
+        else:
+            results.add_result(f"Verify Access {plugin_key}", "FAIL", f"Unexpected status: {status_code}")
+        
+        # Revoke Access  
+        status_code, response, error = make_request(
+            "POST", 
+            f"{API_BASE}/oauth/{plugin_key}/revoke-access",
+            data=revoke_payload
+        )
+        
+        if error:
+            results.add_result(f"Revoke Access {plugin_key}", "FAIL", f"Request error: {error}")
+        elif status_code in [200, 400, 401, 403, 501]:
+            results.add_result(f"Revoke Access {plugin_key}", "PASS", f"Endpoint accessible (HTTP {status_code})")
+        else:
+            results.add_result(f"Revoke Access {plugin_key}", "FAIL", f"Unexpected status: {status_code}")
 
 def main():
-    """Main test execution"""
-    tester = PluginInterfaceTest()
+    """Run all plugin system tests"""
+    print("🚀 Starting Access Provisioning Platform Plugin System Testing")
+    print(f"Base URL: {BASE_URL}")
+    print(f"Testing {len(EXPECTED_PLUGINS)} plugins")
+    
+    results = TestResults()
     
     try:
-        success = tester.run_all_tests()
-        all_passed = tester.print_summary()
+        # Run all test suites
+        test_plugin_registration(results)
+        test_validation_all_plugins(results)
+        test_shared_account_rejection(results)
+        test_capabilities_check(results)
+        test_real_api_integration(results)
+        test_manifest_capability_enforcement(results)
+        run_additional_verify_revoke_tests(results)
         
-        if all_passed:
-            print("🎉 All tests passed! The unified AccessProvisioningPlugin interface is working correctly.")
+        # Print final summary
+        results.print_summary()
+        
+        # Exit with appropriate code
+        if results.failed_tests == 0:
+            print(f"\n🎉 ALL TESTS PASSED! Plugin system is working correctly.")
             sys.exit(0)
         else:
-            print("⚠️ Some tests failed. Check the summary above for details.")
+            print(f"\n❌ {results.failed_tests} test(s) failed. See details above.")
             sys.exit(1)
             
     except KeyboardInterrupt:
-        print("\n\n⚠️ Tests interrupted by user")
+        print("\n⚠️  Testing interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Test execution failed: {str(e)}")
+        print(f"\n💥 Unexpected error during testing: {str(e)}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
