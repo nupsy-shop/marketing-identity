@@ -171,7 +171,8 @@ export type OAuthScope = 'AGENCY' | 'CLIENT';
 // ─── Connector Response Types ──────────────────────────────────────────────────
 
 /**
- * Standard response type for plugin connector operations (grant, verify, etc.)
+ * Standard response type for plugin connector operations (grant, verify, revoke).
+ * Every plugin operation returns this shape for consistency.
  */
 export interface ConnectorResponse<T = void> {
   success: boolean;
@@ -183,45 +184,184 @@ export interface ConnectorResponse<T = void> {
 }
 
 /**
- * Context for granting access via plugin API
+ * Unified parameters for grant, verify, and revoke operations.
+ * Shared across all plugins for a consistent calling convention.
  */
-export interface GrantAccessContext {
-  /** OAuth auth result with tokens */
+export interface PluginOperationParams {
+  /** OAuth auth tokens */
   auth: {
     accessToken: string;
     refreshToken?: string;
     tokenType?: string;
   };
-  /** Client target information (property, account, etc.) */
-  target: Record<string, unknown>;
-  /** Role to grant (from roleTemplates) */
+  /** Target resource identifier (e.g., "properties/123", "accounts/456") */
+  target: string;
+  /** Role key to grant/verify/revoke (e.g., "editor", "admin") */
   role: string;
-  /** Identity to grant access to (email, group, etc.) */
+  /** Identity to act on (email, group, service account) */
   identity: string;
-  /** Access item type being granted */
+  /** Access item type governing this operation */
   accessItemType: AccessItemType;
   /** Additional platform-specific options */
   options?: Record<string, unknown>;
 }
 
 /**
- * Context for verifying access via plugin API
+ * Standard result for verify operations.
+ * `data` = true means access is verified, false = not found.
+ */
+export type VerifyResult = ConnectorResponse<boolean> & {
+  details?: {
+    found: boolean;
+    foundRoles?: string[];
+    expectedRole?: string;
+    identity?: string;
+    binding?: Record<string, unknown>;
+  };
+};
+
+/**
+ * Standard result for grant operations.
+ */
+export type GrantResult = ConnectorResponse & {
+  details?: {
+    found?: boolean;
+    foundRoles?: string[];
+    expectedRole?: string;
+    identity?: string;
+    binding?: Record<string, unknown>;
+    alreadyExists?: boolean;
+  };
+};
+
+/**
+ * Standard result for revoke operations.
+ */
+export type RevokeResult = ConnectorResponse & {
+  details?: {
+    identity?: string;
+    bindingRemoved?: string;
+    previousRoles?: string[];
+  };
+};
+
+/**
+ * Context for granting access via plugin API (legacy — use PluginOperationParams)
+ */
+export interface GrantAccessContext {
+  auth: { accessToken: string; refreshToken?: string; tokenType?: string; };
+  target: Record<string, unknown>;
+  role: string;
+  identity: string;
+  accessItemType: AccessItemType;
+  options?: Record<string, unknown>;
+}
+
+/**
+ * Context for verifying access via plugin API (legacy — use PluginOperationParams)
  */
 export interface VerifyAccessContext {
-  /** OAuth auth result with tokens */
-  auth: {
-    accessToken: string;
-    refreshToken?: string;
-    tokenType?: string;
-  };
-  /** Client target information (property, account, etc.) */
+  auth: { accessToken: string; refreshToken?: string; tokenType?: string; };
   target: Record<string, unknown>;
-  /** Role to verify */
   role: string;
-  /** Identity to check for */
   identity: string;
-  /** Access item type being verified */
   accessItemType: AccessItemType;
+}
+
+// ─── Provisioning Interface ─────────────────────────────────────────────────────
+
+/**
+ * Unified interface for access provisioning operations.
+ * Plugins that support API-based grant/verify/revoke implement this.
+ * Common validation (shared-account rejection, input checks) is handled
+ * by the centralized `validateProvisioningRequest()` before dispatch.
+ */
+export interface AccessProvisioningPlugin {
+  /** Verify that access has been granted (after manual or auto grant) */
+  verifyAccess(params: PluginOperationParams): Promise<VerifyResult>;
+
+  /** Programmatically grant access via platform API */
+  grantAccess(params: PluginOperationParams): Promise<GrantResult>;
+
+  /** Programmatically revoke access. Optional — only implement if canRevokeAccess */
+  revokeAccess?(params: PluginOperationParams): Promise<RevokeResult>;
+}
+
+// ─── Centralized Validation ─────────────────────────────────────────────────────
+
+/**
+ * Validates a provisioning request before dispatching to a plugin.
+ * Rejects SHARED_ACCOUNT requests (not provisionable via API).
+ * Checks required fields and validates against manifest.
+ */
+export function validateProvisioningRequest(
+  manifest: PluginManifest,
+  params: PluginOperationParams
+): string[] {
+  const errors: string[] = [];
+  
+  if (!params.auth?.accessToken) errors.push('OAuth access token is required');
+  if (!params.target) errors.push('Target resource identifier is required');
+  if (!params.role) errors.push('Role is required');
+  if (!params.identity) errors.push('Identity (email) is required');
+  if (!params.accessItemType) errors.push('Access item type is required');
+  
+  // SHARED_ACCOUNT is never provisionable via API — always requires evidence
+  if (params.accessItemType === AccessItemType.SHARED_ACCOUNT) {
+    errors.push('SHARED_ACCOUNT access cannot be granted/verified via API. Use evidence upload flow instead.');
+  }
+  
+  // Validate access type is allowed by the manifest
+  if (manifest.allowedAccessTypes?.length > 0 && !manifest.allowedAccessTypes.includes(params.accessItemType)) {
+    errors.push(`Access type "${params.accessItemType}" is not supported by ${manifest.displayName}`);
+  }
+  
+  return errors;
+}
+
+/**
+ * Standardized role mapping helper.
+ * Given a role key from the manifest (e.g., "editor") and a platform-specific
+ * role map, resolves to the platform's native role string.
+ * Returns null if the role is not found in the map.
+ */
+export function resolveNativeRole<T extends string>(
+  roleKey: string,
+  roleMap: Record<string, T>
+): T | null {
+  const normalized = roleKey.toLowerCase().trim();
+  return roleMap[normalized] ?? null;
+}
+
+/**
+ * Standardized error response builder for plugin operations.
+ */
+export function buildPluginError(
+  error: unknown,
+  platformKey: string,
+  operation: 'grant' | 'verify' | 'revoke'
+): { message: string; body: string; isPermissionDenied: boolean; isNotFound: boolean; isConflict: boolean; isBadRequest: boolean } {
+  const message = error instanceof Error ? error.message : 'Unknown error';
+  const body = (error as Record<string, unknown>)?.body as string || '';
+  let apiDetail = '';
+  try {
+    if (body) {
+      const parsed = JSON.parse(body);
+      apiDetail = parsed?.error?.message || parsed?.message || '';
+    }
+  } catch { /* not JSON */ }
+  
+  const full = apiDetail || message;
+  console.error(`[${platformKey}] ${operation} error: message=${message}, body=${body}`);
+  
+  return {
+    message: full,
+    body,
+    isPermissionDenied: message.includes('403') || full.toLowerCase().includes('permission denied'),
+    isNotFound: message.includes('404') || full.toLowerCase().includes('not found'),
+    isConflict: message.includes('409') || full.toLowerCase().includes('already exists'),
+    isBadRequest: message.includes('400'),
+  };
 }
 
 // ─── Security Capabilities (PAM Governance) ────────────────────────────────────
