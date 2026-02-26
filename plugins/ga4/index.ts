@@ -345,41 +345,13 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
    * @param params.identity - Email address to grant access to
    * @param params.accessItemType - Type of access (NAMED_INVITE, GROUP_ACCESS)
    */
-  async grantAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
-    // Validate inputs
-    if (!target) {
-      return { 
-        success: false, 
-        error: 'Property ID (target) is required',
-        details: { found: false }
-      };
-    }
-
-    if (!identity) {
-      return { 
-        success: false, 
-        error: 'Identity (email) to grant access to is required',
-        details: { found: false }
-      };
-    }
-
-    if (!role) {
-      return { 
-        success: false, 
-        error: 'Role is required',
-        details: { found: false }
-      };
-    }
-
-    // SHARED_ACCOUNT type cannot grant access via API
-    if (accessItemType === 'SHARED_ACCOUNT') {
-      return {
-        success: false,
-        error: 'Shared Account (PAM) access cannot be granted via API. Manual credential handoff required.',
-        details: { found: false }
-      };
+    // Centralized validation
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; '), details: { found: false } };
     }
 
     try {
