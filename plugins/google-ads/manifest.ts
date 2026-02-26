@@ -67,12 +67,14 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: true,      // Can create MCC manager link invitation
     canVerifyAccess: true,     // Can check MCC account links
+    canRevokeAccess: true,     // Can cancel/deactivate manager link
     requiresEvidenceUpload: false
   },
   NAMED_INVITE: {
     clientOAuthSupported: true,
     canGrantAccess: true,      // Can create user access invitation
     canVerifyAccess: true,     // Can check user access
+    canRevokeAccess: true,     // Can remove user access
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {

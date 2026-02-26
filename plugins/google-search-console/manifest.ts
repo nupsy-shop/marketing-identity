@@ -33,6 +33,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: false,     // Search Console API does NOT support adding users
     canVerifyAccess: true,     // Can verify if connected user has access
+    canRevokeAccess: false,    // Search Console API does NOT support removing users
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {

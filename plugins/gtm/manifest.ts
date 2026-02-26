@@ -34,12 +34,14 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: true,      // GTM API can create user permissions
     canVerifyAccess: true,     // GTM API can list permissions
+    canRevokeAccess: true,     // GTM API can delete user permissions
     requiresEvidenceUpload: false
   },
   GROUP_ACCESS: {
     clientOAuthSupported: true,
     canGrantAccess: true,      // GTM API can create user permissions
     canVerifyAccess: true,     // GTM API can list permissions
+    canRevokeAccess: true,     // GTM API can delete user permissions
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
