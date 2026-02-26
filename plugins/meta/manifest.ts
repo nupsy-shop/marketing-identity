@@ -62,18 +62,21 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: true,      // Business Manager API can add agency partners
     canVerifyAccess: true,     // Can list ad account partners
+    canRevokeAccess: false,
     requiresEvidenceUpload: false
   },
   NAMED_INVITE: {
     clientOAuthSupported: true,
     canGrantAccess: true,      // Can add user roles to ad accounts
     canVerifyAccess: true,     // Can check user access
+    canRevokeAccess: false,
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   }
 };

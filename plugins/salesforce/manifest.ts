@@ -33,18 +33,21 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: true,      // Salesforce API can create users
     canVerifyAccess: true,     // Can query User/PermissionSetAssignment
+    canRevokeAccess: false,
     requiresEvidenceUpload: false
   },
   GROUP_ACCESS: {
     clientOAuthSupported: true,
     canGrantAccess: true,      // Can create integration users
     canVerifyAccess: true,
+    canRevokeAccess: false,
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   }
 };

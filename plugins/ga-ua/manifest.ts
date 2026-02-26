@@ -33,18 +33,21 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: true,      // GA Management API supports adding users
     canVerifyAccess: true,     // Can list user links
+    canRevokeAccess: false,
     requiresEvidenceUpload: false
   },
   GROUP_ACCESS: {
     clientOAuthSupported: true,
     canGrantAccess: true,
     canVerifyAccess: true,
+    canRevokeAccess: false,
     requiresEvidenceUpload: false
   },
   SHARED_ACCOUNT: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   }
 };

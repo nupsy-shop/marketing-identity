@@ -33,18 +33,21 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: false,     // User management requires SQL, not REST API
     canVerifyAccess: false,    // No REST API for user verification
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   },
   GROUP_ACCESS: {
     clientOAuthSupported: true,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   },
   SHARED_ACCOUNT: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   }
 };

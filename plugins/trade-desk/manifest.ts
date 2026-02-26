@@ -31,18 +31,21 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   },
   NAMED_INVITE: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   },
   SHARED_ACCOUNT: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   }
 };

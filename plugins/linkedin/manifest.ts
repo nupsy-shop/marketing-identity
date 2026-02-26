@@ -33,18 +33,21 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
     clientOAuthSupported: true,
     canGrantAccess: false,     // No public API for partner management
     canVerifyAccess: false,    // No API to verify partner status
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   },
   NAMED_INVITE: {
     clientOAuthSupported: true,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   },
   SHARED_ACCOUNT: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
+    canRevokeAccess: false,
     requiresEvidenceUpload: true
   }
 };
