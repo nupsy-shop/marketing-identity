@@ -273,23 +273,10 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
       };
 
     } catch (error) {
-      console.error('[GoogleAdsPlugin] verifyAccess error:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        return {
-          success: false,
-          error: `Customer account ${target} was not found or is not accessible.`,
-          details: { found: false }
-        };
-      }
-      
-      return {
-        success: false,
-        error: `Failed to verify access: ${errorMessage}`,
-        details: { found: false }
-      };
+      const e = buildPluginError(error, 'google-ads', 'verify');
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied. Admin access required. Detail: ${e.message}`, details: { found: false } };
+      if (e.isNotFound) return { success: false, error: `Customer account ${target} not found or inaccessible. Detail: ${e.message}`, details: { found: false } };
+      return { success: false, error: `Failed to verify access: ${e.message}`, details: { found: false } };
     }
   }
 
