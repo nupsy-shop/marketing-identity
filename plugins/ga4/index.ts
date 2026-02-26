@@ -264,46 +264,13 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
         };
       }
     } catch (error) {
-      console.error('[GA4Plugin] verifyAccess error:', error);
-      
-      // Extract full error details including Google API response body
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorBody = (error as any)?.body || '';
-      let googleErrorDetail = '';
-      try {
-        if (errorBody) {
-          const parsed = JSON.parse(errorBody);
-          googleErrorDetail = parsed?.error?.message || parsed?.message || '';
-        }
-      } catch { /* not JSON */ }
-      const fullError = googleErrorDetail || errorMessage;
-      
-      console.error(`[GA4Plugin] verifyAccess full error: message=${errorMessage}, body=${errorBody}`);
-      
+      const e = buildPluginError(error, 'ga4', 'verify');
       const isAcct = target.startsWith('accounts/') || target.startsWith('accounts%2F');
       const resourceLabel = isAcct ? 'account' : 'property';
       
-      if (errorMessage.includes('403') || fullError.toLowerCase().includes('permission denied')) {
-        return {
-          success: false,
-          error: `Permission denied on ${resourceLabel} ${target}. The connected Google account needs Administrator role. Detail: ${fullError}`,
-          details: { found: false }
-        };
-      }
-      
-      if (errorMessage.includes('404') || fullError.toLowerCase().includes('not found')) {
-        return {
-          success: false,
-          error: `${isAcct ? 'Account' : 'Property'} ${target} was not found or is not accessible. Detail: ${fullError}`,
-          details: { found: false }
-        };
-      }
-      
-      return {
-        success: false,
-        error: `Failed to verify access: ${fullError}`,
-        details: { found: false }
-      };
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied on ${resourceLabel} ${target}. Administrator role required. Detail: ${e.message}`, details: { found: false } };
+      if (e.isNotFound) return { success: false, error: `${isAcct ? 'Account' : 'Property'} ${target} not found or inaccessible. Detail: ${e.message}`, details: { found: false } };
+      return { success: false, error: `Failed to verify access: ${e.message}`, details: { found: false } };
     }
   }
 
