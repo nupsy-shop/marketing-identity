@@ -649,29 +649,7 @@ export async function GET(request, { params }) {
     // GET /api/admin/platforms/:platformKey/onboarded-accounts - Get onboarded accounts for a platform
     if (path.match(/^admin\/platforms\/[^/]+\/onboarded-accounts$/)) {
       const platformKey = path.split('/')[2];
-      // Map plugin keys to catalog slugs
-      const KEY_TO_SLUG = {
-        'ga4': 'google-analytics',
-        'google-ads': 'google-ads',
-        'google-search-console': 'google-search-console',
-        'gtm': 'google-tag-manager',
-        'meta': 'meta-business-manager',
-        'dv360': 'dv360',
-        'trade-desk': 'trade-desk',
-        'tiktok': 'tiktok-ads',
-        'snapchat': 'snapchat',
-        'linkedin': 'linkedin-ads',
-        'pinterest': 'pinterest-ads',
-        'hubspot': 'hubspot',
-        'salesforce': 'salesforce',
-        'snowflake': 'snowflake',
-        'ga-ua': 'ga-ua',
-        'amazon-ads': 'amazon-ads',
-        'reddit-ads': 'reddit-ads',
-        'microsoft-ads': 'microsoft-ads',
-        'spotify-ads': 'spotify-ads',
-      };
-      const slug = KEY_TO_SLUG[platformKey] || platformKey;
+      const slug = getSlugForPlatformKey(platformKey);
       try {
         const items = await db.getOnboardedAccountsByPlatformSlug(slug);
         return NextResponse.json({ success: true, data: items });
