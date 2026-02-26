@@ -282,6 +282,24 @@ class GSCPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // Access Revocation
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Revoke access from a GSC property.
+   * The Search Console API does NOT support programmatic user removal.
+   * Always returns an error with manual instructions.
+   */
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    const { target, identity } = params;
+    return {
+      success: false,
+      error: `Google Search Console does not support programmatic access revocation. Please remove ${identity} manually via Search Console: ${target} → Settings → Users and permissions → Remove user.`,
+      details: { identity }
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Authentication Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
