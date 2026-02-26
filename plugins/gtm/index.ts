@@ -32,6 +32,7 @@ import {
   listAccountUserPermissions, 
   getUserContainerPermission,
   createUserPermission,
+  deleteUserPermission,
   type GTMContainerPermission,
   type GTMAccountPermission,
   type GTMContainerAccess
