@@ -288,31 +288,10 @@ class GTMPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
       };
 
     } catch (error) {
-      console.error('[GTMPlugin] verifyAccess error:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
-        return {
-          success: false,
-          error: 'The OAuth token does not have permission to view user permissions. The client may need to grant Admin access.',
-          details: { found: false }
-        };
-      }
-      
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        return {
-          success: false,
-          error: `Account ${target.split('/')[0]} was not found or is not accessible.`,
-          details: { found: false }
-        };
-      }
-      
-      return {
-        success: false,
-        error: `Failed to verify access: ${errorMessage}`,
-        details: { found: false }
-      };
+      const e = buildPluginError(error, 'gtm', 'verify');
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied on ${target}. Admin role required. Detail: ${e.message}`, details: { found: false } };
+      if (e.isNotFound) return { success: false, error: `Account ${target.split('/')[0]} not found or inaccessible. Detail: ${e.message}`, details: { found: false } };
+      return { success: false, error: `Failed to verify access: ${e.message}`, details: { found: false } };
     }
   }
 
