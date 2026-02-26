@@ -75,6 +75,22 @@ class SalesforcePlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapable
     const { roleTemplate } = context;
     return [{ step: 1, title: 'Open Salesforce Setup', description: 'Go to your Salesforce org Setup', link: { url: 'https://login.salesforce.com', label: 'Open Salesforce' } }, { step: 2, title: 'Add User', description: `Create user with "${roleTemplate}" profile.` }];
   }
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `Salesforce API integration for grantAccess is pending. Use manual client instructions.`, details: { found: false } };
+  }
+
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `Salesforce API integration for verifyAccess is pending. Manual verification required.`, details: { found: false } };
+  }
+
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    return { success: false, error: `Salesforce does not support programmatic access revocation. Remove access manually via Salesforce Setup.` };
+  }
+
   getVerificationMode(accessItemType: AccessItemType): VerificationMode { return 'EVIDENCE_REQUIRED'; }
   async verifyGrant(context: VerificationContext): Promise<VerificationResult> { return { status: 'PENDING', mode: 'EVIDENCE_REQUIRED', message: 'Manual verification required' }; }
 }

@@ -76,6 +76,22 @@ class SnowflakePlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
     const { roleTemplate } = context;
     return [{ step: 1, title: 'Open Snowflake', description: 'Log into your Snowflake account', link: { url: 'https://app.snowflake.com', label: 'Open Snowflake' } }, { step: 2, title: 'Create User', description: `Create user with "${roleTemplate}" role.` }];
   }
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `Snowflake does not support programmatic access granting via REST API. Use SQL commands or manual setup.`, details: { found: false } };
+  }
+
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `Snowflake does not support programmatic access verification via REST API. Manual verification required.`, details: { found: false } };
+  }
+
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    return { success: false, error: `Snowflake does not support programmatic access revocation. Revoke roles manually via Snowflake worksheet.` };
+  }
+
   getVerificationMode(accessItemType: AccessItemType): VerificationMode { return 'EVIDENCE_REQUIRED'; }
   async verifyGrant(context: VerificationContext): Promise<VerificationResult> { return { status: 'PENDING', mode: 'EVIDENCE_REQUIRED', message: 'Manual verification required' }; }
 }

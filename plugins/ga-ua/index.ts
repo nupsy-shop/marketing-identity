@@ -42,6 +42,22 @@ class GAUAPlugin implements PlatformPlugin, AdPlatformPlugin {
     const { accessItemType, roleTemplate } = context;
     return [{ step: 1, title: 'Open Google Analytics', description: 'Go to analytics.google.com', link: { url: 'https://analytics.google.com', label: 'Open GA' } }, { step: 2, title: 'Grant Access', description: `Add user with "${roleTemplate}" role.` }];
   }
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `Google Analytics UA API integration for grantAccess is pending. Use manual client instructions.`, details: { found: false } };
+  }
+
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `Google Analytics UA API integration for verifyAccess is pending. Manual verification required.`, details: { found: false } };
+  }
+
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    return { success: false, error: `Google Analytics UA does not support programmatic access revocation. Remove access manually via GA settings.` };
+  }
+
   getVerificationMode(accessItemType: AccessItemType): VerificationMode { return accessItemType === 'SHARED_ACCOUNT' ? 'EVIDENCE_REQUIRED' : 'ATTESTATION_ONLY'; }
   async verifyGrant(context: VerificationContext): Promise<VerificationResult> { return { status: 'PENDING', mode: this.getVerificationMode(context.accessItemType), message: 'Manual verification required' }; }
 }
