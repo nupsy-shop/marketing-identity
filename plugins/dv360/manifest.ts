@@ -51,7 +51,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const DV360_MANIFEST: PluginManifest = {
-  platformKey: 'dv360', displayName: 'DV360 (Display & Video 360)', pluginVersion: '2.3.0', category: 'Paid Media',
+  platformKey: 'dv360', displayName: 'DV360 (Display & Video 360)', pluginVersion: '2.3.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'Google Display & Video 360 (DV360)', tier: 1, clientFacing: true,
   icon: 'fas fa-tv', logoPath: '/logos/dv360.svg', brandColor: '#4285F4',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

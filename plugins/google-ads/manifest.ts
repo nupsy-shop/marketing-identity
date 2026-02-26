@@ -129,6 +129,7 @@ export const GOOGLE_ADS_MANIFEST: PluginManifest = {
   displayName: 'Google Ads',
   pluginVersion: '2.3.0',
   category: 'Paid Media',
+  domain: 'Paid Media',
   description: 'Google Ads Manager and MCC access management',
   tier: 1,
   clientFacing: true,

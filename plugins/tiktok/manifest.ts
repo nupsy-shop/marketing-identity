@@ -51,7 +51,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const TIKTOK_MANIFEST: PluginManifest = {
-  platformKey: 'tiktok', displayName: 'TikTok Ads', pluginVersion: '2.2.0', category: 'Paid Media',
+  platformKey: 'tiktok', displayName: 'TikTok Ads', pluginVersion: '2.2.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'TikTok Business Center and Ads Manager', tier: 1, clientFacing: true,
   icon: 'fab fa-tiktok', logoPath: '/logos/tiktok.svg', brandColor: '#000000',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

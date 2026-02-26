@@ -82,7 +82,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const GSC_MANIFEST: PluginManifest = {
-  platformKey: 'google-search-console', displayName: 'Google Search Console', pluginVersion: '2.3.0', category: 'SEO',
+  platformKey: 'google-search-console', displayName: 'Google Search Console', pluginVersion: '2.3.0', category: 'SEO', domain: 'SEO',
   description: 'Google Search Console for SEO and search performance', tier: 1, clientFacing: true,
   icon: 'fab fa-google', logoPath: '/logos/gsc.svg', brandColor: '#4285F4',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

@@ -28,7 +28,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const SALESFORCE_MANIFEST: PluginManifest = {
-  platformKey: 'salesforce', displayName: 'Salesforce', pluginVersion: '3.0.0', category: 'CRM & Marketing Automation',
+  platformKey: 'salesforce', displayName: 'Salesforce', pluginVersion: '3.0.0', category: 'CRM & Marketing Automation', domain: 'CRM',
   description: 'Salesforce CRM, Marketing Cloud, Sales Cloud', tier: 1, clientFacing: true,
   icon: 'fab fa-salesforce', logoPath: '/logos/salesforce.svg', brandColor: '#00A1E0',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

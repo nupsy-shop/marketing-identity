@@ -88,6 +88,7 @@ export const META_MANIFEST: PluginManifest = {
   displayName: 'Meta Business Manager / Facebook Ads',
   pluginVersion: '3.0.0',
   category: 'Paid Media',
+  domain: 'Paid Media',
   description: 'Meta Business Manager, Facebook Ads, Instagram advertising',
   tier: 1,
   clientFacing: true,

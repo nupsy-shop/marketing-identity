@@ -145,6 +145,7 @@ export const GA4_MANIFEST: PluginManifest = {
 
   // Categorization
   category: 'Analytics',
+  domain: 'Analytics',
   description: 'Google Analytics 4 property access for web and app analytics',
   tier: 1,
   clientFacing: true,

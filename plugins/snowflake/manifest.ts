@@ -28,7 +28,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const SNOWFLAKE_MANIFEST: PluginManifest = {
-  platformKey: 'snowflake', displayName: 'Snowflake', pluginVersion: '3.0.0', category: 'Data & Analytics',
+  platformKey: 'snowflake', displayName: 'Snowflake', pluginVersion: '3.0.0', category: 'Data & Analytics', domain: 'Data Warehouse',
   description: 'Snowflake Data Cloud - role-based access management', tier: 2, clientFacing: true,
   icon: 'fas fa-snowflake', logoPath: '/logos/snowflake.svg', brandColor: '#29B5E8',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

@@ -28,7 +28,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const HUBSPOT_MANIFEST: PluginManifest = {
-  platformKey: 'hubspot', displayName: 'HubSpot', pluginVersion: '3.0.0', category: 'CRM & Marketing Automation',
+  platformKey: 'hubspot', displayName: 'HubSpot', pluginVersion: '3.0.0', category: 'CRM & Marketing Automation', domain: 'CRM',
   description: 'HubSpot CRM, Marketing Hub, Sales Hub, Service Hub', tier: 2, clientFacing: true,
   icon: 'fab fa-hubspot', logoPath: '/logos/hubspot.svg', brandColor: '#FF7A59',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

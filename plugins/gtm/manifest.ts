@@ -92,7 +92,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const GTM_MANIFEST: PluginManifest = {
-  platformKey: 'gtm', displayName: 'Google Tag Manager', pluginVersion: '2.3.0', category: 'Tag Management',
+  platformKey: 'gtm', displayName: 'Google Tag Manager', pluginVersion: '2.3.0', category: 'Tag Management', domain: 'Analytics',
   description: 'Google Tag Manager container access', tier: 1, clientFacing: true,
   icon: 'fas fa-tags', logoPath: '/logos/gtm.svg', brandColor: '#4285F4',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

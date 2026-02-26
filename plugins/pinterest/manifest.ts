@@ -51,7 +51,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const PINTEREST_MANIFEST: PluginManifest = {
-  platformKey: 'pinterest', displayName: 'Pinterest Ads', pluginVersion: '2.2.0', category: 'Paid Media',
+  platformKey: 'pinterest', displayName: 'Pinterest Ads', pluginVersion: '2.2.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'Pinterest Ads Manager', tier: 2, clientFacing: true,
   icon: 'fab fa-pinterest', logoPath: '/logos/pinterest.svg', brandColor: '#E60023',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

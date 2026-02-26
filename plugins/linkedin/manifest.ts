@@ -53,7 +53,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const LINKEDIN_MANIFEST: PluginManifest = {
-  platformKey: 'linkedin', displayName: 'LinkedIn Ads', pluginVersion: '2.2.0', category: 'Paid Media',
+  platformKey: 'linkedin', displayName: 'LinkedIn Ads', pluginVersion: '2.2.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'LinkedIn Campaign Manager', tier: 1, clientFacing: true,
   icon: 'fab fa-linkedin', logoPath: '/logos/linkedin.svg', brandColor: '#0A66C2',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
