@@ -90,8 +90,10 @@ function AppCatalogContent() {
       if (pluginsData.success && pluginsData.data) {
         const manifestMap = {};
         pluginsData.data.forEach(plugin => {
-          if (plugin.manifest) {
-            manifestMap[plugin.manifest.platformKey] = plugin.manifest;
+          // Plugin data is returned flat (not nested under .manifest)
+          const key = plugin.platformKey;
+          if (key) {
+            manifestMap[key] = plugin;
           }
         });
         setPluginManifests(manifestMap);
