@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Base URL
-BASE_URL="https://ga4-dual-grant.preview.emergentagent.com/api"
+BASE_URL="https://access-provisioning.preview.emergentagent.com/api"
 
 # Test data
 VALID_TOKEN="055b2165-83d1-4ff7-8d44-5a7dec3a17f2"

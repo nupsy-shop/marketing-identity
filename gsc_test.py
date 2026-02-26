@@ -4,7 +4,7 @@ import requests
 import json
 import sys
 
-BACKEND_URL = "https://ga4-dual-grant.preview.emergentagent.com"
+BACKEND_URL = "https://access-provisioning.preview.emergentagent.com"
 
 def test_gsc_complete():
     """Test all GSC endpoints comprehensively"""

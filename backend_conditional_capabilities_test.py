@@ -11,7 +11,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Base URL from environment
-BASE_URL = "https://ga4-dual-grant.preview.emergentagent.com"
+BASE_URL = "https://access-provisioning.preview.emergentagent.com"
 API_BASE = urljoin(BASE_URL, "/api/")
 
 def make_request(method, endpoint, data=None, headers=None, params=None):

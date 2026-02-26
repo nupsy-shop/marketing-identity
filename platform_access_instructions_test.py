@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 
 # Test configuration
-BASE_URL = "https://ga4-dual-grant.preview.emergentagent.com/api"
+BASE_URL = "https://access-provisioning.preview.emergentagent.com/api"
 TEST_RESULTS = []
 
 def log_test(test_name, success, details=""):
