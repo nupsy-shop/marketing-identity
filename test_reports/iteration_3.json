@@ -1,0 +1,49 @@
+{
+  "iteration": 3,
+  "timestamp": 1772079080713,
+  "summary": {
+    "testSuites": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    "tests": {
+      "total": 315,
+      "passed": 315,
+      "failed": 0
+    }
+  },
+  "suites": [
+    {
+      "name": "tests/unit/validateProvisioningRequest.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "name": "tests/unit/effectiveCapabilities.test.ts",
+      "status": "passed",
+      "tests": 13
+    },
+    {
+      "name": "tests/unit/resolveNativeRole.test.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "name": "tests/unit/buildPluginError.test.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "name": "tests/unit/manifestValidation.test.ts",
+      "status": "passed",
+      "tests": 18
+    },
+    {
+      "name": "tests/unit/pluginInterfaceCompliance.test.ts",
+      "status": "passed",
+      "tests": 255
+    }
+  ],
+  "success": true
+}
