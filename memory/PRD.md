@@ -17,6 +17,12 @@ Build a plugin-based Marketing Identity Platform that manages agency-client acce
 3. **Grant/Verify Status Update**: Backend updates AccessRequestItem status to "validated" after successful grant/verify
 4. **Platform Integration Card Redesign**: Replaced "Accessible Targets" with tabbed interface (Onboarded Accounts + Integration Scope)
 5. **Client-Centric Governance v2**: Onboarded Accounts tab now shows one row per client (no Target column). Columns: Client, Items count, Status (derived), Last Verified (max), Actions (View Details, Re-verify Client). "View Details" opens a Sheet panel with full item-level drill-down including Target, Type, Role, Status, Verified, per-item Verify.
+6. **Extended PluginManifest**: Added 4 new fields to `PluginManifest` in both `lib/plugins/types.ts` and `plugins/common/manifest.ts`:
+   - `allowedOwnershipModels: PamOwnership[]`
+   - `allowedIdentityStrategies: (HumanIdentityStrategy | PamIdentityStrategy)[]`
+   - `allowedAccessTypes: AccessItemType[]`
+   - `verificationModes: VerificationMode[]`
+   Populated in all 15 plugin manifests. Runtime validation in `validateAgainstPluginRules()` now validates ownership models and identity strategies against manifest. Added 5 validator functions exported from types.ts.
 
 ### Feb 25, 2026 — Session 2
 1. **Environment Reset**: Cleaned all transactional tables
