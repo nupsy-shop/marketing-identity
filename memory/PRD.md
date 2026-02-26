@@ -23,21 +23,22 @@ Build a robust, scalable platform for managing client access to marketing servic
 - GSC: Full `verifyAccess` via API; `grantAccess` and `revokeAccess` return "not supported" (API limitation)
 
 ### P1 — Unified Interface for 11 Remaining Plugins (DONE, TESTED)
-All 11 plugins (Meta, DV360, Trade Desk, TikTok, Snapchat, LinkedIn, Pinterest, HubSpot, Salesforce, Snowflake, GA-UA) now implement:
-- `grantAccess`, `verifyAccess`, `revokeAccess` with proper `PluginOperationParams`/`PluginOperationResult`
-- `validateProvisioningRequest` for centralized validation
-- Manifest `canRevokeAccess: false` (no live API integration yet)
-- Plugins with `canGrantAccess: true` (Meta, Salesforce, GA-UA) return "API integration pending"
-- Plugins with `canGrantAccess: false` get 501 at route level
+All 11 plugins migrated to unified interface with stubs.
+
+### P1.1 — Meta Plugin Full Implementation (DONE, Feb 2026)
+- **OAuth**: Full `startOAuth` / `handleOAuthCallback` with short-to-long-lived token exchange (Graph API v21.0)
+- **Target Discovery**: `discoverTargets` lists businesses and ad accounts via `/me/businesses` + `/{biz}/owned_ad_accounts`
+- **grantAccess**:
+  - PARTNER_DELEGATION: Invites user/partner to business via `/{biz}/access_invite`
+  - NAMED_INVITE: Assigns user to ad account via `/act_{id}/assigned_users` with role-based tasks (MANAGE/ADVERTISE/ANALYZE). Resolves email→userId via business_users lookup, auto-invites if not found.
+- **verifyAccess**: Checks `/act_{id}/assigned_users` for identity match and task coverage
+- **revokeAccess** (NAMED_INVITE only): Removes user from ad account via `DELETE /act_{id}/assigned_users`
+- **Manifest updated**: `canRevokeAccess: true` for NAMED_INVITE, version bumped to 3.0.0
+- API module: `/app/plugins/meta/api/graph.ts` (typed Meta Graph API wrapper)
 
 ### P2 — Unit Tests (DONE, Feb 2026)
 - 6 test suites, 315 tests, all passing
-- `validateProvisioningRequest`: 12 tests (happy path, missing fields, SHARED_ACCOUNT rejection, unsupported access types)
-- `buildPluginError`: 12 tests (error parsing, HTTP status detection, JSON body extraction, flag detection)
-- `resolveNativeRole`: 5 tests (case insensitivity, whitespace trimming, unknown roles)
-- `getEffectiveCapabilities`: 13 tests (conditional rules, config context, simple capabilities)
-- Manifest validation helpers: 18 tests (ownership, identity, access type, verification mode, full config validation, role templates)
-- Plugin interface compliance: 255 tests (all 15 plugins × 17 checks: manifest structure, interface methods, validation integration, response shapes)
+- Covers: `validateProvisioningRequest`, `buildPluginError`, `resolveNativeRole`, `getEffectiveCapabilities`, manifest validators, plugin interface compliance (all 15 plugins)
 
 ### Earlier Completed Work
 - GA4 bug fixes (API versions, role formats, UI status updates)
@@ -54,14 +55,15 @@ All 11 plugins (Meta, DV360, Trade Desk, TikTok, Snapchat, LinkedIn, Pinterest, 
 
 ## Remaining Backlog
 
-### P1 — Implement Stubbed Plugin Methods
-- Replace stubs in 11 non-Google plugins with actual API integrations (requires API credentials per platform)
+### P1 — Implement Remaining Stubbed Plugins
+- 10 plugins still have stubs (DV360, Trade Desk, TikTok, Snapchat, LinkedIn, Pinterest, HubSpot, Salesforce, Snowflake, GA-UA)
+- Each needs: API credentials, OAuth flow, target discovery, grant/verify/revoke implementations
 
 ### P2 — Housekeeping & Cleanup
-- Ensure consistent file naming across all plugin folders
-- Remove any dead code or legacy interfaces
-- Clean up root-level test files (`/app/*.py`)
+- Remove root-level `.py` test files
+- Ensure consistent file naming across plugin folders
+- Remove dead code or legacy interfaces
 
 ## Known Issues
-- Google Ads `discoverTargets` flow requires `GOOGLE_ADS_DEVELOPER_TOKEN` (not available — deferred)
-- Meta/Salesforce/GA-UA `grantAccess`/`verifyAccess` are stubs (API integration pending)
+- Google Ads `discoverTargets` flow requires `GOOGLE_ADS_DEVELOPER_TOKEN` (deferred)
+- 10 non-Google/Meta plugins still have stub implementations
