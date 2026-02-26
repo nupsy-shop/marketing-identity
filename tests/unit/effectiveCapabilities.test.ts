@@ -70,11 +70,11 @@ describe('getEffectiveCapabilities (with config context)', () => {
   });
 
   // Meta has no conditional rules — simple capabilities
-  it('Meta NAMED_INVITE supports grant and verify but not revoke', () => {
+  it('Meta NAMED_INVITE supports grant, verify, and revoke', () => {
     const caps = getEffectiveCapabilities(META_MANIFEST, AccessItemType.NAMED_INVITE);
     expect(caps.canGrantAccess).toBe(true);
     expect(caps.canVerifyAccess).toBe(true);
-    expect(caps.canRevokeAccess).toBe(false);
+    expect(caps.canRevokeAccess).toBe(true);
   });
 
   it('Meta SHARED_ACCOUNT requires evidence upload', () => {
