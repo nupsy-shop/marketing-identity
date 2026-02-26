@@ -118,7 +118,7 @@ class GSCPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   // Access Verification
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async verifyAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
     if (!target) {
@@ -216,7 +216,7 @@ class GSCPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
    * IMPORTANT: The Search Console API does NOT support adding users programmatically.
    * This method always returns with instructions for manual granting.
    */
-  async grantAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
     // Validate inputs
