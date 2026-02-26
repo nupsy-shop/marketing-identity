@@ -296,24 +296,10 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
   async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
-    if (!target) {
-      return { success: false, error: 'Customer/Account ID (target) is required', details: { found: false } };
-    }
-
-    if (!identity) {
-      return { success: false, error: 'Identity (email or MCC ID) to grant access to is required', details: { found: false } };
-    }
-
-    if (!role) {
-      return { success: false, error: 'Role is required', details: { found: false } };
-    }
-
-    if (accessItemType === 'SHARED_ACCOUNT') {
-      return {
-        success: false,
-        error: 'Shared Account (PAM) access cannot be granted via API. Manual credential handoff required.',
-        details: { found: false }
-      };
+    // Centralized validation
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; '), details: { found: false } };
     }
 
     try {
