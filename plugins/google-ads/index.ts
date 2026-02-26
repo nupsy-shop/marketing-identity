@@ -152,7 +152,7 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
   // Access Verification
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async verifyAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
     if (!target) {
@@ -303,7 +303,7 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
     }
   }
 
-  async grantAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
     if (!target) {
