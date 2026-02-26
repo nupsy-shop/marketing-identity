@@ -15,6 +15,7 @@ const PLUGIN_KEYS = [
   'ga4', 'gtm', 'google-ads', 'google-search-console',
   'meta', 'dv360', 'trade-desk', 'tiktok', 'snapchat',
   'linkedin', 'pinterest', 'hubspot', 'salesforce', 'snowflake', 'ga-ua',
+  'amazon-ads', 'reddit-ads', 'microsoft-ads', 'spotify-ads',
 ];
 
 // Dynamic imports for each plugin
