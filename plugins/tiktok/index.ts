@@ -82,6 +82,22 @@ class TikTokPlugin implements PlatformPlugin, AdPlatformPlugin {
     }
   }
 
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `TikTok does not support programmatic access granting. Use manual client instructions.`, details: { found: false } };
+  }
+
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `TikTok does not support programmatic access verification. Manual verification required.`, details: { found: false } };
+  }
+
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    return { success: false, error: `TikTok does not support programmatic access revocation. Remove access manually via TikTok Business Center.` };
+  }
+
   getVerificationMode(accessItemType: AccessItemType): VerificationMode { return accessItemType === 'SHARED_ACCOUNT' ? 'EVIDENCE_REQUIRED' : 'ATTESTATION_ONLY'; }
   async verifyGrant(context: VerificationContext): Promise<VerificationResult> { return { status: 'PENDING', mode: this.getVerificationMode(context.accessItemType), message: 'Manual verification required' }; }
 }

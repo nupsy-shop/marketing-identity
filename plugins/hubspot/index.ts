@@ -70,6 +70,22 @@ class HubSpotPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlu
     const { roleTemplate } = context;
     return [{ step: 1, title: 'Open HubSpot', description: 'Go to app.hubspot.com', link: { url: 'https://app.hubspot.com', label: 'Open HubSpot' } }, { step: 2, title: 'Add User', description: `Add user with "${roleTemplate}" role.` }];
   }
+  async grantAccess(params: PluginOperationParams): Promise<GrantResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `HubSpot does not support programmatic access granting. Use manual client instructions.`, details: { found: false } };
+  }
+
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) return { success: false, error: errors.join('; '), details: { found: false } };
+    return { success: false, error: `HubSpot does not support programmatic access verification. Manual verification required.`, details: { found: false } };
+  }
+
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    return { success: false, error: `HubSpot does not support programmatic access revocation. Remove access manually via HubSpot settings.` };
+  }
+
   getVerificationMode(accessItemType: AccessItemType): VerificationMode { return accessItemType === 'SHARED_ACCOUNT' ? 'EVIDENCE_REQUIRED' : 'ATTESTATION_ONLY'; }
   async verifyGrant(context: VerificationContext): Promise<VerificationResult> { return { status: 'PENDING', mode: this.getVerificationMode(context.accessItemType), message: 'Manual verification required' }; }
 }
