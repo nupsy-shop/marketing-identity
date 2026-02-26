@@ -10,7 +10,7 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "types": ["jest"]
+    "types": ["jest", "node"]
   },
   "include": ["tests/**/*.ts", "lib/**/*.ts", "plugins/**/*.ts"],
   "exclude": ["node_modules", ".next"]
