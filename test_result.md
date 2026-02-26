@@ -2075,11 +2075,14 @@ agent_communication:
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented GET /api/plugins/:platformKey/effective-capabilities endpoint that accepts accessItemType, pamOwnership, identityPurpose, identityStrategy as query params and returns computed effective capabilities. Manual testing shows it works correctly."
+      - working: true
+        agent: "testing"
+        comment: "✅ Effective capabilities endpoint working perfectly! GET /api/plugins/ga4/effective-capabilities tested with all PAM configurations: SHARED_ACCOUNT without config→canRevokeAccess=false, AGENCY_OWNED+HUMAN_INTERACTIVE→canRevokeAccess=true, CLIENT_OWNED→canRevokeAccess=false, NAMED_INVITE→canRevokeAccess=true (unchanged). All conditional rules computing correctly."
 
   - task: "Conditional Capabilities - GA4 SHARED_ACCOUNT Rules"
     implemented: true
@@ -2087,11 +2090,14 @@ agent_communication:
     file: "/app/plugins/ga4/manifest.ts"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Added conditional rules to GA4 manifest for SHARED_ACCOUNT. AGENCY_OWNED+HUMAN_INTERACTIVE enables OAuth+verify, CLIENT_OWNED enables evidence. Manual test verified."
+      - working: true
+        agent: "testing"
+        comment: "✅ GA4 conditional rules working correctly! Manifest includes proper conditional rules for SHARED_ACCOUNT access type. Default requires evidence, AGENCY_OWNED+HUMAN_INTERACTIVE enables OAuth+grant+verify+revoke, CLIENT_OWNED requires evidence. All rule conditions evaluate correctly via effective-capabilities endpoint."
 
   - task: "Conditional Capabilities - GTM/Ads/GSC SHARED_ACCOUNT Rules"
     implemented: true
@@ -2099,11 +2105,14 @@ agent_communication:
     file: "/app/plugins/gtm/manifest.ts"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Added conditional rules to GTM, Google Ads, and GSC manifests for SHARED_ACCOUNT. GSC correctly shows canGrantAccess=false but canVerifyAccess=true for AGENCY_OWNED."
+      - working: true
+        agent: "testing"
+        comment: "✅ All Google plugins conditional rules working! GTM, Google Ads, and GSC all have proper conditional rules for SHARED_ACCOUNT. Unified interface testing confirmed all plugins respect conditional capabilities, with GSC correctly limiting canGrantAccess=false (API limitation) while enabling canVerifyAccess=true for AGENCY_OWNED configurations."
 
   - task: "Conditional Capabilities - Verify/Grant Endpoints Accept Config"
     implemented: true
@@ -2111,11 +2120,14 @@ agent_communication:
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Updated /api/oauth/:platformKey/verify-access and grant-access to accept pamOwnership, identityPurpose, identityStrategy in request body and use getEffectiveCapabilities for gate checks."
+      - working: true
+        agent: "testing"
+        comment: "✅ OAuth endpoints correctly accept config context! All grant-access and verify-access endpoints properly handle PAM config parameters and use getEffectiveCapabilities for gate checks. SHARED_ACCOUNT operations correctly return 501 when capabilities indicate not supported (default config), reach APIs when enabled (AGENCY_OWNED config)."
 
   - task: "Conditional Capabilities - Onboarding API Uses Effective Capabilities"
     implemented: true
