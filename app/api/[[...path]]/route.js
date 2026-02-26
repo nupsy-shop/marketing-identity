@@ -2274,6 +2274,66 @@ export async function POST(request, { params }) {
       }
     }
 
+    // POST /api/oauth/:platformKey/revoke-access - Revoke access for a user
+    if (path.match(/^oauth\/[^/]+\/revoke-access$/)) {
+      const platformKey = path.split('/')[1];
+      const { accessToken, tokenType, target, role, identity, accessItemType, accessRequestItemId } = body || {};
+
+      if (!accessToken || !target || !identity || !accessItemType) {
+        return NextResponse.json({ success: false, error: 'accessToken, target, identity, and accessItemType are required' }, { status: 400 });
+      }
+
+      const plugin = PluginRegistry.get(platformKey);
+      if (!plugin) {
+        return NextResponse.json({ success: false, error: `Plugin not found: ${platformKey}` }, { status: 404 });
+      }
+
+      // Check if plugin supports revoke
+      const capabilities = getEffectiveCapabilities(plugin.manifest, accessItemType, body);
+      if (!capabilities.canRevokeAccess) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Platform ${platformKey} does not support programmatic access revocation for ${accessItemType}.`
+        }, { status: 501 });
+      }
+
+      if (!plugin.revokeAccess || typeof plugin.revokeAccess !== 'function') {
+        return NextResponse.json({ success: false, error: `Plugin ${platformKey} declares canRevokeAccess but revokeAccess() is not implemented.` }, { status: 501 });
+      }
+
+      try {
+        const result = await plugin.revokeAccess({
+          auth: { accessToken, tokenType: tokenType || 'Bearer' },
+          target, role: role || '', identity, accessItemType,
+        });
+
+        if (!result.success) {
+          return NextResponse.json({ success: false, error: result.error, details: result.details }, { status: 400 });
+        }
+
+        // Update item status to "revoked" if we have the item ID
+        if (accessRequestItemId) {
+          try {
+            await db.updateAccessRequestItem(accessRequestItemId, {
+              status: 'pending',
+              validationResult: {
+                method: 'programmatic_revoke',
+                platformKey, target, identity,
+                revokedAt: new Date().toISOString(),
+                details: result.details,
+              },
+            });
+          } catch (updateError) {
+            console.error(`[revoke-access] Failed to update item: ${updateError.message}`);
+          }
+        }
+
+        return NextResponse.json({ success: true, data: { platformKey, identity, revoked: true, details: result.details } });
+      } catch (error) {
+        return NextResponse.json({ success: false, error: `Access revocation failed: ${error.message}` }, { status: 500 });
+      }
+    }
+
     // POST /api/oauth/:platformKey/capabilities - Get capabilities for a platform/access type
     if (path.match(/^oauth\/[^/]+\/capabilities$/)) {
       const platformKey = path.split('/')[1];
