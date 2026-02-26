@@ -8,52 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import PlatformLogo from '@/components/PlatformLogo';
-
-// Helper to get platform key from name
-function getPlatformKeyFromName(name) {
-  if (!name) return null;
-  const normalized = name.toLowerCase();
-  
-  const keyMap = {
-    'google ads': 'google-ads',
-    'meta business manager / facebook ads': 'meta',
-    'meta': 'meta',
-    'facebook ads': 'meta',
-    'google analytics / ga4': 'ga4',
-    'google analytics': 'ga4',
-    'ga4': 'ga4',
-    'google search console': 'google-search-console',
-    'snowflake': 'snowflake',
-    'dv360': 'dv360',
-    'dv360 (display & video 360)': 'dv360',
-    'display & video 360': 'dv360',
-    'the trade desk': 'trade-desk',
-    'trade desk': 'trade-desk',
-    'tiktok ads': 'tiktok',
-    'tiktok': 'tiktok',
-    'snapchat ads': 'snapchat',
-    'snapchat': 'snapchat',
-    'linkedin ads': 'linkedin',
-    'linkedin': 'linkedin',
-    'pinterest ads': 'pinterest',
-    'pinterest': 'pinterest',
-    'hubspot': 'hubspot',
-    'salesforce': 'salesforce',
-    'google tag manager': 'gtm',
-    'gtm': 'gtm',
-    'google analytics (universal)': 'ga-ua',
-    'google analytics ua (legacy)': 'ga-ua',
-    'universal analytics': 'ga-ua',
-    'amazon ads': 'amazon-ads',
-    'reddit ads': 'reddit-ads',
-    'microsoft ads (bing ads)': 'microsoft-ads',
-    'microsoft ads': 'microsoft-ads',
-    'bing ads': 'microsoft-ads',
-    'spotify ads': 'spotify-ads',
-  };
-  
-  return keyMap[normalized] || normalized.replace(/[^a-z0-9]+/g, '-');
-}
+import { getPlatformKeyFromName } from '@/lib/platform-mappings';
 
 function AppCatalogContent() {
   const router = useRouter();
