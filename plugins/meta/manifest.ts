@@ -56,35 +56,37 @@ export const AUTOMATION_CAPABILITIES: AutomationCapabilities = {
   targetTypes: ['BUSINESS', 'AD_ACCOUNT']
 };
 
-// Meta Business Manager API supports adding partners and user roles
 export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
   PARTNER_DELEGATION: {
     clientOAuthSupported: true,
-    canGrantAccess: true,      // Business Manager API can add agency partners
-    canVerifyAccess: true,     // Can list ad account partners
-    canRevokeAccess: false,
-    requiresEvidenceUpload: false
+    canGrantAccess: true,
+    canVerifyAccess: true,
+    canRevokeAccess: false,    // Partner removal requires the client's Business Manager
+    requiresEvidenceUpload: false,
+    verificationMode: 'AUTO' as VerificationMode,
   },
   NAMED_INVITE: {
     clientOAuthSupported: true,
-    canGrantAccess: true,      // Can add user roles to ad accounts
-    canVerifyAccess: true,     // Can check user access
-    canRevokeAccess: false,
-    requiresEvidenceUpload: false
+    canGrantAccess: true,
+    canVerifyAccess: true,
+    canRevokeAccess: true,     // Can remove assigned users from ad accounts via API
+    requiresEvidenceUpload: false,
+    verificationMode: 'AUTO' as VerificationMode,
   },
   SHARED_ACCOUNT: {
     clientOAuthSupported: false,
     canGrantAccess: false,
     canVerifyAccess: false,
     canRevokeAccess: false,
-    requiresEvidenceUpload: true
+    requiresEvidenceUpload: true,
+    verificationMode: 'EVIDENCE_REQUIRED' as VerificationMode,
   }
 };
 
 export const META_MANIFEST: PluginManifest = {
   platformKey: 'meta',
   displayName: 'Meta Business Manager / Facebook Ads',
-  pluginVersion: '2.3.0',
+  pluginVersion: '3.0.0',
   category: 'Paid Media',
   description: 'Meta Business Manager, Facebook Ads, Instagram advertising',
   tier: 1,
