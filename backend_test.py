@@ -1,576 +1,530 @@
 #!/usr/bin/env python3
+"""
+Backend Testing for Unified AccessProvisioningPlugin Interface
+Testing all 4 Google plugins (GA4, GTM, Google Ads, GSC)
+
+This test validates the unified interface across all Google plugins
+including plugin manifests, grant/verify/revoke access endpoints,
+capabilities, effective capabilities, and validation edge cases.
+"""
 
 import requests
 import json
 import sys
-import traceback
-from urllib.parse import urljoin
-import urllib3
+from typing import Dict, Any, List, Optional
 
-# Disable SSL warnings for testing
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Base URL from environment
+# Base URL from environment variable
 BASE_URL = "https://access-provisioning.preview.emergentagent.com"
-API_BASE = urljoin(BASE_URL, "/api/")
 
-def make_request(method, endpoint, data=None, headers=None):
-    """Make HTTP request with proper error handling"""
-    url = urljoin(API_BASE, endpoint.lstrip('/'))
-    default_headers = {'Content-Type': 'application/json'}
-    if headers:
-        default_headers.update(headers)
-    
-    try:
-        # Add timeout and SSL verification settings
-        kwargs = {
-            'headers': default_headers,
-            'timeout': 30,
-            'verify': False  # Disable SSL verification for testing
-        }
+class PluginInterfaceTest:
+    def __init__(self):
+        self.base_url = BASE_URL
+        self.api_url = f"{self.base_url}/api"
+        self.test_results = []
+        self.total_tests = 0
+        self.passed_tests = 0
         
-        if method.upper() == 'GET':
-            response = requests.get(url, **kwargs)
-        elif method.upper() == 'POST':
-            response = requests.post(url, json=data, **kwargs)
-        elif method.upper() == 'PATCH':
-            response = requests.patch(url, json=data, **kwargs)
-        elif method.upper() == 'PUT':
-            response = requests.put(url, json=data, **kwargs)
-        elif method.upper() == 'DELETE':
-            response = requests.delete(url, **kwargs)
-        
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"Request failed for {url}: {e}")
-        return None
-
-def test_save_target_endpoint():
-    """Test the Save Target API endpoint"""
-    print("\n" + "="*80)
-    print("TESTING: Save Target Endpoint - POST /api/onboarding/:token/items/:itemId/save-target")
-    print("="*80)
-    
-    # Test data from review request
-    valid_token = "055b2165-83d1-4ff7-8d44-5a7dec3a17f2"
-    valid_item_id = "c5c93c3e-b691-4bd5-a034-50ae9df8042d"
-    
-    sample_target = {
-        "externalId": "123456789",
-        "displayName": "Test GA4 Property",
-        "targetType": "PROPERTY",
-        "parentExternalId": "accounts/123",
-        "metadata": { "test": True }
-    }
-    
-    tests_passed = 0
-    total_tests = 4
-    
-    try:
-        # Test 1: Missing selectedTarget (should return 400)
-        print("\n[TEST 1/4] Testing missing selectedTarget...")
-        response = make_request('POST', f'/onboarding/{valid_token}/items/{valid_item_id}/save-target', {})
-        if response and response.status_code == 400:
-            response_data = response.json()
-            if 'selectedTarget is required' in response_data.get('error', ''):
-                print("✅ PASS: Correctly rejected missing selectedTarget with 400")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Wrong error message: {response_data}")
-        else:
-            status = response.status_code if response else 'No response'
-            print(f"❌ FAIL: Expected 400, got {status}")
-        
-        # Test 2: Invalid token (should return 404)
-        print("\n[TEST 2/4] Testing invalid token...")
-        invalid_token = "invalid-token-12345"
-        response = make_request('POST', f'/onboarding/{invalid_token}/items/{valid_item_id}/save-target', 
-                              {"selectedTarget": sample_target})
-        if response and response.status_code == 404:
-            response_data = response.json()
-            if 'Invalid onboarding token' in response_data.get('error', ''):
-                print("✅ PASS: Correctly rejected invalid token with 404")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Wrong error message: {response_data}")
-        else:
-            status = response.status_code if response else 'No response'
-            print(f"❌ FAIL: Expected 404, got {status}")
-        
-        # Test 3: Invalid itemId (should return 404)
-        print("\n[TEST 3/4] Testing invalid itemId...")
-        invalid_item_id = "invalid-item-id-12345"
-        response = make_request('POST', f'/onboarding/{valid_token}/items/{invalid_item_id}/save-target', 
-                              {"selectedTarget": sample_target})
-        if response and response.status_code == 404:
-            response_data = response.json()
-            if 'Item not found' in response_data.get('error', ''):
-                print("✅ PASS: Correctly rejected invalid itemId with 404")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Wrong error message: {response_data}")
-        else:
-            status = response.status_code if response else 'No response'
-            print(f"❌ FAIL: Expected 404, got {status}")
-        
-        # Test 4: Valid request with selectedTarget object (should return 200)
-        print("\n[TEST 4/4] Testing valid save target request...")
-        response = make_request('POST', f'/onboarding/{valid_token}/items/{valid_item_id}/save-target', 
-                              {"selectedTarget": sample_target})
-        if response and response.status_code == 200:
-            response_data = response.json()
-            if (response_data.get('success') and 
-                response_data.get('data', {}).get('selectedTarget', {}).get('externalId') == "123456789"):
-                print("✅ PASS: Successfully saved target with 200")
-                print(f"   Returned target: {response_data.get('data', {}).get('selectedTarget', {})}")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Invalid response structure: {response_data}")
-        else:
-            status = response.status_code if response else 'No response'
-            print(f"❌ FAIL: Expected 200, got {status}")
-            if response:
-                print(f"   Response: {response.json()}")
-        
-    except Exception as e:
-        print(f"❌ FAIL: Exception during save target tests: {e}")
-        traceback.print_exc()
-    
-    print(f"\n📊 Save Target Tests: {tests_passed}/{total_tests} PASSED")
-    return tests_passed, total_tests
-
-def test_target_discovery_endpoint():
-    """Test the Target Discovery API endpoint"""
-    print("\n" + "="*80)
-    print("TESTING: Target Discovery Endpoint - POST /api/oauth/:platformKey/discover-targets")
-    print("="*80)
-    
-    platforms_to_test = ['ga4', 'gtm', 'google-ads']
-    tests_passed = 0
-    total_tests = 6  # 2 tests per platform
-    
-    try:
-        for platform in platforms_to_test:
-            print(f"\n--- Testing platform: {platform} ---")
-            
-            # Test 1: Missing accessToken (should return 400)
-            print(f"\n[TEST] Testing missing accessToken for {platform}...")
-            response = make_request('POST', f'/oauth/{platform}/discover-targets', {})
-            if response and response.status_code == 400:
-                response_data = response.json()
-                if 'accessToken is required' in response_data.get('error', ''):
-                    print(f"✅ PASS: Correctly rejected missing accessToken for {platform}")
-                    tests_passed += 1
-                else:
-                    print(f"❌ FAIL: Wrong error message for {platform}: {response_data}")
-            else:
-                status = response.status_code if response else 'No response'
-                print(f"❌ FAIL: Expected 400 for {platform}, got {status}")
-            
-            # Test 2: Fake accessToken (should return error from Google API or appropriate error)
-            print(f"\n[TEST] Testing fake accessToken for {platform}...")
-            fake_token = "fake_access_token_12345"
-            response = make_request('POST', f'/oauth/{platform}/discover-targets', 
-                                  {"accessToken": fake_token})
-            
-            # Should return either 400/401/500 error (depending on platform implementation)
-            if response and response.status_code in [400, 401, 500, 501]:
-                response_data = response.json()
-                error_msg = response_data.get('error', '').lower()
-                
-                # Check for expected error patterns
-                expected_errors = [
-                    'not configured', 'oauth is not configured', 'not found',
-                    'invalid', 'unauthorized', 'failed', 'does not support'
-                ]
-                
-                if any(expected in error_msg for expected in expected_errors):
-                    print(f"✅ PASS: Correctly handled fake token for {platform} (Status: {response.status_code})")
-                    print(f"   Error: {response_data.get('error', '')}")
-                    tests_passed += 1
-                else:
-                    print(f"❌ FAIL: Unexpected error message for {platform}: {response_data}")
-            else:
-                status = response.status_code if response else 'No response'
-                print(f"❌ FAIL: Expected error status for {platform}, got {status}")
-                if response:
-                    print(f"   Response: {response.json()}")
-        
-    except Exception as e:
-        print(f"❌ FAIL: Exception during target discovery tests: {e}")
-        traceback.print_exc()
-    
-    print(f"\n📊 Target Discovery Tests: {tests_passed}/{total_tests} PASSED")
-    return tests_passed, total_tests
-
-def test_regression_onboarding_endpoints():
-    """Test existing onboarding endpoints still work"""
-    print("\n" + "="*80)
-    print("TESTING: Regression - Existing Onboarding Endpoints")
-    print("="*80)
-    
-    # Test data from review request
-    valid_token = "055b2165-83d1-4ff7-8d44-5a7dec3a17f2"
-    valid_item_id = "c5c93c3e-b691-4bd5-a034-50ae9df8042d"
-    
-    tests_passed = 0
-    total_tests = 2
-    
-    try:
-        # Test 1: GET /api/onboarding/:token (should return onboarding data)
-        print("\n[TEST 1/2] Testing GET onboarding data...")
-        response = make_request('GET', f'/onboarding/{valid_token}')
-        if response and response.status_code == 200:
-            response_data = response.json()
-            if (response_data.get('success') and 
-                response_data.get('data', {}).get('client') and
-                response_data.get('data', {}).get('items')):
-                print("✅ PASS: Successfully retrieved onboarding data")
-                print(f"   Client: {response_data['data']['client']['name']}")
-                print(f"   Items count: {len(response_data['data']['items'])}")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Invalid onboarding data structure: {response_data}")
-        else:
-            status = response.status_code if response else 'No response'
-            print(f"❌ FAIL: Expected 200, got {status}")
-            if response:
-                print(f"   Response: {response.json()}")
-        
-        # Test 2: POST /api/onboarding/:token/items/:itemId/attest (should still work)
-        print("\n[TEST 2/2] Testing POST attestation endpoint...")
-        attest_data = {
-            "attestationText": "I have granted the requested access to my GA4 account",
-            "clientProvidedTarget": {
-                "propertyId": "123456789",
-                "propertyName": "Test Property",
-                "assetType": "GA4_PROPERTY"
+        # Test data for each plugin
+        self.test_configs = {
+            'ga4': {
+                'target': 'properties/123456',
+                'role': 'viewer',
+                'identity': 'test@agency.com',
+                'supported_access_types': ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT'],
+                'can_revoke_access': {
+                    'NAMED_INVITE': True,
+                    'GROUP_ACCESS': True,
+                    'SHARED_ACCOUNT': False  # Default, true with agency config
+                }
+            },
+            'gtm': {
+                'target': '12345/67890',
+                'role': 'read',
+                'identity': 'test@agency.com', 
+                'supported_access_types': ['NAMED_INVITE', 'GROUP_ACCESS', 'SHARED_ACCOUNT'],
+                'can_revoke_access': {
+                    'NAMED_INVITE': True,
+                    'GROUP_ACCESS': True,
+                    'SHARED_ACCOUNT': False  # Default, true with agency config
+                }
+            },
+            'google-ads': {
+                'target': 'customers/1234567890',
+                'role': 'standard',
+                'identity': 'test@agency.com',
+                'supported_access_types': ['PARTNER_DELEGATION', 'NAMED_INVITE', 'SHARED_ACCOUNT'],
+                'can_revoke_access': {
+                    'PARTNER_DELEGATION': True,
+                    'NAMED_INVITE': True,
+                    'SHARED_ACCOUNT': False  # Default, true with agency config
+                }
+            },
+            'google-search-console': {
+                'target': 'https://example.com',
+                'role': 'full',
+                'identity': 'test@agency.com',
+                'supported_access_types': ['NAMED_INVITE', 'SHARED_ACCOUNT'],
+                'can_revoke_access': {
+                    'NAMED_INVITE': False,  # GSC doesn't support programmatic user management
+                    'SHARED_ACCOUNT': False
+                }
             }
         }
-        
-        response = make_request('POST', f'/onboarding/{valid_token}/items/{valid_item_id}/attest', 
-                              attest_data)
-        if response and response.status_code == 200:
-            response_data = response.json()
-            if response_data.get('success'):
-                print("✅ PASS: Successfully submitted attestation")
-                print(f"   Response success: {response_data.get('success')}")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: Attestation failed: {response_data}")
-        else:
-            status = response.status_code if response else 'No response'
-            print(f"❌ FAIL: Expected 200, got {status}")
-            if response:
-                print(f"   Response: {response.json()}")
-        
-    except Exception as e:
-        print(f"❌ FAIL: Exception during regression tests: {e}")
-        traceback.print_exc()
-    
-    print(f"\n📊 Regression Tests: {tests_passed}/{total_tests} PASSED")
-    return tests_passed, total_tests
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# GOOGLE SEARCH CONSOLE (GSC) PLUGIN TESTS
-# ═══════════════════════════════════════════════════════════════════════════════
+    def log_test(self, test_name: str, success: bool, message: str, details: Optional[Dict] = None):
+        """Log test results"""
+        self.total_tests += 1
+        if success:
+            self.passed_tests += 1
+        
+        result = {
+            'test': test_name,
+            'success': success,
+            'message': message
+        }
+        if details:
+            result['details'] = details
+        
+        self.test_results.append(result)
+        
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status}: {test_name} - {message}")
+        if details and not success:
+            print(f"    Details: {details}")
 
-def test_gsc_capabilities():
-    """Test GSC plugin capabilities endpoints"""
-    print("\n" + "="*80)
-    print("🔥 TESTING GSC CAPABILITIES ENDPOINTS")
-    print("="*80)
-    
-    tests_passed = 0
-    total_tests = 6
-    
-    try:
-        # Test 1: GSC Capabilities NAMED_INVITE
-        print("\n📝 Test 1: GSC Capabilities NAMED_INVITE")
-        response = make_request('GET', '/plugins/google-search-console/capabilities/NAMED_INVITE')
+    def make_request(self, method: str, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+        """Make HTTP request to API"""
+        url = f"{self.api_url}/{path}"
+        headers = {'Content-Type': 'application/json'}
         
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                capabilities = data['data']['capabilities']
-                # Expected: canGrantAccess=false, canVerifyAccess=true, clientOAuthSupported=true
-                if (capabilities.get('canGrantAccess') == False and 
-                    capabilities.get('canVerifyAccess') == True and 
-                    capabilities.get('clientOAuthSupported') == True):
-                    print("✅ PASS: GSC NAMED_INVITE capabilities correct")
-                    tests_passed += 1
-                else:
-                    print(f"❌ FAIL: GSC NAMED_INVITE capabilities wrong: {capabilities}")
+        try:
+            if method.upper() == 'GET':
+                response = requests.get(url, headers=headers, timeout=30)
+            elif method.upper() == 'POST':
+                response = requests.post(url, headers=headers, json=data, timeout=30)
+            elif method.upper() == 'PATCH':
+                response = requests.patch(url, headers=headers, json=data, timeout=30)
             else:
-                print(f"❌ FAIL: GSC NAMED_INVITE capabilities API error: {data.get('error')}")
-        else:
-            print("❌ FAIL: GSC NAMED_INVITE capabilities request failed")
-        
-        # Test 2: GSC Capabilities SHARED_ACCOUNT  
-        print("\n📝 Test 2: GSC Capabilities SHARED_ACCOUNT")
-        response = make_request('GET', '/plugins/google-search-console/capabilities/SHARED_ACCOUNT')
-        
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                capabilities = data['data']['capabilities']
-                # Expected: canGrantAccess=false, canVerifyAccess=false, clientOAuthSupported=false
-                if (capabilities.get('canGrantAccess') == False and 
-                    capabilities.get('canVerifyAccess') == False and 
-                    capabilities.get('clientOAuthSupported') == False):
-                    print("✅ PASS: GSC SHARED_ACCOUNT capabilities correct")
-                    tests_passed += 1
-                else:
-                    print(f"❌ FAIL: GSC SHARED_ACCOUNT capabilities wrong: {capabilities}")
-            else:
-                print(f"❌ FAIL: GSC SHARED_ACCOUNT capabilities API error: {data.get('error')}")
-        else:
-            print("❌ FAIL: GSC SHARED_ACCOUNT capabilities request failed")
+                return {'error': f'Unsupported method: {method}', 'status_code': 400}
             
-        # Test 3: GSC OAuth Start
-        print("\n📝 Test 3: GSC OAuth Start") 
-        oauth_data = {
-            "redirectUri": f"{BASE_URL}/api/oauth/callback"
-        }
-        response = make_request('POST', '/oauth/google-search-console/start', oauth_data)
-        
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                auth_url = data['data'].get('authUrl')
-                state = data['data'].get('state')
-                if auth_url and state and 'accounts.google.com' in auth_url:
-                    print("✅ PASS: GSC OAuth start returns valid Google OAuth URL")
-                    tests_passed += 1
-                else:
-                    print(f"❌ FAIL: GSC OAuth start invalid response: authUrl={auth_url}, state={state}")
-            else:
-                print(f"❌ FAIL: GSC OAuth start API error: {data.get('error')}")
-        else:
-            print("❌ FAIL: GSC OAuth start request failed")
-            
-        # Test 4: GSC OAuth Status
-        print("\n📝 Test 4: GSC OAuth Status")
-        response = make_request('GET', '/oauth/google-search-console/status')
-        
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                oauth_data = data['data']
-                if (oauth_data.get('oauthSupported') == True and 
-                    oauth_data.get('configured') == True and 
-                    oauth_data.get('platformKey') == 'google-search-console'):
-                    print("✅ PASS: GSC OAuth status shows configured and supported")
-                    tests_passed += 1
-                else:
-                    print(f"❌ FAIL: GSC OAuth status wrong values: {oauth_data}")
-            else:
-                print(f"❌ FAIL: GSC OAuth status API error: {data.get('error')}")
-        else:
-            print("❌ FAIL: GSC OAuth status request failed")
-            
-        # Test 5: GSC Verify Access with fake token
-        print("\n📝 Test 5: GSC Verify Access - Fake Token")
-        verify_data = {
-            "accessToken": "fake_oauth_token_for_testing",
-            "tokenType": "Bearer",
-            "target": "https://example.com/",
-            "role": "owner", 
-            "identity": "test@example.com",
-            "accessItemType": "NAMED_INVITE"
-        }
-        response = make_request('POST', '/oauth/google-search-console/verify-access', verify_data)
-        
-        # Should return success=false in response for fake token, or error from Google API
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get('success') and not data['data'].get('verified'):
-                print("✅ PASS: GSC verify access properly handles fake token - verification failed as expected")
-                tests_passed += 1
-            elif not data.get('success'):
-                print("✅ PASS: GSC verify access properly handles fake token with error")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: GSC verify access unexpectedly passed with fake token: {data}")
-        else:
-            print(f"❌ FAIL: GSC verify access should return 200, got: {response.status_code if response else 'No response'}")
-            
-        # Test 6: GSC Grant Access (should fail with manual instructions)
-        print("\n📝 Test 6: GSC Grant Access - Should Return Manual Instructions") 
-        grant_data = {
-            "accessToken": "fake_oauth_token_for_testing",
-            "tokenType": "Bearer",
-            "target": "https://example.com/",
-            "role": "owner",
-            "identity": "test@example.com", 
-            "accessItemType": "NAMED_INVITE"
-        }
-        response = make_request('POST', '/oauth/google-search-console/grant-access', grant_data)
-        
-        # Should return error with manual instructions or 501
-        if response and response.status_code == 501:
-            print("✅ PASS: GSC grant access properly returns 501 (not supported)")
-            tests_passed += 1
-        elif response and response.status_code == 200:
-            data = response.json()
-            if not data.get('success') and ('manual' in data.get('error', '').lower() or 
-                                            'programmatic' in data.get('error', '').lower()):
-                print("✅ PASS: GSC grant access properly returns manual instructions")
-                tests_passed += 1
-            else:
-                print(f"❌ FAIL: GSC grant access unexpected success: {data}")
-        else:
-            print(f"❌ FAIL: GSC grant access should fail with manual instructions, got: {response.status_code if response else 'No response'}")
-            
-    except Exception as e:
-        print(f"❌ FAIL: Exception during GSC capabilities tests: {e}")
-        traceback.print_exc()
-    
-    print(f"\n📊 GSC Capabilities Tests: {tests_passed}/{total_tests} PASSED")
-    return tests_passed, total_tests
+            return {
+                'status_code': response.status_code,
+                'data': response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text,
+                'headers': dict(response.headers)
+            }
+        except requests.exceptions.RequestException as e:
+            return {'error': str(e), 'status_code': 0}
+        except Exception as e:
+            return {'error': f'Unexpected error: {str(e)}', 'status_code': 0}
 
-def test_gsc_additional_endpoints():
-    """Test additional GSC plugin endpoints"""
-    print("\n" + "="*80)
-    print("🔍 TESTING GSC ADDITIONAL ENDPOINTS")
-    print("="*80)
-    
-    tests_passed = 0
-    total_tests = 4
-    
-    try:
-        # Test 1: GSC Verify Access - Missing Fields
-        print("\n📝 Test 1: GSC Verify Access - Missing Required Fields")
-        verify_data_incomplete = {
-            "accessItemType": "NAMED_INVITE"
-            # Missing auth, target, role, identity
-        }
-        response = make_request('POST', '/oauth/google-search-console/verify-access', verify_data_incomplete)
+    def test_plugin_manifest_validation(self):
+        """Test 1: Plugin Manifest Validation - GET /api/plugins"""
+        print("\n=== Test 1: Plugin Manifest Validation ===")
         
-        if response and response.status_code == 400:
-            print("✅ PASS: GSC verify access properly rejects missing required fields")
-            tests_passed += 1
-        else:
-            print(f"❌ FAIL: GSC verify access should return 400 for missing fields, got: {response.status_code if response else 'No response'}")
+        response = self.make_request('GET', 'plugins')
+        
+        if response.get('status_code') != 200:
+            self.log_test("Plugin Manifests API", False, 
+                         f"API returned {response.get('status_code')}: {response.get('data', response.get('error'))}")
+            return
+        
+        plugins_data = response['data']
+        if not isinstance(plugins_data, dict) or not plugins_data.get('success'):
+            self.log_test("Plugin Manifests Response", False, 
+                         f"Invalid response format: {plugins_data}")
+            return
+        
+        plugins = plugins_data.get('data', [])
+        if not isinstance(plugins, list):
+            self.log_test("Plugin Manifests List", False, 
+                         f"Expected list of plugins, got: {type(plugins)}")
+            return
+        
+        # Find Google plugins
+        google_plugins = {}
+        for plugin in plugins:
+            if plugin.get('platformKey') in ['ga4', 'gtm', 'google-ads', 'google-search-console']:
+                google_plugins[plugin['platformKey']] = plugin
+        
+        # Test each Google plugin manifest
+        expected_plugins = ['ga4', 'gtm', 'google-ads', 'google-search-console']
+        for plugin_key in expected_plugins:
+            if plugin_key not in google_plugins:
+                self.log_test(f"Plugin {plugin_key} Manifest", False, 
+                             f"Plugin {plugin_key} not found in manifest list")
+                continue
             
-        # Test 2: GSC Verify Access - SHARED_ACCOUNT type
-        print("\n📝 Test 2: GSC Verify Access - SHARED_ACCOUNT Type")
-        verify_shared_data = {
-            "accessToken": "fake_oauth_token_for_testing",
-            "tokenType": "Bearer",
-            "target": "https://example.com/",
-            "role": "owner",
-            "identity": "test@example.com",
-            "accessItemType": "SHARED_ACCOUNT"
-        }
-        response = make_request('POST', '/oauth/google-search-console/verify-access', verify_shared_data)
+            plugin = google_plugins[plugin_key]
+            
+            # Check required fields
+            required_fields = ['platformKey', 'displayName', 'accessTypeCapabilities']
+            missing_fields = [field for field in required_fields if field not in plugin]
+            
+            if missing_fields:
+                self.log_test(f"Plugin {plugin_key} Manifest", False, 
+                             f"Missing required fields: {missing_fields}")
+                continue
+            
+            # Check accessTypeCapabilities for canRevokeAccess
+            access_caps = plugin.get('accessTypeCapabilities', {})
+            config = self.test_configs[plugin_key]
+            
+            # Validate canRevokeAccess for each supported access type
+            manifest_valid = True
+            for access_type in config['supported_access_types']:
+                if access_type in access_caps:
+                    capability = access_caps[access_type]
+                    expected_can_revoke = config['can_revoke_access'].get(access_type, False)
+                    
+                    # For SHARED_ACCOUNT, it might be conditional rules
+                    if isinstance(capability, dict) and 'default' in capability:
+                        actual_can_revoke = capability['default'].get('canRevokeAccess', False)
+                    else:
+                        actual_can_revoke = capability.get('canRevokeAccess', False)
+                    
+                    # Special case for GSC NAMED_INVITE - should be false
+                    if plugin_key == 'google-search-console' and access_type == 'NAMED_INVITE':
+                        expected_can_revoke = False
+                    
+                    if actual_can_revoke != expected_can_revoke:
+                        self.log_test(f"Plugin {plugin_key} {access_type} canRevokeAccess", False, 
+                                     f"Expected {expected_can_revoke}, got {actual_can_revoke}")
+                        manifest_valid = False
+            
+            if manifest_valid:
+                self.log_test(f"Plugin {plugin_key} Manifest", True, 
+                             "Manifest structure and canRevokeAccess flags are correct")
+
+    def test_grant_access_endpoints(self):
+        """Test 2: Grant Access Endpoints - POST /api/oauth/{pluginKey}/grant-access"""
+        print("\n=== Test 2: Grant Access Endpoints ===")
         
-        # Should return error for SHARED_ACCOUNT
-        if response and response.status_code == 501:
-            print("✅ PASS: GSC verify access properly returns 501 for SHARED_ACCOUNT (not supported)")
-            tests_passed += 1
-        elif response and response.status_code == 200:
-            data = response.json()
-            if not data.get('success') and ('shared account' in data.get('error', '').lower() or 
-                                           'cannot be verified' in data.get('error', '').lower()):
-                print("✅ PASS: GSC verify access properly rejects SHARED_ACCOUNT")
-                tests_passed += 1
+        for plugin_key, config in self.test_configs.items():
+            for access_type in config['supported_access_types']:
+                test_payload = {
+                    "accessToken": "test-token",
+                    "target": config['target'],
+                    "role": config['role'],
+                    "identity": config['identity'],
+                    "accessItemType": access_type
+                }
+                
+                response = self.make_request('POST', f'oauth/{plugin_key}/grant-access', test_payload)
+                
+                # GSC should return 501 for grant access
+                if plugin_key == 'google-search-console':
+                    if response.get('status_code') == 501:
+                        self.log_test(f"{plugin_key} grant-access {access_type}", True, 
+                                     "GSC correctly returns 501 (not supported)")
+                    else:
+                        self.log_test(f"{plugin_key} grant-access {access_type}", False, 
+                                     f"Expected 501, got {response.get('status_code')}")
+                else:
+                    # Other plugins should reach API and return error (invalid token expected)
+                    if response.get('status_code') in [400, 401, 403, 404]:
+                        data = response.get('data', {})
+                        if isinstance(data, dict) and 'success' in data and 'error' in data:
+                            self.log_test(f"{plugin_key} grant-access {access_type}", True, 
+                                         f"Reached API, got expected error: {response.get('status_code')}")
+                        else:
+                            self.log_test(f"{plugin_key} grant-access {access_type}", False, 
+                                         f"Invalid response format: {data}")
+                    else:
+                        self.log_test(f"{plugin_key} grant-access {access_type}", False, 
+                                     f"Unexpected status: {response.get('status_code')}: {response.get('data')}")
+
+    def test_verify_access_endpoints(self):
+        """Test 3: Verify Access Endpoints - POST /api/oauth/{pluginKey}/verify-access"""
+        print("\n=== Test 3: Verify Access Endpoints ===")
+        
+        for plugin_key, config in self.test_configs.items():
+            for access_type in config['supported_access_types']:
+                test_payload = {
+                    "accessToken": "test-token", 
+                    "target": config['target'],
+                    "role": config['role'],
+                    "identity": config['identity'],
+                    "accessItemType": access_type
+                }
+                
+                response = self.make_request('POST', f'oauth/{plugin_key}/verify-access', test_payload)
+                
+                # All should reach platform API and return standardized VerifyResult format
+                if response.get('status_code') in [400, 401, 403, 404]:
+                    data = response.get('data', {})
+                    if isinstance(data, dict) and 'success' in data:
+                        self.log_test(f"{plugin_key} verify-access {access_type}", True, 
+                                     f"Reached platform API, got standardized response: {response.get('status_code')}")
+                    else:
+                        self.log_test(f"{plugin_key} verify-access {access_type}", False, 
+                                     f"Response not in VerifyResult format: {data}")
+                else:
+                    self.log_test(f"{plugin_key} verify-access {access_type}", False, 
+                                 f"Unexpected status: {response.get('status_code')}: {response.get('data')}")
+
+    def test_revoke_access_endpoints(self):
+        """Test 4: Revoke Access Endpoints - POST /api/oauth/{pluginKey}/revoke-access"""
+        print("\n=== Test 4: Revoke Access Endpoints ===")
+        
+        for plugin_key, config in self.test_configs.items():
+            for access_type in config['supported_access_types']:
+                test_payload = {
+                    "accessToken": "test-token",
+                    "target": config['target'], 
+                    "role": config['role'],
+                    "identity": config['identity'],
+                    "accessItemType": access_type
+                }
+                
+                response = self.make_request('POST', f'oauth/{plugin_key}/revoke-access', test_payload)
+                
+                expected_can_revoke = config['can_revoke_access'].get(access_type, False)
+                
+                if not expected_can_revoke:
+                    # Should return 501 (not supported)
+                    if response.get('status_code') == 501:
+                        self.log_test(f"{plugin_key} revoke-access {access_type}", True, 
+                                     "Correctly returns 501 (canRevokeAccess=false)")
+                    else:
+                        self.log_test(f"{plugin_key} revoke-access {access_type}", False, 
+                                     f"Expected 501, got {response.get('status_code')}")
+                else:
+                    # Should reach Google API (auth error expected) 
+                    if response.get('status_code') in [400, 401, 403, 404]:
+                        data = response.get('data', {})
+                        if isinstance(data, dict) and 'success' in data:
+                            self.log_test(f"{plugin_key} revoke-access {access_type}", True, 
+                                         f"Reached Google API, got expected error: {response.get('status_code')}")
+                        else:
+                            self.log_test(f"{plugin_key} revoke-access {access_type}", False, 
+                                         f"Invalid response format: {data}")
+                    else:
+                        self.log_test(f"{plugin_key} revoke-access {access_type}", False, 
+                                     f"Unexpected status: {response.get('status_code')}: {response.get('data')}")
+
+    def test_validation_edge_cases(self):
+        """Test 5: Validation Edge Cases"""
+        print("\n=== Test 5: Validation Edge Cases ===")
+        
+        # Test SHARED_ACCOUNT rejection for plugins that don't support it
+        for plugin_key in ['ga4', 'gtm', 'google-ads']:
+            test_payload = {
+                "accessToken": "test-token",
+                "target": self.test_configs[plugin_key]['target'],
+                "role": self.test_configs[plugin_key]['role'],
+                "identity": self.test_configs[plugin_key]['identity'],
+                "accessItemType": "SHARED_ACCOUNT"
+            }
+            
+            response = self.make_request('POST', f'oauth/{plugin_key}/grant-access', test_payload)
+            
+            # Check if SHARED_ACCOUNT is properly handled (might need PAM config)
+            if response.get('status_code') in [400, 501]:
+                data = response.get('data', {})
+                if isinstance(data, dict) and 'error' in data:
+                    error_msg = data['error']
+                    if 'SHARED_ACCOUNT' in error_msg or 'not supported' in error_msg.lower():
+                        self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", True, 
+                                     "Properly rejects SHARED_ACCOUNT without PAM config")
+                    else:
+                        self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", True, 
+                                     f"Returns appropriate error: {error_msg}")
+                else:
+                    self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", False, 
+                                 f"Invalid error response: {data}")
             else:
-                print(f"❌ FAIL: GSC verify access unexpected response for SHARED_ACCOUNT: {data}")
-        else:
-            print(f"❌ FAIL: GSC verify access should handle SHARED_ACCOUNT properly, got: {response.status_code if response else 'No response'}")
-            
-        # Test 3: GSC Discover Targets - Fake Token
-        print("\n📝 Test 3: GSC Discover Targets - Fake Token")
-        discover_data = {
-            "accessToken": "fake_oauth_token_for_testing",
-            "tokenType": "Bearer"
-        }
-        response = make_request('POST', '/oauth/google-search-console/discover-targets', discover_data)
+                self.log_test(f"{plugin_key} SHARED_ACCOUNT rejection", False, 
+                             f"Expected 400/501, got {response.get('status_code')}")
         
-        # Should return error from Google API for fake token or 501 if not configured
-        if response and response.status_code == 501:
-            print("✅ PASS: GSC discover targets properly returns 501 (not configured/supported)")
-            tests_passed += 1
-        elif response and response.status_code == 200:
-            data = response.json()
-            if not data.get('success'):
-                print("✅ PASS: GSC discover targets properly handles fake token with error")
-                tests_passed += 1
+        # Test missing required fields
+        for plugin_key in ['ga4', 'gtm']:
+            # Test with missing accessToken
+            test_payload = {
+                "target": self.test_configs[plugin_key]['target'],
+                "role": self.test_configs[plugin_key]['role'],
+                "identity": self.test_configs[plugin_key]['identity'],
+                "accessItemType": "NAMED_INVITE"
+            }
+            
+            response = self.make_request('POST', f'oauth/{plugin_key}/grant-access', test_payload)
+            
+            if response.get('status_code') == 400:
+                self.log_test(f"{plugin_key} missing accessToken", True, 
+                             "Correctly returns 400 for missing required fields")
             else:
-                print(f"❌ FAIL: GSC discover targets unexpectedly succeeded with fake token: {data}")
-        else:
-            print(f"❌ FAIL: GSC discover targets should handle fake token properly, got: {response.status_code if response else 'No response'}")
-            
-        # Test 4: GSC Discover Targets - Missing Token
-        print("\n📝 Test 4: GSC Discover Targets - Missing Token")
-        discover_data_empty = {}  # No auth token
-        response = make_request('POST', '/oauth/google-search-console/discover-targets', discover_data_empty)
+                self.log_test(f"{plugin_key} missing accessToken", False, 
+                             f"Expected 400, got {response.get('status_code')}")
+
+    def test_capabilities_endpoint(self):
+        """Test 6: Capabilities Endpoint - GET /api/plugins/{pluginKey}/capabilities"""
+        print("\n=== Test 6: Capabilities Endpoint ===")
         
-        if response and response.status_code == 400:
-            print("✅ PASS: GSC discover targets properly rejects missing token")
-            tests_passed += 1
-        else:
-            print(f"❌ FAIL: GSC discover targets should reject missing token, got: {response.status_code if response else 'No response'}")
+        for plugin_key in self.test_configs.keys():
+            response = self.make_request('GET', f'plugins/{plugin_key}/capabilities')
             
-    except Exception as e:
-        print(f"❌ FAIL: Exception during GSC additional endpoint tests: {e}")
-        traceback.print_exc()
-    
-    print(f"\n📊 GSC Additional Endpoint Tests: {tests_passed}/{total_tests} PASSED")
-    return tests_passed, total_tests
+            if response.get('status_code') != 200:
+                self.log_test(f"{plugin_key} capabilities", False, 
+                             f"API returned {response.get('status_code')}: {response.get('data')}")
+                continue
+            
+            data = response.get('data', {})
+            if not isinstance(data, dict) or not data.get('success'):
+                self.log_test(f"{plugin_key} capabilities", False, 
+                             f"Invalid response format: {data}")
+                continue
+            
+            capabilities = data.get('data', {})
+            
+            # Check if canRevokeAccess field is included in accessTypeCapabilities
+            access_caps = capabilities.get('accessTypeCapabilities', {})
+            has_revoke_access = False
+            
+            for access_type, capability in access_caps.items():
+                if isinstance(capability, dict):
+                    if 'canRevokeAccess' in capability:
+                        has_revoke_access = True
+                        break
+                    elif 'default' in capability and 'canRevokeAccess' in capability['default']:
+                        has_revoke_access = True
+                        break
+            
+            if has_revoke_access:
+                self.log_test(f"{plugin_key} capabilities", True, 
+                             "Capabilities include canRevokeAccess field")
+            else:
+                self.log_test(f"{plugin_key} capabilities", False, 
+                             "canRevokeAccess field missing from capabilities")
+
+    def test_effective_capabilities(self):
+        """Test 7: Effective Capabilities - GET /api/plugins/{pluginKey}/effective-capabilities"""
+        print("\n=== Test 7: Effective Capabilities ===")
+        
+        # Test GA4 with SHARED_ACCOUNT and different PAM configurations
+        test_cases = [
+            {
+                'params': {
+                    'accessItemType': 'SHARED_ACCOUNT'
+                },
+                'expected_can_revoke': False,  # Default should require evidence
+                'description': 'SHARED_ACCOUNT without PAM config'
+            },
+            {
+                'params': {
+                    'accessItemType': 'SHARED_ACCOUNT',
+                    'pamOwnership': 'AGENCY_OWNED',
+                    'identityPurpose': 'HUMAN_INTERACTIVE'
+                },
+                'expected_can_revoke': True,  # Should enable OAuth+grant+verify
+                'description': 'AGENCY_OWNED + HUMAN_INTERACTIVE'
+            },
+            {
+                'params': {
+                    'accessItemType': 'SHARED_ACCOUNT', 
+                    'pamOwnership': 'CLIENT_OWNED'
+                },
+                'expected_can_revoke': False,  # Should require evidence
+                'description': 'CLIENT_OWNED'
+            },
+            {
+                'params': {
+                    'accessItemType': 'NAMED_INVITE'
+                },
+                'expected_can_revoke': True,  # Should be unchanged
+                'description': 'NAMED_INVITE (unchanged)'
+            }
+        ]
+        
+        for test_case in test_cases:
+            params = test_case['params']
+            query_string = '&'.join([f'{k}={v}' for k, v in params.items()])
+            
+            response = self.make_request('GET', f'plugins/ga4/effective-capabilities?{query_string}')
+            
+            if response.get('status_code') != 200:
+                self.log_test(f"GA4 effective-capabilities {test_case['description']}", False, 
+                             f"API returned {response.get('status_code')}: {response.get('data')}")
+                continue
+            
+            data = response.get('data', {})
+            if not isinstance(data, dict) or not data.get('success'):
+                self.log_test(f"GA4 effective-capabilities {test_case['description']}", False, 
+                             f"Invalid response format: {data}")
+                continue
+            
+            effective_caps = data.get('data', {}).get('effectiveCapabilities', {})
+            actual_can_revoke = effective_caps.get('canRevokeAccess', False)
+            expected_can_revoke = test_case['expected_can_revoke']
+            
+            if actual_can_revoke == expected_can_revoke:
+                self.log_test(f"GA4 effective-capabilities {test_case['description']}", True, 
+                             f"canRevokeAccess correctly set to {actual_can_revoke}")
+            else:
+                self.log_test(f"GA4 effective-capabilities {test_case['description']}", False, 
+                             f"Expected canRevokeAccess={expected_can_revoke}, got {actual_can_revoke}")
+
+    def run_all_tests(self):
+        """Run all tests in sequence"""
+        print(f"🚀 Starting Unified AccessProvisioningPlugin Interface Tests")
+        print(f"🔗 Base URL: {self.base_url}")
+        
+        try:
+            self.test_plugin_manifest_validation()
+            self.test_grant_access_endpoints()
+            self.test_verify_access_endpoints()
+            self.test_revoke_access_endpoints()
+            self.test_validation_edge_cases()
+            self.test_capabilities_endpoint()
+            self.test_effective_capabilities()
+        except Exception as e:
+            print(f"\n❌ Test execution failed: {str(e)}")
+            return False
+        
+        return True
+
+    def print_summary(self):
+        """Print test summary"""
+        print(f"\n{'='*80}")
+        print(f"📊 TEST SUMMARY")
+        print(f"{'='*80}")
+        print(f"Total Tests: {self.total_tests}")
+        print(f"Passed: {self.passed_tests}")
+        print(f"Failed: {self.total_tests - self.passed_tests}")
+        print(f"Success Rate: {(self.passed_tests/self.total_tests*100):.1f}%" if self.total_tests > 0 else "0%")
+        
+        # Print failed tests
+        failed_tests = [test for test in self.test_results if not test['success']]
+        if failed_tests:
+            print(f"\n❌ FAILED TESTS ({len(failed_tests)}):")
+            for test in failed_tests:
+                print(f"  • {test['test']}: {test['message']}")
+        
+        print(f"\n{'='*80}")
+        
+        return self.passed_tests == self.total_tests
+
 
 def main():
-    """Run all Target Discovery, Save Target API, and GSC Plugin tests"""
-    print("🚀 STARTING COMPREHENSIVE BACKEND API TESTING")
-    print(f"Testing against: {BASE_URL}")
+    """Main test execution"""
+    tester = PluginInterfaceTest()
     
-    total_passed = 0
-    total_tests = 0
-    
-    # Test 1: Save Target Endpoint
-    passed, tests = test_save_target_endpoint()
-    total_passed += passed
-    total_tests += tests
-    
-    # Test 2: Target Discovery Endpoint  
-    passed, tests = test_target_discovery_endpoint()
-    total_passed += passed
-    total_tests += tests
-    
-    # Test 3: Regression Testing
-    passed, tests = test_regression_onboarding_endpoints()
-    total_passed += passed
-    total_tests += tests
-    
-    # Test 4: GSC Capabilities Testing
-    passed, tests = test_gsc_capabilities()
-    total_passed += passed
-    total_tests += tests
-    
-    # Test 5: GSC Additional Endpoints Testing
-    passed, tests = test_gsc_additional_endpoints()
-    total_passed += passed
-    total_tests += tests
-    
-    # Final Results
-    print("\n" + "="*80)
-    print("🎯 FINAL TEST RESULTS")
-    print("="*80)
-    print(f"✅ PASSED: {total_passed}/{total_tests} tests")
-    print(f"❌ FAILED: {total_tests - total_passed}/{total_tests} tests")
-    
-    success_rate = (total_passed / total_tests) * 100 if total_tests > 0 else 0
-    print(f"📈 SUCCESS RATE: {success_rate:.1f}%")
-    
-    if success_rate >= 80:
-        print("🎉 COMPREHENSIVE BACKEND API TESTING COMPLETED SUCCESSFULLY!")
-        print("🔥 GSC PLUGIN TESTING INCLUDED - OAuth, verifyAccess, grantAccess all tested!")
-    else:
-        print("⚠️  Some tests failed. Please review the implementation.")
-    
-    return total_passed == total_tests
+    try:
+        success = tester.run_all_tests()
+        all_passed = tester.print_summary()
+        
+        if all_passed:
+            print("🎉 All tests passed! The unified AccessProvisioningPlugin interface is working correctly.")
+            sys.exit(0)
+        else:
+            print("⚠️ Some tests failed. Check the summary above for details.")
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        print("\n\n⚠️ Tests interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Test execution failed: {str(e)}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    main()
