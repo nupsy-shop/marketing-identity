@@ -380,6 +380,95 @@ export async function createUserAccessInvitation(
   return data.result;
 }
 
+// ─── User Access Removal Operations ────────────────────────────────────────────
+
+/**
+ * Remove a user's access from a customer account.
+ * Uses the Google Ads API to remove customerUserAccess by resource name.
+ */
+export async function removeUserAccess(
+  auth: AuthResult,
+  customerId: string,
+  userEmail: string
+): Promise<{ removed: boolean; resourceName?: string }> {
+  // First, find the user's access link to get the resource name
+  const accessLinks = await listUserAccessLinks(auth, customerId);
+  const userAccess = accessLinks.find(a =>
+    a.emailAddress?.toLowerCase() === userEmail.toLowerCase()
+  );
+
+  if (!userAccess) {
+    return { removed: false };
+  }
+
+  const developerToken = getDeveloperToken();
+
+  // The resource name from the GAQL query is formatted as
+  // customers/{customerId}/customerUserAccesses/{userId}
+  // We need to construct it if we only have userId
+  const resourceName = `customers/${customerId}/customerUserAccesses/${(userAccess as any).userId || ''}`;
+
+  // Use the search query to get the full resource name
+  const query = `
+    SELECT
+      customer_user_access.resource_name,
+      customer_user_access.email_address,
+      customer_user_access.user_id
+    FROM customer_user_access
+    WHERE customer_user_access.email_address = '${userEmail}'
+  `;
+
+  const searchResponse = await fetch(`${GOOGLE_ADS_API_BASE}/customers/${customerId}/googleAds:search`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `${auth.tokenType || 'Bearer'} ${auth.accessToken}`,
+      'Content-Type': 'application/json',
+      ...(developerToken && { 'developer-token': developerToken }),
+      'login-customer-id': customerId,
+    },
+    body: JSON.stringify({ query }),
+  });
+
+  if (!searchResponse.ok) {
+    const errorText = await searchResponse.text();
+    throw new Error(`Failed to find user access for removal: ${errorText}`);
+  }
+
+  const searchData = await searchResponse.json() as {
+    results?: Array<{ customerUserAccess: { resourceName: string; emailAddress: string; userId: string } }>
+  };
+
+  const result = searchData.results?.[0];
+  if (!result) {
+    return { removed: false };
+  }
+
+  const fullResourceName = result.customerUserAccess.resourceName;
+
+  // Mutate: remove the user access
+  const mutateResponse = await fetch(`${GOOGLE_ADS_API_BASE}/customers/${customerId}/customerUserAccesses:mutate`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `${auth.tokenType || 'Bearer'} ${auth.accessToken}`,
+      'Content-Type': 'application/json',
+      ...(developerToken && { 'developer-token': developerToken }),
+      'login-customer-id': customerId,
+    },
+    body: JSON.stringify({
+      operation: {
+        remove: fullResourceName,
+      }
+    }),
+  });
+
+  if (!mutateResponse.ok) {
+    const errorText = await mutateResponse.text();
+    throw new Error(`Failed to remove user access: ${errorText}`);
+  }
+
+  return { removed: true, resourceName: fullResourceName };
+}
+
 // ─── Manager Link Operations (Creation) ────────────────────────────────────────
 
 /**
