@@ -18,7 +18,8 @@ import type {
   AccessItemType,
   PluginOperationParams,
   VerifyResult,
-  GrantResult
+  GrantResult,
+  RevokeResult
 } from '../../lib/plugins/types';
 import { buildPluginError, validateProvisioningRequest } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
@@ -34,7 +35,10 @@ import {
   checkManagerLink,
   checkUserAccess,
   createUserAccessInvitation,
-  createManagerClientLink
+  createManagerClientLink,
+  removeUserAccess,
+  updateManagerLinkStatus,
+  listManagerLinks
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GoogleAdsRole } from './types';
