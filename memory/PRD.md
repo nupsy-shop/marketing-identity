@@ -30,6 +30,15 @@ All 11 plugins (Meta, DV360, Trade Desk, TikTok, Snapchat, LinkedIn, Pinterest, 
 - Plugins with `canGrantAccess: true` (Meta, Salesforce, GA-UA) return "API integration pending"
 - Plugins with `canGrantAccess: false` get 501 at route level
 
+### P2 — Unit Tests (DONE, Feb 2026)
+- 6 test suites, 315 tests, all passing
+- `validateProvisioningRequest`: 12 tests (happy path, missing fields, SHARED_ACCOUNT rejection, unsupported access types)
+- `buildPluginError`: 12 tests (error parsing, HTTP status detection, JSON body extraction, flag detection)
+- `resolveNativeRole`: 5 tests (case insensitivity, whitespace trimming, unknown roles)
+- `getEffectiveCapabilities`: 13 tests (conditional rules, config context, simple capabilities)
+- Manifest validation helpers: 18 tests (ownership, identity, access type, verification mode, full config validation, role templates)
+- Plugin interface compliance: 255 tests (all 15 plugins × 17 checks: manifest structure, interface methods, validation integration, response shapes)
+
 ### Earlier Completed Work
 - GA4 bug fixes (API versions, role formats, UI status updates)
 - Client-centric Admin UI refactor (PlatformIntegrationCard with Sheet, Tabs, filters)
@@ -40,18 +49,19 @@ All 11 plugins (Meta, DV360, Trade Desk, TikTok, Snapchat, LinkedIn, Pinterest, 
 - Unified types in `/app/lib/plugins/types.ts`
 - API routes in `/app/app/api/[[...path]]/route.js`
 - Admin UI in `/app/components/admin/PlatformIntegrationCard.tsx`
+- Unit tests in `/app/tests/unit/*.test.ts`
+- Jest config: `/app/jest.config.js`, `/app/tsconfig.jest.json`
 
 ## Remaining Backlog
 
-### P2 — Unit Tests
-- Add unit tests for `validateProvisioningRequest`, `buildPluginError`
-- Test `revokeAccess` logic per plugin
-- Create `/app/backend/tests/` structure
+### P1 — Implement Stubbed Plugin Methods
+- Replace stubs in 11 non-Google plugins with actual API integrations (requires API credentials per platform)
 
-### P3 — File Cleanup & Structural Consistency
+### P2 — Housekeeping & Cleanup
 - Ensure consistent file naming across all plugin folders
 - Remove any dead code or legacy interfaces
+- Clean up root-level test files (`/app/*.py`)
 
-### Known Issues
-- Google Ads `discoverTargets` flow requires `GOOGLE_ADS_DEVELOPER_TOKEN` (not available)
+## Known Issues
+- Google Ads `discoverTargets` flow requires `GOOGLE_ADS_DEVELOPER_TOKEN` (not available — deferred)
 - Meta/Salesforce/GA-UA `grantAccess`/`verifyAccess` are stubs (API integration pending)
