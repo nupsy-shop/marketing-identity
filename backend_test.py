@@ -113,8 +113,13 @@ def test_plugin_registration(results: TestResults):
         results.add_result("Plugin Registration", "FAIL", f"HTTP {status_code}: {response}")
         return
     
-    if not isinstance(response, list):
-        results.add_result("Plugin Registration", "FAIL", "Response is not a list")
+    # Handle wrapped response format
+    if isinstance(response, dict) and 'data' in response:
+        plugins_list = response['data']
+    elif isinstance(response, list):
+        plugins_list = response
+    else:
+        results.add_result("Plugin Registration", "FAIL", "Response is not a list or wrapped object")
         return
     
     # Check total count
