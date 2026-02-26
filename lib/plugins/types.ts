@@ -100,8 +100,12 @@ export interface AccessTypeCapability {
   canGrantAccess: boolean;
   /** Can we verify a manual step using the client OAuth token? */
   canVerifyAccess: boolean;
+  /** Can we programmatically revoke access via API? */
+  canRevokeAccess?: boolean;
   /** Does this flow require evidence upload and attestation? */
   requiresEvidenceUpload: boolean;
+  /** Per-access-type verification mode (overrides manifest-level default) */
+  verificationMode?: VerificationMode;
 }
 
 /**
