@@ -20,7 +20,8 @@ import type {
   AccessItemType,
   PluginOperationParams,
   VerifyResult,
-  GrantResult
+  GrantResult,
+  RevokeResult
 } from '../../lib/plugins/types';
 import { buildPluginError, validateProvisioningRequest } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
