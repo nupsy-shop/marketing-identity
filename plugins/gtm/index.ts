@@ -14,8 +14,13 @@ import type {
   InstructionContext,
   InstructionStep,
   VerificationContext,
-  AccessItemType
+  AccessItemType,
+  PluginOperationParams,
+  VerifyResult,
+  GrantResult,
+  RevokeResult
 } from '../../lib/plugins/types';
+import { buildPluginError, validateProvisioningRequest } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
 import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, DiscoverTargetsResult } from '../common/types';
 import { GTM_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
@@ -33,21 +38,6 @@ import {
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GTMRole } from './types';
-
-// ─── Verify Access Types ────────────────────────────────────────────────────────
-
-interface VerifyAccessParams {
-  auth: { accessToken: string; tokenType?: string };
-  target: string;  // Account ID or "accountId/containerId" format
-  role: string;    // Expected role key
-  identity: string; // Email to verify
-  accessItemType: AccessItemType;
-}
-
-interface VerifyAccessResult {
-  success: boolean;
-  data?: boolean;
-  error?: string;
   details?: {
     found: boolean;
     foundPermission?: string;
