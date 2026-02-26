@@ -11,7 +11,9 @@
         "db:generate": "npx prisma generate",
         "db:migrate": "npx prisma migrate dev",
         "db:seed": "node prisma/seed.js",
-        "db:reset": "npx prisma migrate reset --force && node prisma/seed.js"
+        "db:reset": "npx prisma migrate reset --force && node prisma/seed.js",
+        "test": "jest --forceExit",
+        "test:unit": "jest --testPathPattern=tests/unit --forceExit"
     },
     "prisma": {
         "seed": "node prisma/seed.js"
