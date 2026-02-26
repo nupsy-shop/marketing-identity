@@ -17,8 +17,12 @@ import type {
   InstructionContext,
   InstructionStep,
   VerificationContext,
-  AccessItemType
+  AccessItemType,
+  PluginOperationParams,
+  VerifyResult,
+  GrantResult
 } from '../../lib/plugins/types';
+import { buildPluginError, validateProvisioningRequest } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
 import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, DiscoverTargetsResult } from '../common/types';
 import { GSC_MANIFEST, SECURITY_CAPABILITIES } from './manifest';
@@ -35,29 +39,6 @@ import {
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GSCRole } from './types';
-
-// ─── Verify Access Types ────────────────────────────────────────────────────────
-
-interface VerifyAccessParams {
-  auth: { accessToken: string; tokenType?: string };
-  target: string;  // Site URL (e.g., "https://example.com/" or "sc-domain:example.com")
-  role: string;    // Expected role key
-  identity: string; // Email to verify
-  accessItemType: AccessItemType;
-}
-
-interface VerifyAccessResult {
-  success: boolean;
-  data?: boolean;
-  error?: string;
-  details?: {
-    found: boolean;
-    foundPermission?: string;
-    expectedRole?: string;
-    identity?: string;
-    siteUrl?: string;
-    message?: string;
-  };
 }
 
 // ─── GSC Plugin Implementation ──────────────────────────────────────────────────
