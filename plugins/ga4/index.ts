@@ -421,6 +421,59 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // Access Revocation
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Revoke access from an identity on a GA4 property or account.
+   * Finds the matching access binding and deletes it via the GA4 Admin API.
+   */
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    const { auth, target, role, identity } = params;
+
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; ') };
+    }
+
+    try {
+      const authResult: AuthResult = { success: true, accessToken: auth.accessToken, tokenType: auth.tokenType || 'Bearer' };
+      const isAccountTarget = target.startsWith('accounts/') || target.startsWith('accounts%2F');
+      const resourceId = isAccountTarget
+        ? target.replace(/^accounts\//, '').replace(/^accounts%2F/, '')
+        : target.replace(/^properties\//, '');
+
+      // List existing bindings to find the one to delete
+      const bindings = isAccountTarget
+        ? await listAccountAccessBindings(authResult, resourceId)
+        : await listAccessBindings(authResult, resourceId);
+
+      const userBinding = bindings.find(b => b.user?.toLowerCase() === identity.toLowerCase());
+      if (!userBinding || !userBinding.name) {
+        return { success: false, error: `No access binding found for ${identity} on ${target}.`, details: { identity } };
+      }
+
+      const previousRoles = userBinding.roles || [];
+      await deleteAccessBinding(authResult, userBinding.name);
+
+      console.log(`[GA4Plugin] Revoked access for ${identity} on ${target} (binding: ${userBinding.name})`);
+      return {
+        success: true,
+        details: {
+          identity,
+          bindingRemoved: userBinding.name,
+          previousRoles,
+        }
+      };
+    } catch (error) {
+      const e = buildPluginError(error, 'ga4', 'revoke');
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied. Administrator role required. Detail: ${e.message}` };
+      if (e.isNotFound) return { success: false, error: `Binding not found: ${e.message}` };
+      return { success: false, error: `Failed to revoke access: ${e.message}` };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Authentication Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
