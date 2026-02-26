@@ -39,7 +39,6 @@ import {
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GSCRole } from './types';
-}
 
 // ─── GSC Plugin Implementation ──────────────────────────────────────────────────
 
