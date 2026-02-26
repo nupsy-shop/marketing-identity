@@ -766,22 +766,29 @@ export interface PlatformPlugin {
   verifyGrant(context: VerificationContext): Promise<VerificationResult>;
 
   // OAuth hooks (optional)
-  startOAuth?(context: { redirectUri: string; scopes?: string[] }): Promise<OAuthStartResult>;
+  startOAuth?(context: { redirectUri: string; scopes?: string[]; scope?: string }): Promise<OAuthStartResult>;
   handleOAuthCallback?(context: { code: string; state?: string; redirectUri: string }): Promise<OAuthCallbackResult>;
 
   /**
    * Programmatically grant access via platform API.
+   * Uses unified PluginOperationParams for consistency.
    * Only implement when accessTypeCapabilities[type].canGrantAccess = true.
-   * Returns success if access was granted, error otherwise.
    */
-  grantAccess?(context: GrantAccessContext): Promise<ConnectorResponse>;
+  grantAccess?(params: PluginOperationParams): Promise<GrantResult>;
 
   /**
-   * Programmatically verify that access has been granted (after manual steps).
+   * Programmatically verify that access has been granted.
+   * Uses unified PluginOperationParams for consistency.
    * Only implement when accessTypeCapabilities[type].canVerifyAccess = true.
-   * Returns success with data=true if access is verified, data=false if not found.
    */
-  verifyAccess?(context: VerifyAccessContext): Promise<ConnectorResponse<boolean>>;
+  verifyAccess?(params: PluginOperationParams): Promise<VerifyResult>;
+
+  /**
+   * Programmatically revoke previously granted access.
+   * Uses unified PluginOperationParams for consistency.
+   * Only implement when accessTypeCapabilities[type].canRevokeAccess = true.
+   */
+  revokeAccess?(params: PluginOperationParams): Promise<RevokeResult>;
 }
 
 // ─── Schema UI Metadata Extensions ─────────────────────────────────────────────
