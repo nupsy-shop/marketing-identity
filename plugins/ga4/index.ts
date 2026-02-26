@@ -176,33 +176,13 @@ class GA4Plugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
    * @param params.identity - Email address to verify
    * @param params.accessItemType - Type of access (NAMED_INVITE, GROUP_ACCESS)
    */
-  async verifyAccess(params: VerifyAccessParams): Promise<VerifyAccessResult> {
+  async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
-    // Validate inputs
-    if (!target) {
-      return { 
-        success: false, 
-        error: 'Property ID (target) is required',
-        details: { found: false }
-      };
-    }
-
-    if (!identity) {
-      return { 
-        success: false, 
-        error: 'Identity (email) to verify is required',
-        details: { found: false }
-      };
-    }
-
-    // SHARED_ACCOUNT type cannot be verified via API
-    if (accessItemType === 'SHARED_ACCOUNT') {
-      return {
-        success: false,
-        error: 'Shared Account (PAM) access cannot be verified via API. Manual evidence required.',
-        details: { found: false }
-      };
+    // Centralized validation
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; '), details: { found: false } };
     }
 
     try {
