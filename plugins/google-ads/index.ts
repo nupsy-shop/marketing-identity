@@ -155,20 +155,10 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
   async verifyAccess(params: PluginOperationParams): Promise<VerifyResult> {
     const { auth, target, role, identity, accessItemType } = params;
 
-    if (!target) {
-      return { success: false, error: 'Customer/Account ID (target) is required', details: { found: false } };
-    }
-
-    if (!identity) {
-      return { success: false, error: 'Identity (email or MCC ID) to verify is required', details: { found: false } };
-    }
-
-    if (accessItemType === 'SHARED_ACCOUNT') {
-      return {
-        success: false,
-        error: 'Shared Account (PAM) access cannot be verified via API. Manual evidence required.',
-        details: { found: false }
-      };
+    // Centralized validation
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; '), details: { found: false } };
     }
 
     try {
