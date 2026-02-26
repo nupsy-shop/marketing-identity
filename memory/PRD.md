@@ -57,15 +57,19 @@ Build a robust, scalable platform for managing client access to marketing servic
 - Removed 22 obsolete root-level test files (20 `.py` + 2 `.sh`, ~10K lines)
 - Removed 10 empty `api/` placeholder directories from plugins
 - Removed Python artifact (`tests/__init__.py`) and stale `test_result.md`
-- Verified: 383 tests still passing, app serving 200
+
+### P2 — Catalog Auto-Discovery (DONE, Feb 2026)
+- Added `domain` field to all 19 plugin manifests for catalog grouping
+- Implemented `syncPluginsToCatalog()` in db.js: auto-inserts missing plugins into `catalog_platforms` DB on first API access
+- Fixed plugin manifest mapping in catalog page (flat structure, not nested `.manifest`)
+- Updated `getPlatformKeyFromName` mappings for all 19 plugins in both frontend catalog and API route
+- Catalog now shows **22 platforms** (19 plugins + 3 legacy DB entries without plugins)
+- Verified: 383 tests still passing, all 22 platforms visible in UI
 
 ## Remaining Backlog
 
 ### P1 — Full End-to-End Testing
-- Systematically test each of the 19 plugins with real API credentials
-
-### P2 — Additional Cleanup
-- Consistent file naming across plugin folders (some lack `types.ts`)
+- Systematically test each of the 19 plugins with real API credentials (some lack `types.ts`)
 
 ## Known Issues
 - Google Ads `discoverTargets` requires `GOOGLE_ADS_DEVELOPER_TOKEN` (deferred)
