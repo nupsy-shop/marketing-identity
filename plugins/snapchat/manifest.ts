@@ -51,7 +51,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const SNAPCHAT_MANIFEST: PluginManifest = {
-  platformKey: 'snapchat', displayName: 'Snapchat Ads', pluginVersion: '2.2.0', category: 'Paid Media',
+  platformKey: 'snapchat', displayName: 'Snapchat Ads', pluginVersion: '2.2.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'Snapchat Ads Manager', tier: 2, clientFacing: true,
   icon: 'fab fa-snapchat', logoPath: '/logos/snapchat.svg', brandColor: '#FFFC00',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

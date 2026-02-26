@@ -28,7 +28,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const GA_UA_MANIFEST: PluginManifest = {
-  platformKey: 'ga-ua', displayName: 'Google Analytics UA (Legacy)', pluginVersion: '3.0.0', category: 'Analytics',
+  platformKey: 'ga-ua', displayName: 'Google Analytics UA (Legacy)', pluginVersion: '3.0.0', category: 'Analytics', domain: 'Analytics',
   description: 'Google Analytics Universal Analytics (sunset - read-only + user management)', tier: 2, clientFacing: true,
   icon: 'fas fa-chart-line', logoPath: '/logos/ga-ua.svg', brandColor: '#E37400',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

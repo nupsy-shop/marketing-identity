@@ -28,7 +28,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const SPOTIFY_ADS_MANIFEST: PluginManifest = {
-  platformKey: 'spotify-ads', displayName: 'Spotify Ads', pluginVersion: '1.0.0', category: 'Paid Media',
+  platformKey: 'spotify-ads', displayName: 'Spotify Ads', pluginVersion: '1.0.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'Spotify Ad Studio - Audio and video ads', tier: 3, clientFacing: true,
   icon: 'fab fa-spotify', logoPath: '/logos/spotify-ads.svg', brandColor: '#1DB954',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

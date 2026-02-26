@@ -28,7 +28,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const REDDIT_ADS_MANIFEST: PluginManifest = {
-  platformKey: 'reddit-ads', displayName: 'Reddit Ads', pluginVersion: '1.0.0', category: 'Paid Media',
+  platformKey: 'reddit-ads', displayName: 'Reddit Ads', pluginVersion: '1.0.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'Reddit Advertising - Promoted Posts, Display Ads', tier: 2, clientFacing: true,
   icon: 'fab fa-reddit', logoPath: '/logos/reddit-ads.svg', brandColor: '#FF4500',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

@@ -28,7 +28,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const AMAZON_ADS_MANIFEST: PluginManifest = {
-  platformKey: 'amazon-ads', displayName: 'Amazon Ads', pluginVersion: '1.0.0', category: 'Paid Media',
+  platformKey: 'amazon-ads', displayName: 'Amazon Ads', pluginVersion: '1.0.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'Amazon Advertising - Sponsored Products, Brands, Display, DSP', tier: 1, clientFacing: true,
   icon: 'fab fa-amazon', logoPath: '/logos/amazon-ads.svg', brandColor: '#FF9900',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

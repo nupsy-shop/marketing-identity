@@ -31,7 +31,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const MICROSOFT_ADS_MANIFEST: PluginManifest = {
-  platformKey: 'microsoft-ads', displayName: 'Microsoft Ads (Bing Ads)', pluginVersion: '1.0.0', category: 'Paid Media',
+  platformKey: 'microsoft-ads', displayName: 'Microsoft Ads (Bing Ads)', pluginVersion: '1.0.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'Microsoft Advertising - Bing, MSN, Outlook, Edge', tier: 1, clientFacing: true,
   icon: 'fab fa-microsoft', logoPath: '/logos/microsoft-ads.svg', brandColor: '#00A4EF',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,

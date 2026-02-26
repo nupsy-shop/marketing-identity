@@ -51,7 +51,7 @@ export const ACCESS_TYPE_CAPABILITIES: AccessTypeCapabilities = {
 };
 
 export const TRADE_DESK_MANIFEST: PluginManifest = {
-  platformKey: 'trade-desk', displayName: 'The Trade Desk', pluginVersion: '2.2.0', category: 'Paid Media',
+  platformKey: 'trade-desk', displayName: 'The Trade Desk', pluginVersion: '2.2.0', category: 'Paid Media', domain: 'Paid Media',
   description: 'The Trade Desk DSP', tier: 1, clientFacing: true,
   icon: 'fas fa-chart-bar', logoPath: '/logos/trade-desk.svg', brandColor: '#0046FF',
   supportedAccessItemTypes: ACCESS_ITEM_TYPES, securityCapabilities: SECURITY_CAPABILITIES, automationCapabilities: AUTOMATION_CAPABILITIES,
