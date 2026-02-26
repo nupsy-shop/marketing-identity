@@ -1,7 +1,7 @@
 # Access Provisioning Platform — PRD
 
 ## Problem Statement
-Build a robust, scalable platform for managing client access to marketing services across 19 ad/analytics platforms. Three architectural pillars:
+Build a robust, scalable platform for managing client access to marketing services across ad/analytics/e-commerce platforms. Three architectural pillars:
 1. **Client-Centric Governance**: Admin UI pivots from account-centric to client-centric views.
 2. **Declarative, Manifest-Driven Architecture**: All plugin capabilities declared in `PluginManifest`, driving runtime validation and UI.
 3. **Unified Plugin Interface**: Standardized `AccessProvisioningPlugin` interface with `grantAccess`, `verifyAccess`, `revokeAccess` across all plugins.
@@ -12,7 +12,7 @@ Build a robust, scalable platform for managing client access to marketing servic
 - GA4, GTM, Google Ads, GSC: Full implementations with live Google APIs
 
 ### P1 — Meta Plugin (DONE)
-- Full Graph API v21.0 integration: OAuth, discoverTargets, grantAccess (PARTNER_DELEGATION + NAMED_INVITE), verifyAccess, revokeAccess (NAMED_INVITE)
+- Full Graph API v21.0 integration: OAuth, discoverTargets, grantAccess, verifyAccess, revokeAccess
 
 ### P1 — All 14 Remaining Plugins (DONE, Feb 2026)
 
@@ -42,35 +42,46 @@ Build a robust, scalable platform for managing client access to marketing servic
 | Spotify Ads | No public API - full manual workflow |
 | Trade Desk | API auth-only discovery - manual user mgmt |
 
+### P1 — Google Merchant Center & Shopify Plugins (DONE, Feb 2026)
+- **Google Merchant Center**: E-commerce category, tier 2, OAuth + Content API discovery, NAMED_INVITE + PARTNER_DELEGATION + SHARED_ACCOUNT
+- **Shopify**: E-commerce category, tier 2, OAuth for app auth, NAMED_INVITE (staff) + PROXY_TOKEN (API) + SHARED_ACCOUNT
+
 ### P2 — Unit Tests (DONE)
 - 6 test suites, 383 tests, all passing
-- Covers: validation, error handling, role mapping, capabilities, manifest validators, all 19 plugins interface compliance
-
-## Architecture
-- **19 plugins** in `/app/plugins/{key}/index.ts` + manifest.ts + api/ + schemas/
-- Unified types in `/app/lib/plugins/types.ts`
-- Plugin loader: `/app/lib/plugins/loader.js` (registers all 19)
-- API routes in `/app/app/api/[[...path]]/route.js`
-- Unit tests in `/app/tests/unit/*.test.ts`
+- Covers: validation, error handling, role mapping, capabilities, manifest validators, all plugins interface compliance
 
 ### P2 — Housekeeping & Cleanup (DONE, Feb 2026)
-- Removed 22 obsolete root-level test files (20 `.py` + 2 `.sh`, ~10K lines)
+- Removed 22 obsolete root-level test files
 - Removed 10 empty `api/` placeholder directories from plugins
-- Removed Python artifact (`tests/__init__.py`) and stale `test_result.md`
 
 ### P2 — Catalog Auto-Discovery (DONE, Feb 2026)
-- Added `domain` field to all 19 plugin manifests for catalog grouping
-- Implemented `syncPluginsToCatalog()` in db.js: auto-inserts missing plugins into `catalog_platforms` DB on first API access
-- Fixed plugin manifest mapping in catalog page (flat structure, not nested `.manifest`)
-- Updated `getPlatformKeyFromName` mappings for all 19 plugins in both frontend catalog and API route
-- Catalog now shows **22 platforms** (19 plugins + 3 legacy DB entries without plugins)
-- Verified: 383 tests still passing, all 22 platforms visible in UI
+- Added `domain` field to all plugin manifests for catalog grouping
+- `syncPluginsToCatalog()` in db.js: upserts all plugin manifests into `catalog_platforms` DB on startup
+- Handles legacy slug mismatches (updates existing by slug OR name match)
+- Catalog now shows **21 platforms** (21 plugins, all synced from manifests)
+
+### P2 — Consolidated Platform Mappings (DONE, Feb 2026)
+- Created `/app/lib/platform-mappings.js` as single source of truth for name/key/slug mappings
+- Removed duplicate `getPlatformKeyFromName()` from route.js and catalog page.js
+- Removed hardcoded `KEY_TO_SLUG` mapping from route.js
+- All DB slugs now normalized to match plugin keys (e.g., `ga4` not `google-analytics`)
+
+### P2 — Legacy DB Cleanup (DONE, Feb 2026)
+- Removed orphaned "Looker Studio" from catalog_platforms
+
+## Architecture
+- **21 plugins** in `/app/plugins/{key}/index.ts` + manifest.ts + schemas/
+- Unified types in `/app/lib/plugins/types.ts`
+- Plugin loader: `/app/lib/plugins/loader.js` (registers all 21)
+- Platform mappings: `/app/lib/platform-mappings.js` (single source of truth)
+- API routes in `/app/app/api/[[...path]]/route.js`
+- Unit tests in `/app/tests/unit/*.test.ts`
 
 ## Remaining Backlog
 
 ### P1 — Full End-to-End Testing
-- Systematically test each of the 19 plugins with real API credentials (some lack `types.ts`)
+- Systematically test each plugin with real API credentials
 
 ## Known Issues
 - Google Ads `discoverTargets` requires `GOOGLE_ADS_DEVELOPER_TOKEN` (deferred)
-- New plugins (Amazon, Reddit, Microsoft, Spotify) need real API credentials in `.env` to be fully functional
+- New plugins need real API credentials in `.env` to be fully functional
