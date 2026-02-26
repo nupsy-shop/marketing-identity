@@ -20,6 +20,20 @@ import { isPlatformOAuthConfigured, getPlatformConfig, PlatformOAuthError } from
 // Initialize plugins on module load
 initializePlugins();
 
+// Auto-sync plugins to catalog_platforms DB (runs once)
+let catalogSynced = false;
+async function ensureCatalogSynced() {
+  if (catalogSynced) return;
+  catalogSynced = true;
+  try {
+    const manifests = PluginRegistry.getAllManifests();
+    await db.syncPluginsToCatalog(manifests);
+  } catch (err) {
+    console.error('[Catalog Sync] Failed:', err.message);
+    catalogSynced = false; // retry next time
+  }
+}
+
 // Helper to parse request body
 async function getBody(request) {
   try {
