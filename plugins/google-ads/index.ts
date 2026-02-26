@@ -15,8 +15,12 @@ import type {
   InstructionContext,
   InstructionStep,
   VerificationContext,
-  AccessItemType
+  AccessItemType,
+  PluginOperationParams,
+  VerifyResult,
+  GrantResult
 } from '../../lib/plugins/types';
+import { buildPluginError, validateProvisioningRequest } from '../../lib/plugins/types';
 import type { AdPlatformPlugin, OAuthCapablePlugin } from '../common/plugin.interface';
 import type { AppContext, AuthParams, AuthResult, Account, ReportQuery, ReportResult, EventPayload, DiscoverTargetsResult } from '../common/types';
 
@@ -34,25 +38,6 @@ import {
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GoogleAdsRole } from './types';
-
-// ─── Verify Access Types ────────────────────────────────────────────────────────
-
-interface VerifyAccessParams {
-  auth: { accessToken: string; tokenType?: string };
-  target: string;  // Customer/Account ID
-  role: string;    // Expected role key
-  identity: string; // Email or MCC ID to verify
-  accessItemType: AccessItemType;
-}
-
-interface VerifyAccessResult {
-  success: boolean;
-  data?: boolean;
-  error?: string;
-  details?: {
-    found: boolean;
-    foundRole?: string;
-    expectedRole?: string;
     identity?: string;
     linkStatus?: string;
   };
