@@ -424,6 +424,78 @@ class GTMPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapablePlugin 
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // Access Revocation
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Revoke access from an identity on a GTM account/container.
+   * Finds the user's permission entry and deletes it via the GTM API.
+   */
+  async revokeAccess(params: PluginOperationParams): Promise<RevokeResult> {
+    const { auth, target, role, identity } = params;
+
+    const errors = validateProvisioningRequest(this.manifest, params);
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; ') };
+    }
+
+    try {
+      const authResult: AuthResult = {
+        success: true,
+        accessToken: auth.accessToken,
+        tokenType: auth.tokenType || 'Bearer'
+      };
+
+      const [accountId] = target.split('/');
+
+      console.log(`[GTMPlugin] Revoking access for ${identity} on account ${accountId}`);
+
+      // Find the user's permission
+      const permissions = await listAccountUserPermissions(authResult, accountId);
+      const userPermission = permissions.find(p =>
+        p.emailAddress?.toLowerCase() === identity.toLowerCase()
+      );
+
+      if (!userPermission || !userPermission.path) {
+        return {
+          success: false,
+          error: `No permission found for ${identity} on account ${accountId}.`,
+          details: { identity }
+        };
+      }
+
+      const previousRoles: string[] = [];
+      if (userPermission.accountAccess?.permission) {
+        previousRoles.push(`account:${userPermission.accountAccess.permission}`);
+      }
+      if (userPermission.containerAccess) {
+        for (const ca of userPermission.containerAccess) {
+          previousRoles.push(`container-${ca.containerId}:${ca.permission}`);
+        }
+      }
+
+      // Delete the user permission
+      await deleteUserPermission(authResult, userPermission.path);
+
+      console.log(`[GTMPlugin] Revoked permission ${userPermission.path} for ${identity}`);
+      return {
+        success: true,
+        details: {
+          identity,
+          bindingRemoved: userPermission.path,
+          previousRoles,
+        }
+      };
+
+    } catch (error) {
+      const e = buildPluginError(error, 'gtm', 'revoke');
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied. Admin role required. Detail: ${e.message}` };
+      if (e.isNotFound) return { success: false, error: `Permission not found: ${e.message}` };
+      return { success: false, error: `Failed to revoke access: ${e.message}` };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Authentication Methods
   // ═══════════════════════════════════════════════════════════════════════════
 
