@@ -42,8 +42,11 @@ export interface PluginManifest {
   // ─── Categorization ────────────────────────────────────────────────────────
   
   /** Platform category */
-  category: 'Paid Media' | 'Analytics' | 'Martech' | 'Data' | 'CRM' | 'Tag Management' | 'Ecommerce' | 'Social' | 'SEO' | 'Data Warehouse' | 'E-commerce';
+  category: 'Paid Media' | 'Analytics' | 'Martech' | 'Data' | 'CRM' | 'Tag Management' | 'Ecommerce' | 'Social' | 'SEO' | 'Data Warehouse' | 'E-commerce' | string;
   
+  /** Domain for catalog grouping (e.g., 'Paid Media', 'Analytics'). Falls back to category if not set. */
+  domain?: string;
+
   /** Brief description of the platform */
   description: string;
   
