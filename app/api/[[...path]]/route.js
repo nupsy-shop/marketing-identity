@@ -51,6 +51,7 @@ function getPlatformKeyFromName(name) {
     'google ads': 'google-ads',
     'meta': 'meta',
     'facebook': 'meta',
+    'google analytics / ga4': 'ga4',
     'google analytics': 'ga4',
     'ga4': 'ga4',
     'google search console': 'google-search-console',
@@ -68,7 +69,13 @@ function getPlatformKeyFromName(name) {
     'salesforce': 'salesforce',
     'google tag manager': 'gtm',
     'gtm': 'gtm',
+    'google analytics ua': 'ga-ua',
     'universal analytics': 'ga-ua',
+    'amazon ads': 'amazon-ads',
+    'reddit ads': 'reddit-ads',
+    'microsoft ads': 'microsoft-ads',
+    'bing ads': 'microsoft-ads',
+    'spotify ads': 'spotify-ads',
   };
   
   for (const [key, value] of Object.entries(keyMap)) {
