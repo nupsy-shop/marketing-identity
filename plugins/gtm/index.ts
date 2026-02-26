@@ -38,14 +38,6 @@ import {
 } from './api/management';
 import { buildAuthorizationUrl, exchangeCodeForTokens, generateState } from '../common/utils/auth';
 import { ROLE_MAPPING, type GTMRole } from './types';
-  details?: {
-    found: boolean;
-    foundPermission?: string;
-    expectedRole?: string;
-    identity?: string;
-    containerAccess?: Array<{ containerId: string; permission: string }>;
-  };
-}
 
 // ─── Permission Hierarchy ───────────────────────────────────────────────────────
 
