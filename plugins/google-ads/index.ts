@@ -451,39 +451,12 @@ class GoogleAdsPlugin implements PlatformPlugin, AdPlatformPlugin, OAuthCapableP
       };
 
     } catch (error) {
-      console.error('[GoogleAdsPlugin] grantAccess error:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      if (errorMessage.includes('403') || errorMessage.includes('Permission denied')) {
-        return {
-          success: false,
-          error: 'The OAuth token does not have permission to manage access on this account. Admin access is required.',
-          details: { found: false }
-        };
-      }
-      
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        return {
-          success: false,
-          error: `Customer account ${target} was not found or is not accessible.`,
-          details: { found: false }
-        };
-      }
-      
-      if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
-        return {
-          success: false,
-          error: `Invalid request: ${errorMessage}. Please verify the email address and account ID are correct.`,
-          details: { found: false }
-        };
-      }
-      
-      return {
-        success: false,
-        error: `Failed to grant access: ${errorMessage}`,
-        details: { found: false }
-      };
+      const e = buildPluginError(error, 'google-ads', 'grant');
+      if (e.isPermissionDenied) return { success: false, error: `Permission denied. Admin access required. Detail: ${e.message}`, details: { found: false } };
+      if (e.isNotFound) return { success: false, error: `Customer account ${target} not found or inaccessible. Detail: ${e.message}`, details: { found: false } };
+      if (e.isConflict) return { success: false, error: `Access already exists for ${identity}. Detail: ${e.message}`, details: { found: false, alreadyExists: true } };
+      if (e.isBadRequest) return { success: false, error: `Invalid request: ${e.message}`, details: { found: false } };
+      return { success: false, error: `Failed to grant access: ${e.message}`, details: { found: false } };
     }
   }
 
